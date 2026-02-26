@@ -1,0 +1,24 @@
+---
+title: "study_area_osm"
+output: html_document
+---
+
+```{r}
+study_area_polygon <- census_tracts
+area_bbox <- sf::st_bbox(study_area_polygon)
+osmosis_path <- "C:/Users/brdia/Downloads/osmosis-0.49.2/osmosis-0.49.2/bin/osmosis.bat"
+large_pbf_path <- "C:/Users/brdia/Downloads/ontario-251221.osm.pbf"
+
+# path where you want to save the smaller .pbf file
+smaller_pbf <-"C:/Bruno/packages/MJNSstandards/data-raw/output/GTAH/CT/travel_times/study_area.pbf"
+
+# prepare call to osmosis
+osmosis_cmd <- sprintf("%s --read-pbf %s --bounding-box left=%s bottom=%s right=%s top=%s --write-pbf %s",
+                       osmosis_path, large_pbf_path, 
+                       area_bbox$xmin, area_bbox$ymin, area_bbox$xmax, area_bbox$ymax,
+                       smaller_pbf)
+
+# call to osmosis
+shell(osmosis_cmd, translate = TRUE)
+```
+

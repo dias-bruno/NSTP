@@ -1,0 +1,3371 @@
+---
+title: "01-Preprocessing-MJNS"
+output: html_document
+---
+# Packages
+
+```{r load-packages}
+library(CommuteCA)
+library(dplyr) # A Grammar of Data Manipulation
+library(here) # Enables easy file referencing in project-oriented workflows
+library(tidyr) # Tools for tidying data: reshaping, pivoting, separating, and uniting columns
+library(Hmisc)
+library(ordinal)
+library(survey)
+library(texreg)
+library(robustbase)
+library(quantreg)
+library(boot)
+library(ggplot2)
+library(sf)
+library(tmap)
+library(purrr)
+library(stringr)
+```
+
+```{r}
+rm(list = ls())
+```
+
+reading data: 
+
+```{r}
+files_address <- paste0(here(),"/data-raw/MJ-Survey/ns_data_re.csv")
+mjsurvey <- read.csv(files_address, header = TRUE)
+mjsurvey_backup <- mjsurvey
+```
+
+```{r}
+files_address <- paste0(here(),"/data-raw/MJ-Survey/Household_Members_Data_2025-04-16.csv")
+mjsurvey_household <- read.csv(files_address, header = TRUE)
+```
+
+```{r}
+files_address <- paste0(here(),"/data-raw/input/census_spatial_keys.csv")
+
+keys <- read.csv(files_address, header = TRUE, 
+               colClasses = c("character", "character","character", "character", "character",
+                              "character","character"))
+```
+
+```{r read-accessibility}
+# Folder  
+measures_folder <- paste0(here::here(),"/data-raw/output/GTAH/CT/spatial-filter-measures/")
+
+# Read file
+# Read file
+Accessibilities <- read.csv(paste0(measures_folder, "spatial_filters.csv"), 
+               colClasses = c("character", "character", 
+                              "numeric","numeric",
+                              "numeric","numeric",
+                              "numeric","numeric", 
+                              "numeric","numeric" )) %>% 
+  mutate(PwMode_label = case_when(
+    PwMode_label == "Car-motor" ~ "Car_motor",
+    TRUE ~ PwMode_label ))
+```
+
+
+Reading the dissemination area geometries:
+
+```{r}
+directory_spatial_files <- paste0(here(), "/data-raw/output/GTAH/spatial-files/") # Update this address if necessary
+census_tracts <-   st_read(paste0(directory_spatial_files, "census_tracts.shp"))
+census_tracts <- nngeo::st_remove_holes(census_tracts)
+```
+
+Reading the census division geometries:
+
+```{r}
+census_divisions <- st_read(paste0(directory_spatial_files, "census_divisions.shp"))
+census_divisions <- nngeo::st_remove_holes(census_divisions)
+
+census_divisions <- census_divisions %>% 
+  mutate(PCD = substr(CDUID, 0, 4),
+         pcd_label = case_when(PCD == "3518" ~ "Durham", 
+                               PCD == "3519" ~ "York", 
+                               PCD == "3520" ~ "Toronto", 
+                               PCD == "3521" ~ "Peel", 
+                               PCD == "3524" ~ "Halton", 
+                               PCD == "3525" ~ "Hamilton"))
+```
+
+Setting folders to export files:
+
+```{r directory-export}
+diretorio_export <- paste0(here(),"/data-raw/output/GTAH/CT/standards-measures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export)){
+  dir.create(diretorio_export, recursive = TRUE)}
+
+diretorio_export_images <- paste0(here(),"/data-raw/output/GTAH/CT/standards-figures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export_images)){
+  dir.create(diretorio_export_images, recursive = TRUE)
+  
+  dir.create(paste0(diretorio_export_images,
+                    "/linear/all/"), recursive = TRUE)
+  dir.create(paste0(diretorio_export_images,
+                    "/linear/sig/"), recursive = TRUE) 
+  dir.create(paste0(diretorio_export_images,
+                    "/ordinal/"), recursive = TRUE)
+}
+```
+
+
+
+# Pre-processing: 
+
+- *pe_agreeWithDeclineEmploymentOpportunitiesDueToTransport*: Declining employment opportunities because of transport situation (0: Disagree; 100: Agree) -  quanto mais, pior
+
+- *pe_tooFewJobsInMyIdealCommutingTime*: Job availability with ideal commute 
+time (0: Disagree; 100: Agree) -  quanto mais, pior
+
+- *pe_tooLongToTravelToWork*: Travel to work too long (0: Disagree; 100: Agree) -  quanto mais, pior
+
+- *pe_easilyReachWork*: Activity participation: Work (0: Disagree; 100: Agree)
+
+```{r}
+# Declining employment opportunities because of transport situation 
+LS_DeclineEmployment <- mjsurvey %>% 
+  dplyr::select(fexp_final, X_activePersonId,pe_agreeWithDeclineEmploymentOpportunitiesDueToTransport) %>% 
+  filter(!pe_agreeWithDeclineEmploymentOpportunitiesDueToTransport %in% c("na","")) %>% 
+  mutate(DeclineEmployment = as.numeric(pe_agreeWithDeclineEmploymentOpportunitiesDueToTransport)) %>% 
+  filter(DeclineEmployment >= 0) %>%
+  mutate(DeclineEmployment_Likert = 
+           cut(DeclineEmployment,
+               breaks = Hmisc::wtd.quantile(DeclineEmployment, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
+               labels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+               include.lowest = TRUE), 
+         DeclineEmployment_Likert = factor(DeclineEmployment_Likert, 
+                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+             ordered = TRUE))
+
+# Few job availability with ideal commute 
+LS_FewJobs <- mjsurvey %>% 
+  dplyr::select(fexp_final, X_activePersonId,pe_tooFewJobsInMyIdealCommutingTime) %>% 
+  filter(!pe_tooFewJobsInMyIdealCommutingTime %in% c("na","")) %>% 
+  mutate(FewJobs = as.numeric(pe_tooFewJobsInMyIdealCommutingTime)) %>% 
+  filter(FewJobs >= 0) %>%
+  mutate(FewJobs_Likert = 
+           cut(FewJobs,
+               breaks = Hmisc::wtd.quantile(FewJobs, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
+               labels = c("Most Positive", "Positive", "Neutral", "Negative", "Most Negative"),
+               include.lowest = TRUE), 
+         FewJobs_Likert = factor(FewJobs_Likert, 
+                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+             ordered = TRUE))
+
+# Travel to work too long 
+LS_TravelTooLong <- mjsurvey %>% 
+  dplyr::select(fexp_final, X_activePersonId,pe_tooLongToTravelToWork) %>% 
+  filter(!pe_tooLongToTravelToWork %in% c("na","")) %>% 
+  mutate(TravelTooLong = as.numeric(pe_tooLongToTravelToWork)) %>% 
+  filter(TravelTooLong >= 0) %>%
+  mutate(TravelTooLong_Likert = 
+           cut(TravelTooLong,
+               breaks = Hmisc::wtd.quantile(TravelTooLong, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
+               labels =c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+               include.lowest = TRUE), 
+         TravelTooLong_Likert = factor(TravelTooLong_Likert, 
+                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+             ordered = TRUE))
+
+# Easy to go work
+LS_EasyToGo <- mjsurvey %>% 
+  dplyr::select( fexp_final,  X_activePersonId,pe_easilyReachWork) %>% 
+  filter(!pe_easilyReachWork %in% c("na","")) %>% 
+  mutate(EasyToGo = as.numeric(pe_easilyReachWork)) %>% 
+  filter(EasyToGo >= 0) %>%
+  mutate(EasyToGo_Likert = 
+           cut(EasyToGo,
+               breaks = Hmisc::wtd.quantile(EasyToGo, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
+               labels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+               include.lowest = TRUE), 
+         EasyToGo_Likert = factor(EasyToGo_Likert, 
+                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+             ordered = TRUE))
+
+# Easy to go work
+LS_EasyToGo <- mjsurvey %>% 
+  dplyr::select( fexp_final,  X_activePersonId,pe_easilyReachWork) %>% 
+  filter(!pe_easilyReachWork %in% c("na","")) %>% 
+  mutate(EasyToGo = as.numeric(pe_easilyReachWork)) %>% 
+  filter(EasyToGo >= 0) %>%
+  mutate(EasyToGo_Likert = 
+           cut(EasyToGo,
+               breaks = Hmisc::wtd.quantile(EasyToGo, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
+               labels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+               include.lowest = TRUE), 
+         EasyToGo_Likert = factor(EasyToGo_Likert, 
+                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+             ordered = TRUE))
+
+# Public Transit Variables
+
+## TransportSatisfaction (***)
+LS_TransportSatisfaction <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_transportSatisfaction) %>% 
+  filter(!pe_transportSatisfaction %in% c("na","")) %>% 
+  mutate(TransportSatisfaction = as.numeric(pe_transportSatisfaction)) %>% 
+  filter(TransportSatisfaction >= 0)
+
+## TransitWaitTime (***)
+LS_TransitWaitTime <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_tooLongwaitTimeForTransit) %>% 
+  filter(!pe_tooLongwaitTimeForTransit %in% c("na","")) %>% 
+  mutate(TransitWaitTime = as.numeric(pe_tooLongwaitTimeForTransit)) %>% 
+  filter(TransitWaitTime >= 0)
+
+## TransitReliable (***)
+LS_TransitReliable <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsReliable) %>% 
+  filter(!pe_thinkPublicTransportIsReliable %in% c("na","")) %>% 
+  mutate(TransitReliable = as.numeric(pe_thinkPublicTransportIsReliable)) %>% 
+  filter(TransitReliable >= 0)
+
+## TransitPractical (***)
+LS_TransitPractical <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsPractical) %>% 
+  filter(!pe_thinkPublicTransportIsPractical %in% c("na","")) %>% 
+  mutate(TransitPractical = as.numeric(pe_thinkPublicTransportIsPractical)) %>% 
+  filter(TransitPractical >= 0)
+
+## TransitTimeSave (***)
+LS_TransitTimeSave <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsTimeSaving) %>% 
+  filter(!pe_thinkPublicTransportIsTimeSaving %in% c("na","")) %>% 
+  mutate(TransitTimeSave = as.numeric(pe_thinkPublicTransportIsTimeSaving)) %>% 
+  filter(TransitTimeSave >= 0)
+
+## Forced to have a car
+LS_ForcedCar <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_agreeWithFeelForcedToOwnCar) %>% 
+  filter(!pe_agreeWithFeelForcedToOwnCar %in% c("na","")) %>% 
+  mutate(ForcedCar = as.numeric(pe_agreeWithFeelForcedToOwnCar)) %>% 
+  filter(ForcedCar >= 0)
+
+# Public Transit Variables
+
+## Work by Transit (****)
+LS_WorkbyTransit <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,p_averageTimesGoWorkplaceTransit) %>% 
+  filter(!p_averageTimesGoWorkplaceTransit %in% ("")) %>% 
+  mutate(WorkbyTransit = factor(p_averageTimesGoWorkplaceTransit, levels= c("almostNever","lessThan1TimeWeek", "1TimeWeek",
+                                                  "2TimesWeek", "3TimesWeek",
+                                                  "4TimesWeek" , "5TimesWeekOrMore"), ordered = TRUE)) %>% 
+  mutate(WorkbyTransit_count = case_when(
+      p_averageTimesGoWorkplaceTransit == "almostNever" ~ 0,
+      p_averageTimesGoWorkplaceTransit == "lessThan1TimeWeek" ~ 0,
+      p_averageTimesGoWorkplaceTransit == "1TimeWeek" ~ 1,
+      p_averageTimesGoWorkplaceTransit == "2TimesWeek" ~ 2,
+      p_averageTimesGoWorkplaceTransit == "3TimesWeek" ~ 3,
+      p_averageTimesGoWorkplaceTransit == "4TimesWeek" ~ 4,
+      p_averageTimesGoWorkplaceTransit == "5TimesWeekOrMore" ~ 5)) 
+
+
+## TransportSatisfaction (***)
+LS_TransportSatisfaction <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_transportSatisfaction) %>% 
+  filter(!pe_transportSatisfaction %in% c("na","")) %>% 
+  mutate(TransportSatisfaction = as.numeric(pe_transportSatisfaction)) %>% 
+  filter(TransportSatisfaction >= 0)
+
+## TransitWaitTime (***)
+LS_TransitWaitTime <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_tooLongwaitTimeForTransit) %>% 
+  filter(!pe_tooLongwaitTimeForTransit %in% c("na","")) %>% 
+  mutate(TransitWaitTime = as.numeric(pe_tooLongwaitTimeForTransit)) %>% 
+  filter(TransitWaitTime >= 0)
+
+## TransitReliable (***)
+LS_TransitReliable <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsReliable) %>% 
+  filter(!pe_thinkPublicTransportIsReliable %in% c("na","")) %>% 
+  mutate(TransitReliable = as.numeric(pe_thinkPublicTransportIsReliable)) %>% 
+  filter(TransitReliable >= 0)
+
+## TransitPractical (***)
+LS_TransitPractical <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsPractical) %>% 
+  filter(!pe_thinkPublicTransportIsPractical %in% c("na","")) %>% 
+  mutate(TransitPractical = as.numeric(pe_thinkPublicTransportIsPractical)) %>% 
+  filter(TransitPractical >= 0)
+
+## TransitTimeSave (***)
+LS_TransitTimeSave <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsTimeSaving) %>% 
+  filter(!pe_thinkPublicTransportIsTimeSaving %in% c("na","")) %>% 
+  mutate(TransitTimeSave = as.numeric(pe_thinkPublicTransportIsTimeSaving)) %>% 
+  filter(TransitTimeSave >= 0)
+
+## Forced to have a car
+LS_ForcedCar <- mjsurvey %>% 
+  dplyr::select(X_activePersonId,pe_agreeWithFeelForcedToOwnCar) %>% 
+  filter(!pe_agreeWithFeelForcedToOwnCar %in% c("na","")) %>% 
+  mutate(ForcedCar = as.numeric(pe_agreeWithFeelForcedToOwnCar)) %>% 
+  filter(ForcedCar >= 0)
+
+outcomes_std <- mjsurvey %>% dplyr::select(interview_id, X_activePersonId, fexp_final) %>% 
+  left_join(LS_DeclineEmployment %>% dplyr::select(-fexp_final) , by = "X_activePersonId") %>% 
+  left_join(LS_FewJobs %>% dplyr::select(-fexp_final) , by = "X_activePersonId") %>% 
+  left_join(LS_TravelTooLong %>% dplyr::select(-fexp_final), by = "X_activePersonId") %>% 
+  left_join(LS_EasyToGo %>% dplyr::select(-fexp_final), by = "X_activePersonId") %>%
+  left_join(LS_WorkbyTransit, by = "X_activePersonId") %>%
+  left_join(LS_TransportSatisfaction, by = "X_activePersonId") %>%
+  left_join(LS_TransitWaitTime, by = "X_activePersonId") %>%
+  left_join(LS_TransitReliable, by = "X_activePersonId") %>%
+  left_join(LS_TransitPractical, by = "X_activePersonId") %>%
+  left_join(LS_TransitTimeSave, by = "X_activePersonId") %>%
+  left_join(LS_ForcedCar, by = "X_activePersonId")
+```
+
+Control variables: 
+
+```{r}
+control_var <- mjsurvey %>% 
+  dplyr::select(interview_id, 
+                X_activePersonId,
+                fexp_final, 
+                DAUID_ADIDU,
+                t_householdCarNumber,
+                t_householdBikeNumber,
+                t_driverLicense,
+                t_monthlyOrAnnualTransitPass,
+                t_transitIsAvailable,
+                t_useParatransitServices, 
+                s_genderIdentity, # 
+                s_highestEducationLevel, # 
+                s_bornInCanada, 
+                s_firstNationsMetisOrInuit, 
+                s_ethnicity, # 
+                s_canadianStatus, # 
+                s_longTermConditionsDifficultySeeing, 
+                s_longTermConditionsDifficultyHearing, 
+                s_longTermConditionsDifficultyWalking, 
+                s_longTermConditionsDifficultyLearning,           
+                s_emotionalPsychologicalMentalConditions, 
+                s_age,
+                hh_size, 
+                hh_householdIncome) %>% 
+  mutate(hh_income = case_when(hh_householdIncome == "000000_009999" ~ "Less than $30,000", 
+                               hh_householdIncome == "010000_019999" ~ "Less than $30,000", 
+                               hh_householdIncome == "020000_029999" ~ "Less than $30,000", 
+                               hh_householdIncome == "030000_039999" ~ "$30,000 to $60,000", 
+                               hh_householdIncome == "040000_049999" ~ "$30,000 to $60,000", 
+                               hh_householdIncome == "050000_059999" ~ "$30,000 to $60,000", 
+                               hh_householdIncome == "060000_069999" ~ "$60,000 to $90,000", 
+                               hh_householdIncome == "070000_079999" ~ "$60,000 to $90,000", 
+                               hh_householdIncome == "080000_089999" ~ "$60,000 to $90,000", 
+                               hh_householdIncome == "090000_119999" ~ "$90,000 to $120,000", 
+                               hh_householdIncome == "120000_149999" ~ "$120,000 to $150,000", 
+                               hh_householdIncome == "150000_179999" ~ "$150,000 to $180,000", 
+                               hh_householdIncome == "180000_209999" ~ "$180,000 to $210,000", 
+                               hh_householdIncome == "210000_999999" ~ "More than $210,000", 
+    ),
+    hh_income = factor(hh_income, levels = c("Less than $30,000",
+                                             "$30,000 to $60,000", 
+                                             "$60,000 to $90,000", 
+                                             "$90,000 to $120,000", 
+                                             "$150,000 to $180,000", 
+                                             "$180,000 to $210,000", 
+                                             "More than $210,000")), 
+    DriverLicense = case_when(
+      t_driverLicense == "yes" ~ "Yes",
+     TRUE ~ "No"
+    ),
+    DriverLicense = factor(DriverLicense, levels = c("No", "Yes")),
+    
+    TransitPass = case_when(
+      t_monthlyOrAnnualTransitPass == "yes" ~ "Yes",
+     TRUE ~ "No"
+    ),
+    TransitPass = factor(TransitPass, levels = c("No", "Yes")),
+    
+    TransitAvailable = case_when(
+      t_transitIsAvailable == "yes" ~ "Yes",
+     TRUE ~ "No"
+    ),
+    TransitAvailable = factor(TransitAvailable, levels = c("No", "Yes")),
+    
+    Paratransit = case_when(
+      t_useParatransitServices == "yes" ~ "Yes",
+     TRUE ~ "No"
+    ),
+    Paratransit = factor(Paratransit, levels = c("No", "Yes")),
+    
+    Indigenous = case_when(
+      s_firstNationsMetisOrInuit == "yes" ~ "Yes",
+     TRUE ~ "No"
+    ),
+    Indigenous = factor(Indigenous, levels = c("No", "Yes")),
+    
+    Non_White = case_when(
+      s_ethnicity == "white" ~ "No",
+     TRUE ~ "Yes"
+    ),
+    Non_White = factor(Non_White, levels = c("No", "Yes")),
+    
+    Temporary_or_refugee = case_when(
+      s_canadianStatus %in% c("temporaryResident", "refugeeAsylumSeeker") ~ "Yes",
+     TRUE ~ "No"
+     ),
+    Temporary_or_refugee = factor(Temporary_or_refugee, levels = c("No", "Yes")),
+    
+    LongTermConditions = case_when(
+      s_longTermConditionsDifficultySeeing %in% c("often", "always") |  
+        s_longTermConditionsDifficultyHearing %in% c("often", "always") |  
+        s_longTermConditionsDifficultyWalking %in% c("often", "always") |  
+        s_longTermConditionsDifficultyLearning %in% c("often", "always") |  
+        s_emotionalPsychologicalMentalConditions %in% c("often", "always") ~ "Yes",
+     TRUE ~ "No"
+    ),
+    LongTermConditions = factor(LongTermConditions, levels = c("No", "Yes")),
+    
+    Immigrant = case_when(
+      s_bornInCanada == "yes" ~ "Yes",  # Born in Canada = not immigrant
+     TRUE ~ "No"
+    ),
+    Immigrant = factor(Immigrant, levels = c("No", "Yes")),
+    
+    Woman = case_when(
+      s_genderIdentity %in% c("woman", "transWoman") ~ "Yes",
+      TRUE ~ "No"
+    ),
+    Woman = factor(Woman, levels = c("No", "Yes")),
+    
+    twoSTQI = case_when(
+      s_genderIdentity %in% c("woman", "man") ~ "No",
+      TRUE ~ "Yes"
+    ),
+    twoSTQI = factor(twoSTQI, levels = c("No", "Yes")), 
+    
+    CarNumber = t_householdCarNumber, 
+    BikeNumber = t_householdBikeNumber,
+    Age = s_age, 
+    age_group = case_when(Age < 15 ~ "<= 15", 
+                           Age >= 15 &  Age < 25 ~ "15 - 25",
+                           Age >= 25 &  Age < 35 ~ "25 - 35",
+                           Age >= 35 &  Age < 45 ~ "35 - 45",
+                           Age >= 45 &  Age < 55 ~ "45 - 55",
+                           Age >= 55 &  Age < 65 ~ "55 - 65",
+                           Age >= 65 ~ "65+"), 
+     age_group = factor(age_group), 
+     car_number_group = case_when(CarNumber == 0 ~ "0", 
+                           CarNumber == 1 ~ "1", 
+                           CarNumber > 1 ~ "2 or more"), 
+     car_number_group = factor(car_number_group)) %>%
+  dplyr::select(-c(t_driverLicense, t_monthlyOrAnnualTransitPass, 
+            t_transitIsAvailable, t_useParatransitServices,
+            s_firstNationsMetisOrInuit, s_ethnicity,
+            s_canadianStatus, s_longTermConditionsDifficultySeeing,
+            s_longTermConditionsDifficultyHearing, s_longTermConditionsDifficultyWalking,
+            s_longTermConditionsDifficultyLearning, s_emotionalPsychologicalMentalConditions,
+            s_bornInCanada, 
+            s_genderIdentity))
+
+summary(control_var)
+```
+
+Household: 
+
+```{r}
+child_number <- mjsurvey_household %>% 
+  mutate(people = 1) %>%
+  group_by(interview_id) %>% 
+  summarise(Child_under_10 = sum(people[age <= 10]))
+
+
+control_var <- control_var %>% 
+  left_join(child_number, by = "interview_id")
+```
+
+```{r}
+accessibilities_wide <- Accessibilities %>%
+  rename(SA = SA_im, 
+         HT = HT_im,
+         SA_nonc = SA_nonc_im) %>%
+  pivot_wider(id_cols = CTUID,
+              names_from = PwMode_label, 
+              values_from = c(SA, Sf_dist_SA, SA_nonc, Sf_dist_SA_nonc, HT, Sf_dist_HT),
+              names_sep = "_")
+```
+
+```{r}
+census_tracts <- census_tracts %>% 
+  mutate(Pop_density = Population/LANDAREA)
+```
+
+```{r}
+keys <- keys %>% 
+  mutate(DAUID = as.numeric(DAUID))
+
+geo_vars <- mjsurvey %>% 
+  dplyr::select(interview_id, 
+                X_activePersonId,
+                DAUID_ADIDU) %>% 
+  rename(DAUID = DAUID_ADIDU) %>% 
+  left_join(keys, by = "DAUID") %>% 
+  left_join(accessibilities_wide, by = "CTUID") %>%
+  left_join(census_tracts %>% dplyr::select(CTUID, Pop_density),
+            by = "CTUID") 
+
+```
+
+
+```{r}
+code <- c("3518", # Durham
+          "3519", # York
+          "3520", # Toronto
+          "3521", # Peel
+          "3524", # Halton
+          "3525" # Hamilton
+          ) 
+
+respondents <- geo_vars %>% 
+  left_join(control_var, by = c("interview_id", "X_activePersonId")) %>% 
+  left_join(outcomes_std %>% dplyr::select(-fexp_final), by = c("interview_id", "X_activePersonId")) %>% 
+  filter(PCD %in% code) %>% 
+  mutate(fexp_scaled = fexp_final / mean(fexp_final, na.rm = TRUE))%>% 
+  filter(!is.na(CTUID), !is.na(SA_Walk), !is.na(hh_income))
+```
+
+# Regressions: First stage
+
+## Four modes 
+
+We will start the first stage of regression by creating a formula to regress accessibility based on spatial filters and other variables. 
+
+```{r}
+design_respondents <- svydesign(
+  ids = ~1,  # No clustering
+  weights = ~fexp_final,
+  data = respondents)
+
+stage1_formula_SA <- as.formula(
+  Accessibility ~ Sf_dist_SA_Walk + Sf_dist_SA_Bike + Sf_dist_SA_Transit + `Sf_dist_SA_Car_motor` +
+                                CarNumber +  
+                                BikeNumber + 
+                                #DriverLicense + 
+                                TransitPass + 
+                                #Paratransit + 
+                                
+                                ## Socio and demographic variables
+                                #Indigenous + 
+                                Non_White +  
+                                #Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                #twoSTQI + 
+                                Age +  
+                                #Child_under_10 +
+                                hh_size  + hh_income + Pop_density)
+
+stage1_formula_SA_nonc <- as.formula(
+  Accessibility ~ Sf_dist_SA_nonc_Walk + Sf_dist_SA_nonc_Bike + Sf_dist_SA_nonc_Transit + `Sf_dist_SA_nonc_Car_motor` +
+                                CarNumber +  
+                                BikeNumber + 
+                                #DriverLicense + 
+                                TransitPass + 
+                                #Paratransit + 
+                                
+                                ## Socio and demographic variables
+                                #Indigenous + 
+                                Non_White +  
+                                #Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                #twoSTQI + 
+                                Age +  
+                                #Child_under_10 +
+                                hh_size  + hh_income + Pop_density)
+
+
+stage1_formula_HT <- as.formula(
+  Accessibility ~ Sf_dist_HT_Walk + Sf_dist_HT_Bike + Sf_dist_HT_Transit + `Sf_dist_HT_Car_motor` +
+                                CarNumber +  
+                                BikeNumber + 
+                                #DriverLicense + 
+                                TransitPass + 
+                                #Paratransit + 
+                                
+                                ## Socio and demographic variables
+                                #Indigenous + 
+                                Non_White +  
+                                #Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                #twoSTQI + 
+                                Age +  
+                                #Child_under_10 +
+                                hh_size  + hh_income + Pop_density)
+
+```
+
+Creating the first stage for walking accessibility: 
+
+```{r}
+stage1_walk_SA <- svyglm(update(stage1_formula_SA, SA_Walk ~ .), design = design_respondents)
+
+summary(stage1_walk_SA, diagnostics = TRUE)
+```
+```{r}
+stage1_walk_HT <- svyglm(update(stage1_formula_HT, HT_Walk ~ .), design = design_respondents)
+
+summary(stage1_walk_HT, diagnostics = TRUE)
+```
+```{r}
+stage1_walk_SA_nonc <- svyglm(update(stage1_formula_SA_nonc, SA_nonc_Walk ~ .), design = design_respondents)
+
+summary(stage1_walk_SA_nonc, diagnostics = TRUE)
+```
+
+Creating the first stage for cycling accessibility: 
+
+```{r}
+stage1_bike_SA <- svyglm(update(stage1_formula_SA, SA_Bike ~ .), design = design_respondents)
+
+summary(stage1_bike_SA, diagnostics = TRUE)
+```
+```{r}
+stage1_bike_SA_nonc <- svyglm(update(stage1_formula_SA_nonc, SA_nonc_Bike ~ .), design = design_respondents)
+
+summary(stage1_bike_SA_nonc, diagnostics = TRUE)
+```
+
+```{r}
+stage1_bike_HT <- svyglm(update(stage1_formula_HT, HT_Bike ~ .), design = design_respondents)
+
+summary(stage1_bike_HT, diagnostics = TRUE)
+```
+
+Creating the first stage for transit accessibility: 
+
+```{r}
+stage1_transit_SA <- svyglm(update(stage1_formula_SA, SA_Transit ~ .), design = design_respondents)
+
+summary(stage1_transit_SA, diagnostics = TRUE)
+```
+
+```{r}
+stage1_transit_SA_nonc <- svyglm(update(stage1_formula_SA_nonc, SA_nonc_Transit ~ .), design = design_respondents)
+
+summary(stage1_transit_SA_nonc, diagnostics = TRUE)
+```
+
+```{r}
+stage1_transit_HT <- svyglm(update(stage1_formula_HT, HT_Transit ~ .), design = design_respondents)
+
+summary(stage1_transit_HT, diagnostics = TRUE)
+```
+
+
+Creating the first stage for Car-motorized accessibility: 
+
+```{r}
+stage1_car_SA <- svyglm(update(stage1_formula_SA, `SA_Car_motor` ~ .), design = design_respondents)
+
+summary(stage1_car_SA, diagnostics = TRUE)
+```
+
+```{r}
+stage1_car_SA_nonc <- svyglm(update(stage1_formula_SA_nonc, `SA_nonc_Car_motor` ~ .), design = design_respondents)
+
+summary(stage1_car_SA_nonc, diagnostics = TRUE)
+```
+
+```{r}
+stage1_car_HT <- svyglm(update(stage1_formula_HT, `HT_Car_motor` ~ .), design = design_respondents)
+
+summary(stage1_car_HT, diagnostics = TRUE)
+```
+
+## General  
+
+```{r}
+stage1_general_HT <- svyglm(HT_General ~ Sf_dist_HT_General+ 
+                              
+                                # Transport variables
+                                CarNumber +  
+                                BikeNumber + 
+                                DriverLicense + 
+                                TransitPass + 
+                                Paratransit + 
+                                
+                                ## Socio and demographic variables
+                                Indigenous + 
+                                Non_White +  
+                                Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                twoSTQI + 
+                                Age +  
+                                Child_under_10 +
+                                hh_size  + hh_income + Pop_density, design = design_respondents)
+
+summary(stage1_general_HT)
+```
+
+```{r}
+stage1_general_SA <- svyglm(SA_General ~ Sf_dist_SA_General+ 
+                              
+                                # Transport variables
+                                CarNumber +  
+                                BikeNumber + 
+                                DriverLicense + 
+                                TransitPass + 
+                                Paratransit + 
+                                
+                                ## Socio and demographic variables
+                                Indigenous + 
+                                Non_White +  
+                                Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                twoSTQI + 
+                                Age +  
+                                Child_under_10 +
+                                hh_size  + hh_income + Pop_density, design = design_respondents)
+
+summary(stage1_general_SA)
+```
+```{r}
+stage1_general_SA_nonc <- svyglm(SA_nonc_General ~ Sf_dist_SA_nonc_General+ 
+                              
+                                # Transport variables
+                                CarNumber +  
+                                BikeNumber + 
+                                DriverLicense + 
+                                TransitPass + 
+                                Paratransit + 
+                                
+                                ## Socio and demographic variables
+                                Indigenous + 
+                                Non_White +  
+                                Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                twoSTQI + 
+                                Age +  
+                                Child_under_10 +
+                                hh_size  + hh_income + Pop_density, design = design_respondents)
+
+summary(stage1_general_SA_nonc)
+```
+
+## Three modes  
+
+```{r}
+stage1_active_HT <- svyglm(HT_Active ~ Sf_dist_HT_Active + 
+                             Sf_dist_HT_Transit + 
+                             `Sf_dist_HT_Car_motor` + 
+                              
+                                # Transport variables
+                                CarNumber +  
+                                BikeNumber + 
+                                DriverLicense + 
+                                TransitPass + 
+                                Paratransit + 
+                                
+                                ## Socio and demographic variables
+                                Indigenous + 
+                                Non_White +  
+                                Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                twoSTQI + 
+                                Age +  
+                                Child_under_10 +
+                                hh_size +
+                                hh_income + 
+                                Pop_density, 
+  design = design_respondents)
+
+summary(stage1_active_HT)
+```
+
+```{r}
+stage1_active_SA <- svyglm(SA_Active ~ Sf_dist_SA_Active + 
+                              Sf_dist_SA_Transit + 
+                             `Sf_dist_SA_Car_motor` + 
+                             
+                                # Transport variables
+                                CarNumber +  
+                                BikeNumber + 
+                                DriverLicense + 
+                                TransitPass + 
+                                Paratransit + 
+                                
+                                ## Socio and demographic variables
+                                Indigenous + 
+                                Non_White +  
+                                Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                twoSTQI + 
+                                Age +  
+                                Child_under_10 +
+                                hh_size + 
+                                hh_income + 
+                                Pop_density,  
+  design = design_respondents)
+
+
+summary(stage1_active_SA)
+```
+```{r}
+stage1_active_SA_nonc <- svyglm(SA_nonc_Active ~ Sf_dist_SA_nonc_Active + 
+                              Sf_dist_SA_nonc_Transit + 
+                             `Sf_dist_SA_nonc_Car_motor` + 
+                             
+                                # Transport variables
+                                CarNumber +  
+                                BikeNumber + 
+                                DriverLicense + 
+                                TransitPass + 
+                                Paratransit + 
+                                
+                                ## Socio and demographic variables
+                                Indigenous + 
+                                Non_White +  
+                                Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                twoSTQI + 
+                                Age +  
+                                Child_under_10 +
+                                hh_size + 
+                                hh_income + 
+                                Pop_density, 
+  design = design_respondents)
+
+
+summary(stage1_active_SA_nonc)
+```
+
+Adding the residuals to the data frame: 
+```{r}
+respondents <- respondents %>%
+  mutate(
+    # SA Mode
+    SA_Walk_IV = predict(stage1_walk_SA, newdata = ., type = "response"),
+    SA_Bike_IV = predict(stage1_bike_SA, newdata = ., type = "response"),
+    SA_Transit_IV = predict(stage1_transit_SA, newdata = ., type = "response"),
+    SA_Car_IV = predict(stage1_car_SA, newdata = ., type = "response"),
+    SA_Walk_Res_IV = SA_Walk - SA_Walk_IV,  
+    SA_Bike_Res_IV = SA_Bike - SA_Bike_IV,  
+    SA_Transit_Res_IV = SA_Transit - SA_Transit_IV,  
+    SA_Car_Res_IV = `SA_Car_motor` - SA_Car_IV,  
+    
+    # SA non-competitive Mode
+    SA_nonc_Walk_IV = predict(stage1_walk_SA_nonc, newdata = ., type = "response"),
+    SA_nonc_Bike_IV = predict(stage1_bike_SA_nonc, newdata = ., type = "response"),
+    SA_nonc_Transit_IV = predict(stage1_transit_SA_nonc, newdata = ., type = "response"),
+    SA_nonc_Car_IV = predict(stage1_car_SA_nonc, newdata = ., type = "response"),
+    SA_nonc_Walk_Res_IV = SA_nonc_Walk - SA_nonc_Walk_IV,  
+    SA_nonc_Bike_Res_IV = SA_nonc_Bike - SA_nonc_Bike_IV,  
+    SA_nonc_Transit_Res_IV = SA_nonc_Transit - SA_nonc_Transit_IV,  
+    SA_nonc_Car_Res_IV = `SA_nonc_Car_motor` - SA_nonc_Car_IV,  
+    
+    # HT Mode
+    HT_Walk_IV = predict(stage1_walk_HT, newdata = ., type = "response"),
+    HT_Bike_IV = predict(stage1_bike_HT, newdata = ., type = "response"),
+    HT_Transit_IV = predict(stage1_transit_HT, newdata = ., type = "response"),
+    HT_Car_IV = predict(stage1_car_HT, newdata = ., type = "response"),
+    HT_Walk_Res_IV = HT_Walk - HT_Walk_IV,  
+    HT_Bike_Res_IV = HT_Bike - HT_Bike_IV,  
+    HT_Transit_Res_IV = HT_Transit - HT_Transit_IV,  
+    HT_Car_Res_IV = `HT_Car_motor` - HT_Car_IV,  
+    
+    # General
+    SA_General_IV = predict(stage1_general_SA, newdata = ., type = "response"),
+    SA_General_Res_IV = SA_General - SA_General_IV,  
+    SA_nonc_General_IV = predict(stage1_general_SA_nonc, newdata = ., type = "response"),
+    SA_nonc_General_Res_IV = SA_nonc_General - SA_nonc_General_IV,  
+    HT_General_IV = predict(stage1_general_HT, newdata = ., type = "response"),
+    HT_General_Res_IV = HT_General - HT_General_IV, 
+    
+    
+    # Active
+    SA_Active_IV = predict(stage1_active_SA, newdata = ., type = "response"),
+    SA_Active_Res_IV = SA_Active - SA_Active_IV, 
+    SA_nonc_Active_IV = predict(stage1_active_SA_nonc, newdata = ., type = "response"),
+    SA_nonc_Active_Res_IV = SA_nonc_Active - SA_nonc_Active_IV, 
+    HT_Active_IV = predict(stage1_active_HT, newdata = ., type = "response"),
+    HT_Active_Res_IV = HT_Active - HT_Active_IV)
+```
+
+# Employment outcomes
+
+```{r}
+########################
+##### 3 Modes Case #####
+########################
+
+linear_SA_3mode_formula <- as.formula(Outcome ~ 
+                                # Spatial Availability variables
+                                SA_Active_IV +
+                                SA_Transit_IV +
+                                SA_Car_IV +
+
+                                # Transport variables
+                                CarNumber +  
+                                BikeNumber + 
+                                #DriverLicense + #
+                                TransitPass + 
+                                #Paratransit + 
+                                
+                                # Socio and demographic variables
+                                #Indigenous + 
+                                Non_White +  
+                                #Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                #twoSTQI + 
+                                Age +  
+                                #Child_under_10 + 
+                                 hh_size +
+                                  hh_income + 
+                                  Pop_density)
+
+set.seed(51)
+```
+
+## Travel Too Long
+
+```{r}
+# Create survey design
+design_TravelTooLong <- svydesign(
+  ids = ~1,  # No clustering
+  weights = ~fexp_final,
+  data = respondents %>% 
+  filter(!is.na(TravelTooLong)))
+
+summary(design_TravelTooLong$variables)
+```
+
+```{r}
+TravelTooLong_formula_3mode_lm_SA <- formula(update(linear_SA_3mode_formula, TravelTooLong ~ .))
+
+TravelTooLong_3mode_lm_SA <- svyglm(TravelTooLong_formula_3mode_lm_SA,
+                                   design = design_TravelTooLong)
+
+summary(TravelTooLong_3mode_lm_SA)
+```
+
+```{r}
+model_selected <- TravelTooLong_3mode_lm_SA
+design_select <- design_TravelTooLong
+```
+
+```{r}
+cooksd <- cooks.distance(model_selected)
+
+summary(cooksd)
+hist(cooksd, breaks = 50, main = "Cook's Distance Distribution")
+
+n <- nobs(model_selected)
+k <- length(coef(model_selected))
+threshold <- 4/(n - k - 1) # identifying influential points - rule of thumb: Cook's D > 4/(n - k - 1)
+
+influential <- which(cooksd > threshold)
+cat("Number of influential observations:", length(influential), "\n")
+cat("Percentage:", round(length(influential)/n * 100, 2), "%\n")
+```
+
+```{r}
+design_clean <- subset(design_select,
+                                     !(seq_len(nrow(design_select$variables)) %in% influential))
+```
+
+```{r}
+model_selected_clean <- svyglm(TravelTooLong_formula_3mode_lm_SA,
+  design = design_clean)
+
+summary(model_selected_clean)
+```
+
+```{r}
+# second time cleaning 
+model_selected <- model_selected_clean
+design_select <- design_clean
+```
+
+```{r}
+cooksd <- cooks.distance(model_selected)
+
+summary(cooksd)
+hist(cooksd, breaks = 50, main = "Cook's Distance Distribution")
+
+n <- nobs(model_selected)
+k <- length(coef(model_selected))
+threshold <- 4/(n - k - 1) # identifying influential points - rule of thumb: Cook's D > 4/(n - k - 1)
+
+influential <- which(cooksd > threshold)
+cat("Number of influential observations:", length(influential), "\n")
+cat("Percentage:", round(length(influential)/n * 100, 2), "%\n")
+```
+
+```{r}
+design_clean <- subset(design_select,
+                                     !(seq_len(nrow(design_select$variables)) %in% influential))
+```
+
+```{r}
+model_selected_clean <- svyglm(TravelTooLong_formula_3mode_lm_SA,
+  design = design_clean)
+
+summary(model_selected_clean)
+```
+
+
+```{r}
+car::vif(model_selected_clean)
+```
+
+```{r}
+TravelTooLong_3mode_lm_SA_clean <- model_selected_clean
+```
+
+## Easy to Reach
+
+To what extent do you agree with the following? “With the transport options available to me, I can easily participate/reach the following destinations:” Work
+
+```{r}
+# Create survey design
+design_EasyToGo <- svydesign(
+  ids = ~1,  # No clustering
+  weights = ~fexp_final,
+  data = respondents %>% 
+  filter(!is.na(EasyToGo)))
+```
+
+```{r}
+EasyToGo_formula_3mode_lm_SA <- formula(update(linear_SA_3mode_formula, EasyToGo ~ .))
+
+EasyToGo_3mode_lm_SA <- svyglm(EasyToGo_formula_3mode_lm_SA,
+                                   design = design_EasyToGo)
+summary(EasyToGo_3mode_lm_SA)
+```
+
+```{r}
+# first time cleaning
+model_selected <- EasyToGo_3mode_lm_SA
+design_select <- design_EasyToGo
+```
+
+```{r}
+cooksd <- cooks.distance(model_selected)
+
+summary(cooksd)
+hist(cooksd, breaks = 50, main = "Cook's Distance Distribution")
+
+n <- nobs(model_selected)
+k <- length(coef(model_selected))
+threshold <- 4/(n - k - 1) # identifying influential points - rule of thumb: Cook's D > 4/(n - k - 1)
+
+influential <- which(cooksd > threshold)
+cat("Number of influential observations:", length(influential), "\n")
+cat("Percentage:", round(length(influential)/n * 100, 2), "%\n")
+```
+
+```{r}
+design_clean <- subset(design_select,
+                                     !(seq_len(nrow(design_select$variables)) %in% influential))
+```
+
+```{r}
+model_selected_clean <- svyglm(EasyToGo_formula_3mode_lm_SA,
+  design = design_clean)
+
+summary(model_selected_clean)
+```
+
+```{r}
+# second time cleaning 
+model_selected <- model_selected_clean
+design_select <- design_clean
+```
+
+```{r}
+cooksd <- cooks.distance(model_selected)
+
+summary(cooksd)
+hist(cooksd, breaks = 50, main = "Cook's Distance Distribution")
+
+n <- nobs(model_selected)
+k <- length(coef(model_selected))
+threshold <- 4/(n - k - 1) # identifying influential points - rule of thumb: Cook's D > 4/(n - k - 1)
+
+influential <- which(cooksd > threshold)
+cat("Number of influential observations:", length(influential), "\n")
+cat("Percentage:", round(length(influential)/n * 100, 2), "%\n")
+```
+
+```{r}
+design_clean <- subset(design_select,
+                                     !(seq_len(nrow(design_select$variables)) %in% influential))
+```
+
+```{r}
+model_selected_clean <- svyglm(EasyToGo_formula_3mode_lm_SA,
+  design = design_clean)
+
+summary(model_selected_clean)
+```
+
+
+```{r}
+car::vif(model_selected_clean)
+```
+
+```{r}
+EasyToGo_3mode_lm_SA_clean <- model_selected_clean
+```
+
+## Decline Employment
+
+```{r}
+# Create survey design
+design_DeclineEmployment <- svydesign(
+  ids = ~1,  # No clustering
+  weights = ~fexp_final,
+  data = respondents %>% 
+  filter(!is.na(DeclineEmployment)))
+```
+
+
+```{r}
+DeclineEmployment_formula_3mode_lm_SA <- formula(update(linear_SA_3mode_formula, DeclineEmployment ~ .))
+
+DeclineEmployment_linear_3modes <- svyglm(DeclineEmployment_formula_3mode_lm_SA,
+                                   design = design_DeclineEmployment)
+
+summary(DeclineEmployment_linear_3modes)
+```
+
+```{r}
+# first time cleaning
+model_selected <- DeclineEmployment_linear_3modes
+design_select <- design_DeclineEmployment
+```
+
+```{r}
+cooksd <- cooks.distance(model_selected)
+
+summary(cooksd)
+hist(cooksd, breaks = 50, main = "Cook's Distance Distribution")
+
+n <- nobs(model_selected)
+k <- length(coef(model_selected))
+threshold <- 4/(n - k - 1) # identifying influential points - rule of thumb: Cook's D > 4/(n - k - 1)
+
+influential <- which(cooksd > threshold)
+cat("Number of influential observations:", length(influential), "\n")
+cat("Percentage:", round(length(influential)/n * 100, 2), "%\n")
+```
+
+```{r}
+design_clean <- subset(design_select,
+                                     !(seq_len(nrow(design_select$variables)) %in% influential))
+```
+
+```{r}
+model_selected_clean <- svyglm(DeclineEmployment_formula_3mode_lm_SA,
+  design = design_clean)
+
+summary(model_selected_clean)
+```
+
+<!-- # ```{r} -->
+<!-- # # second time cleaning  -->
+<!-- # model_selected <- model_selected_clean -->
+<!-- # design_select <- design_clean -->
+<!-- # ``` -->
+<!-- #  -->
+<!-- # ```{r} -->
+<!-- # cooksd <- cooks.distance(model_selected) -->
+<!-- #  -->
+<!-- # summary(cooksd) -->
+<!-- # hist(cooksd, breaks = 50, main = "Cook's Distance Distribution") -->
+<!-- #  -->
+<!-- # n <- nobs(model_selected) -->
+<!-- # k <- length(coef(model_selected)) -->
+<!-- # threshold <- 4/(n - k - 1) # identifying influential points - rule of thumb: Cook's D > 4/(n - k - 1) -->
+<!-- #  -->
+<!-- # influential <- which(cooksd > threshold) -->
+<!-- # cat("Number of influential observations:", length(influential), "\n") -->
+<!-- # cat("Percentage:", round(length(influential)/n * 100, 2), "%\n") -->
+<!-- # ``` -->
+<!-- #  -->
+<!-- # ```{r} -->
+<!-- # design_clean <- subset(design_select, -->
+<!-- #                                      !(seq_len(nrow(design_select$variables)) %in% influential)) -->
+<!-- # ``` -->
+<!-- #  -->
+<!-- # ```{r} -->
+<!-- # model_selected_clean <- svyglm(DeclineEmployment_formula_3mode_lm_SA, -->
+<!-- #   design = design_clean) -->
+<!-- #  -->
+<!-- # summary(model_selected_clean) -->
+<!-- # ``` -->
+
+```{r}
+car::vif(model_selected_clean)
+```
+
+```{r}
+DeclineEmployment_3mode_lm_SA_clean <- model_selected_clean
+```
+
+## Few Jobs 
+
+```{r}
+# Create survey design
+design_FewJobs <- svydesign(
+  ids = ~1,  # No clustering
+  weights = ~fexp_final,
+  data = respondents %>% 
+  filter(!is.na(FewJobs)))
+```
+
+```{r}
+FewJobs_formula_3mode_lm_SA <- formula(update(linear_SA_3mode_formula, FewJobs ~ .))
+
+FewJobs_3mode_lm_SA <- svyglm(FewJobs_formula_3mode_lm_SA,
+                                   design = design_FewJobs)
+summary(FewJobs_3mode_lm_SA)
+```
+
+```{r}
+# first time cleaning
+model_selected <- FewJobs_3mode_lm_SA
+design_select <- design_FewJobs
+```
+
+```{r}
+cooksd <- cooks.distance(model_selected)
+
+summary(cooksd)
+hist(cooksd, breaks = 50, main = "Cook's Distance Distribution")
+
+n <- nobs(model_selected)
+k <- length(coef(model_selected))
+threshold <- 4/(n - k - 1) # identifying influential points - rule of thumb: Cook's D > 4/(n - k - 1)
+
+influential <- which(cooksd > threshold)
+cat("Number of influential observations:", length(influential), "\n")
+cat("Percentage:", round(length(influential)/n * 100, 2), "%\n")
+```
+
+```{r}
+design_clean <- subset(design_select,
+                                     !(seq_len(nrow(design_select$variables)) %in% influential))
+```
+
+```{r}
+model_selected_clean <- svyglm(FewJobs_formula_3mode_lm_SA,
+  design = design_clean)
+
+summary(model_selected_clean)
+```
+
+<!-- # ```{r} -->
+<!-- # # second time cleaning  -->
+<!-- # model_selected <- model_selected_clean -->
+<!-- # design_select <- design_clean -->
+<!-- # ``` -->
+<!-- #  -->
+<!-- # ```{r} -->
+<!-- # cooksd <- cooks.distance(model_selected) -->
+<!-- #  -->
+<!-- # summary(cooksd) -->
+<!-- # hist(cooksd, breaks = 50, main = "Cook's Distance Distribution") -->
+<!-- #  -->
+<!-- # n <- nobs(model_selected) -->
+<!-- # k <- length(coef(model_selected)) -->
+<!-- # threshold <- 4/(n - k - 1) # identifying influential points - rule of thumb: Cook's D > 4/(n - k - 1) -->
+<!-- #  -->
+<!-- # influential <- which(cooksd > threshold) -->
+<!-- # cat("Number of influential observations:", length(influential), "\n") -->
+<!-- # cat("Percentage:", round(length(influential)/n * 100, 2), "%\n") -->
+<!-- # ``` -->
+<!-- #  -->
+<!-- # ```{r} -->
+<!-- # design_clean <- subset(design_select, -->
+<!-- #                                      !(seq_len(nrow(design_select$variables)) %in% influential)) -->
+<!-- # ``` -->
+<!-- #  -->
+<!-- # ```{r} -->
+<!-- # model_selected_clean <- svyglm(FewJobs_formula_3mode_lm_SA, -->
+<!-- #   design = design_clean) -->
+<!-- #  -->
+<!-- # summary(model_selected_clean) -->
+<!-- # ``` -->
+
+```{r}
+car::vif(model_selected_clean)
+```
+
+```{r}
+FewJobs_3mode_lm_SA_clean <- model_selected_clean
+```
+
+# Ordinal 
+
+## Few jobs: Likert 
+
+```{r}
+complete_data_fj <- respondents %>%
+  filter(!is.na(FewJobs_Likert)) %>%
+  dplyr::select(FewJobs, FewJobs_Likert, fexp_final, SA_Active, SA_Transit, SA_Car_motor, 
+         CarNumber, BikeNumber, DriverLicense, Paratransit, TransitPass, Non_White, 
+         LongTermConditions, Immigrant, Woman, Age, hh_size, 
+         hh_income, Pop_density, SA_Active_Res_IV, 
+         SA_Transit_Res_IV, SA_Car_Res_IV) %>%
+  na.omit() %>% 
+  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
+
+vars_to_scale <- c(
+  "SA_Active", "SA_Transit", "SA_Car_motor",
+  "Pop_density",
+  "SA_Active_Res_IV", "SA_Transit_Res_IV", "SA_Car_Res_IV")
+
+complete_data_scaled_fj <- complete_data_fj %>%
+  mutate(across(all_of(vars_to_scale), 
+                function(x) {
+                  scaled <- scale(x)
+                  return(as.numeric(scaled))
+                }))
+
+scale_centers_fj <- sapply(vars_to_scale, function(var) {
+  attr(scale(complete_data_fj[[var]]), "scaled:center")
+})
+
+scale_scales_fj <- sapply(vars_to_scale, function(var) {
+  attr(scale(complete_data_fj[[var]]), "scaled:scale")
+})
+
+ordinal_SA_3mode_formula <- as.formula(Outcome ~ 
+                                # Spatial Availability variables
+                                SA_Active +
+                                SA_Transit +
+                                SA_Car_motor +
+
+                                # Transport variables
+                                CarNumber +  
+                                BikeNumber + 
+                                #DriverLicense + #
+                                TransitPass + 
+                                #Paratransit + 
+                                
+                                # Socio and demographic variables
+                                #Indigenous + 
+                                Non_White +  
+                                #Temporary_or_refugee +  
+                                LongTermConditions + 
+                                Immigrant + 
+                                Woman +   
+                                #twoSTQI + 
+                                Age +  
+                                #Child_under_10 + 
+                                hh_size +
+                                hh_income + 
+                                
+                                # Environmental 
+                                Pop_density + 
+                                
+                                # Causal-effect 
+                                SA_Active_Res_IV +
+                                SA_Transit_Res_IV +
+                                SA_Car_Res_IV)
+```
+
+```{r}
+design_ordinal_norm_fj <- svydesign(
+  ids = ~1,
+  weights = ~fexp_normalized,
+  data = complete_data_scaled_fj)
+```
+
+```{r}
+FewJobs_formula_3mode_ordinal_SA <- formula(update(ordinal_SA_3mode_formula, FewJobs_Likert ~ .))
+
+FewJobs_ordinal_3modes <- svyolr(FewJobs_formula_3mode_ordinal_SA,
+                                   design = design_ordinal_norm_fj)
+
+summary(FewJobs_ordinal_3modes)
+```
+
+## Easy to Reach: Likert 
+
+```{r}
+complete_data_etg <- respondents %>%
+  filter(!is.na(EasyToGo_Likert)) %>%
+  dplyr::select(EasyToGo, EasyToGo_Likert, fexp_final, SA_Active, SA_Transit, SA_Car_motor, 
+         CarNumber, BikeNumber, DriverLicense, Paratransit, TransitPass, Non_White, 
+         LongTermConditions, Immigrant, Woman, Age, hh_size, 
+         hh_income, Pop_density, SA_Active_Res_IV, 
+         SA_Transit_Res_IV, SA_Car_Res_IV) %>%
+  na.omit() %>% 
+  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
+
+complete_data_scaled_etg <- complete_data_etg %>%
+  mutate(across(all_of(vars_to_scale), 
+                function(x) {
+                  scaled <- scale(x)
+                  return(as.numeric(scaled))
+                }))
+
+scale_centers_etg <- sapply(vars_to_scale, function(var) {
+  attr(scale(complete_data_etg[[var]]), "scaled:center")
+})
+
+scale_scales_etg <- sapply(vars_to_scale, function(var) {
+  attr(scale(complete_data_etg[[var]]), "scaled:scale")
+})
+```
+
+```{r}
+design_ordinal_norm_etg <- svydesign(
+  ids = ~1,
+  weights = ~fexp_normalized,
+  data = complete_data_scaled_etg)
+```
+
+```{r}
+EasyToGo_formula_3mode_ordinal_SA <- formula(update(ordinal_SA_3mode_formula, EasyToGo_Likert ~ .))
+
+EasyToGo_ordinal_3modes <- svyolr(EasyToGo_formula_3mode_ordinal_SA,
+                                   design = design_ordinal_norm_etg)
+
+summary(EasyToGo_ordinal_3modes)
+```
+
+# Differences in employment outcomes: Few jobs accessible and easy to reach work 
+
+```{r}
+outcome_order_linear <- c("Travel too long", 
+                   "Easy to reach", 
+                   "Declined employment", 
+                   "Few jobs accessible")
+my_colors_linear <- c("#66c2a5","#fc8d62","#8da0cb","#e78ac3")
+
+names(my_colors_linear) <- outcome_order_linear
+
+Likert_order <- c("Most Negative", "Negative", "Neutral", "Positive", "Most Positive")
+
+my_colors_likert <- c("#d7191c", "#fdae61", "#bababa", "#a6d96a", "#1a9641")
+names(my_colors_likert) <- Likert_order
+```
+
+
+```{r}
+# Sociodemographic
+
+Non_White_fj <- respondents %>% 
+  filter(!is.na(FewJobs_Likert)) %>% 
+  mutate(Sociodemographic = "Racialized", 
+         Categories = Non_White) %>% 
+  dplyr::select(c(interview_id, fexp_final, FewJobs_Likert, Sociodemographic, Categories)) 
+
+
+LongTermConditions_fj <- respondents %>% 
+  filter(!is.na(FewJobs_Likert)) %>% 
+  mutate(Sociodemographic = "Long-term Conditions", 
+         Categories = LongTermConditions) %>% 
+  dplyr::select(c(interview_id, fexp_final, FewJobs_Likert, Sociodemographic, Categories)) 
+
+Immigrant_fj <- respondents %>% 
+  filter(!is.na(FewJobs_Likert)) %>% 
+  mutate(Sociodemographic = "Immigrant", 
+         Categories = Immigrant) %>% 
+  dplyr::select(c(interview_id, fexp_final, FewJobs_Likert, Sociodemographic, Categories)) 
+
+Woman_fj <- respondents %>% 
+  filter(!is.na(FewJobs_Likert)) %>% 
+  mutate(Sociodemographic = "Woman+ (Cis or Transgender)", 
+         Categories = Woman) %>% 
+  dplyr::select(c(interview_id, fexp_final, FewJobs_Likert, Sociodemographic, Categories)) 
+
+Age_fj <- respondents %>% 
+  filter(!is.na(FewJobs_Likert)) %>% 
+  mutate(Sociodemographic = "Age group", 
+         Categories = age_group) %>% 
+  dplyr::select(c(interview_id, fexp_final, FewJobs_Likert, Sociodemographic, Categories)) 
+
+hh_size_fj <- respondents %>% 
+  filter(!is.na(FewJobs_Likert), hh_size < 6) %>% 
+  mutate(hh_size = factor(hh_size)) %>% 
+  mutate(Sociodemographic = "Household size", 
+         Categories = hh_size) %>% 
+  dplyr::select(c(interview_id, fexp_final, FewJobs_Likert, Sociodemographic, Categories)) 
+
+hh_income_fj <- respondents %>% 
+  filter(!is.na(FewJobs_Likert)) %>% 
+  mutate(Categories = case_when(hh_householdIncome == "000000_009999" ~ "<$30k", 
+                               hh_householdIncome == "010000_019999" ~ "<$30k", 
+                               hh_householdIncome == "020000_029999" ~ "<$30k", 
+                               hh_householdIncome == "030000_039999" ~ "$30-$60k", 
+                               hh_householdIncome == "040000_049999" ~ "$30-$60k", 
+                               hh_householdIncome == "050000_059999" ~ "$30-$60k", 
+                               hh_householdIncome == "060000_069999" ~ "$60-$90k", 
+                               hh_householdIncome == "070000_079999" ~ "$60-$90k", 
+                               hh_householdIncome == "080000_089999" ~ "$60-$90k", 
+                               hh_householdIncome == "090000_119999" ~ "$90-$120k", 
+                               hh_householdIncome == "120000_149999" ~ "$120-$150k", 
+                               hh_householdIncome == "150000_179999" ~ "$150-$180k", 
+                               hh_householdIncome == "180000_209999" ~ "$180-$210k", 
+                               hh_householdIncome == "210000_999999" ~ ">$210k"), 
+         Categories = factor(Categories, levels = c("<$30k","$30-$60k", "$60-$90k", "$90-$120k","$120-$150k","$150-$180k","$180-$210k",">$210k")),
+                       Sociodemographic = "Income group") %>% 
+    dplyr::select(c(interview_id, fexp_final, FewJobs_Likert, Sociodemographic, Categories)) 
+
+sociodemographics_fj <- rbind(Non_White_fj, LongTermConditions_fj, Immigrant_fj, 
+                              Age_fj, hh_size_fj, hh_income_fj)
+
+# Transport variables
+CarNumber_fj <- respondents %>% 
+  filter(!is.na(FewJobs_Likert)) %>% 
+  mutate(Sociodemographic = "Number of cars", 
+         Categories = CarNumber) %>% 
+  dplyr::select(c(interview_id, fexp_final, FewJobs_Likert, Sociodemographic, Categories)) 
+
+
+TransitPass_fj <- respondents %>% 
+  filter(!is.na(FewJobs_Likert)) %>% 
+  mutate(Sociodemographic = "Transit Pass", 
+         Categories = TransitPass) %>% 
+  dplyr::select(c(interview_id, fexp_final, FewJobs_Likert, Sociodemographic, Categories)) 
+
+
+BikeNumber_fj <- respondents %>% 
+  filter(!is.na(FewJobs_Likert), BikeNumber < 5) %>% 
+  mutate(Sociodemographic = "Number of bikes", 
+         Categories = BikeNumber) %>% 
+  dplyr::select(c(interview_id, fexp_final, FewJobs_Likert, Sociodemographic, Categories)) 
+
+
+transport_fj <- rbind(CarNumber_fj, BikeNumber_fj, TransitPass_fj)
+```
+
+```{r}
+# Stacked
+sociodemographics_fj_fig <- sociodemographics_fj %>% 
+  ggplot(aes(fill = FewJobs_Likert, y = fexp_final, x = Categories)) + 
+    geom_bar(position="fill", stat="identity") + 
+  labs(x = "Sociodemographic",
+    y = "Population share",
+    fill = "Few jobs available") +
+  theme_minimal() + 
+  facet_wrap(~ Sociodemographic, scales = "free_x", ncol = 3)  +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9), 
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+ggsave(file = paste0(diretorio_export_images, "/outcomes-sociodemographics-fj.jpg"),
+       plot = sociodemographics_fj_fig,
+       width = 18,
+       height = 12,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/outcomes-sociodemographics-fj.jpg"))
+```
+
+```{r}
+# Stacked
+transport_fj_fig <- transport_fj %>% 
+  ggplot(aes(fill = FewJobs_Likert, y = fexp_final, x = Categories)) + 
+    geom_bar(position="fill", stat="identity", colour = NA) + 
+  labs(x = "Sociodemographic",
+    y = "Population share",
+    fill = "Few jobs  jobs") +
+  theme_minimal() + 
+  facet_wrap(~ Sociodemographic, scales = "free_x", ncol = 3)  +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9), 
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+ggsave(file = paste0(diretorio_export_images, "/outcomes-transport-fj.png"),
+       plot = transport_fj_fig,
+       width = 18,
+       height = 7,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/outcomes-transport-fj.png"))
+```
+
+```{r}
+# Sociodemographic
+
+Non_White_etr <- respondents %>% 
+  filter(!is.na(EasyToGo_Likert)) %>% 
+  mutate(Sociodemographic = "Racialized", 
+         Categories = Non_White) %>% 
+  dplyr::select(c(interview_id, fexp_final, EasyToGo_Likert, Sociodemographic, Categories)) 
+
+
+LongTermConditions_etr <- respondents %>% 
+  filter(!is.na(EasyToGo_Likert)) %>% 
+  mutate(Sociodemographic = "Long-term Conditions", 
+         Categories = LongTermConditions) %>% 
+  dplyr::select(c(interview_id, fexp_final, EasyToGo_Likert, Sociodemographic, Categories)) 
+
+Immigrant_etr <- respondents %>% 
+  filter(!is.na(EasyToGo_Likert)) %>% 
+  mutate(Sociodemographic = "Immigrant", 
+         Categories = Immigrant) %>% 
+  dplyr::select(c(interview_id, fexp_final, EasyToGo_Likert, Sociodemographic, Categories)) 
+
+Woman_etr <- respondents %>% 
+  filter(!is.na(EasyToGo_Likert)) %>% 
+  mutate(Sociodemographic = "Woman+ (Cis or Transgender)", 
+         Categories = Woman) %>% 
+  dplyr::select(c(interview_id, fexp_final, EasyToGo_Likert, Sociodemographic, Categories)) 
+
+Age_etr <- respondents %>% 
+  filter(!is.na(EasyToGo_Likert)) %>% 
+  mutate(Sociodemographic = "Age group", 
+         Categories = age_group) %>% 
+  dplyr::select(c(interview_id, fexp_final, EasyToGo_Likert, Sociodemographic, Categories)) 
+
+hh_size_etr <- respondents %>% 
+  filter(!is.na(EasyToGo_Likert), hh_size < 6) %>% 
+  mutate(hh_size = factor(hh_size)) %>% 
+  mutate(Sociodemographic = "Household size", 
+         Categories = hh_size) %>% 
+  dplyr::select(c(interview_id, fexp_final, EasyToGo_Likert, Sociodemographic, Categories)) 
+
+hh_income_etr <- respondents %>% 
+  filter(!is.na(EasyToGo_Likert)) %>% 
+  mutate(Categories = case_when(hh_householdIncome == "000000_009999" ~ "<$30k", 
+                               hh_householdIncome == "010000_019999" ~ "<$30k", 
+                               hh_householdIncome == "020000_029999" ~ "<$30k", 
+                               hh_householdIncome == "030000_039999" ~ "$30-$60k", 
+                               hh_householdIncome == "040000_049999" ~ "$30-$60k", 
+                               hh_householdIncome == "050000_059999" ~ "$30-$60k", 
+                               hh_householdIncome == "060000_069999" ~ "$60-$90k", 
+                               hh_householdIncome == "070000_079999" ~ "$60-$90k", 
+                               hh_householdIncome == "080000_089999" ~ "$60-$90k", 
+                               hh_householdIncome == "090000_119999" ~ "$90-$120k", 
+                               hh_householdIncome == "120000_149999" ~ "$120-$150k", 
+                               hh_householdIncome == "150000_179999" ~ "$150-$180k", 
+                               hh_householdIncome == "180000_209999" ~ "$180-$210k", 
+                               hh_householdIncome == "210000_999999" ~ ">$210k"), 
+         Categories = factor(Categories, levels = c("<$30k","$30-$60k", "$60-$90k", "$90-$120k","$120-$150k","$150-$180k","$180-$210k",">$210k")),
+                       Sociodemographic = "Income group") %>% 
+    dplyr::select(c(interview_id, fexp_final, EasyToGo_Likert, Sociodemographic, Categories)) 
+
+sociodemographics_etr <- rbind(Non_White_etr, LongTermConditions_etr, Immigrant_etr, 
+                              Age_etr, hh_size_etr, hh_income_etr)
+
+# Transport variables
+CarNumber_etr <- respondents %>% 
+  filter(!is.na(EasyToGo_Likert), CarNumber < 5) %>% 
+  mutate(Sociodemographic = "Number of cars", 
+         Categories = CarNumber) %>% 
+  dplyr::select(c(interview_id, fexp_final, EasyToGo_Likert, Sociodemographic, Categories)) 
+
+BikeNumber_etr <- respondents %>% 
+  filter(!is.na(EasyToGo_Likert), BikeNumber < 5) %>% 
+  mutate(Sociodemographic = "Number of bikes", 
+         Categories = BikeNumber) %>% 
+  dplyr::select(c(interview_id, fexp_final, EasyToGo_Likert, Sociodemographic, Categories)) 
+
+TransitPass_etr <- respondents %>% 
+  filter(!is.na(EasyToGo_Likert)) %>% 
+  mutate(Sociodemographic = "Transit Pass", 
+         Categories = TransitPass) %>% 
+  dplyr::select(c(interview_id, fexp_final, EasyToGo_Likert, Sociodemographic, Categories)) 
+
+transport_etr <- rbind(CarNumber_etr, BikeNumber_etr, TransitPass_etr)
+```
+
+```{r}
+# Stacked
+sociodemographics_etr_fig <- sociodemographics_etr %>% 
+  ggplot(aes(fill = EasyToGo_Likert, y = fexp_final, x = Categories)) + 
+    geom_bar(position="fill", stat="identity", colour = NA) + 
+  labs(x = "Sociodemographic",
+    y = "Population share",
+    fill = "Easy to reach jobs") +
+  theme_minimal() + 
+  facet_wrap(~ Sociodemographic, scales = "free_x", ncol = 3)  +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9), 
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+ggsave(file = paste0(diretorio_export_images, "/outcomes-sociodemographics-etr.png"),
+       plot = sociodemographics_etr_fig,
+       width = 18,
+       height = 12,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/outcomes-sociodemographics-etr.png"))
+```
+
+```{r}
+# Stacked
+transport_etr_fig <- transport_etr %>% 
+  ggplot(aes(fill = EasyToGo_Likert, y = fexp_final, x = Categories)) + 
+    geom_bar(position="fill", stat="identity", colour = NA) + 
+  labs(x = "Sociodemographic",
+    y = "Population share",
+    fill = "Easy to reach jobs") +
+  theme_minimal() + 
+  facet_wrap(~ Sociodemographic, scales = "free_x", ncol = 3)  +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9), 
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1))
+
+ggsave(file = paste0(diretorio_export_images, "/outcomes-transport-etr.png"),
+       plot = transport_etr_fig,
+       width = 18,
+       height = 7,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/outcomes-transport-etr.png"))
+```
+
+# Visualizing probabilities 
+
+Now, based on the relationship identified between accessibility and employment outcomes, we will identify some key thresholds to employment accessibility, focusing on the disadvantaged population. To do this, we need to control for other variables (indicators of non-accessibility) and vary the accessibility values in order to identify these key thresholds. The following chunks create a data frame with the median values (control) of the socioeconomic variables. 
+
+How accessibility will vary: 
+
+```{r}
+seq_val <- seq(from = 0,
+                      to = 1.15 * max(respondents$SA_Transit, na.rm = TRUE),
+                      by = 5)
+```
+
+
+```{r}
+grid_all_vars <- as.data.frame(expand.grid("Mode" = c("Active","Transit","Car"),
+                    "TransitPass" = unique(respondents$TransitPass),
+                    "LongTermConditions" = unique(respondents$LongTermConditions),
+                    "Woman" = unique(respondents$Woman),
+                    "Non_White" = unique(respondents$Non_White),
+                    "CarNumber" = c(0,2),
+                    "BikeNumber" = c(0,2),
+                    "hh_income" = c("Less than $30,000", "$60,000 to $90,000", "More than $210,000"),
+                    "Immigrant" = unique(respondents$Immigrant), 
+                    "Age" = c(30, 45, 60),
+                    "Value" = seq_val))
+
+controls_all_vars <- data.frame(SA_Active_IV = Hmisc::wtd.quantile(respondents$SA_Active_IV, weights = respondents$fexp_final, probs = 0.5), 
+                         SA_Transit_IV = Hmisc::wtd.quantile(respondents$SA_Transit_IV, weights = respondents$fexp_final, probs = 0.5), 
+                   SA_Car_IV = Hmisc::wtd.quantile(respondents$SA_Car_IV, weights = respondents$fexp_final, probs = 0.5),
+                   SA_Active = Hmisc::wtd.quantile(respondents$SA_Active, weights = respondents$fexp_final, probs = 0.5),
+                   SA_Transit = Hmisc::wtd.quantile(respondents$SA_Transit, weights = respondents$fexp_final, probs = 0.5),
+                   SA_Car_motor = Hmisc::wtd.quantile(respondents$SA_Car_motor, weights = respondents$fexp_final, probs = 0.5), 
+                   hh_size = Hmisc::wtd.quantile(respondents$hh_size, weights = respondents$fexp_final, probs = 0.5),
+                   Pop_density = Hmisc::wtd.quantile(respondents$Pop_density, weights = respondents$fexp_final, probs = 0.5), 
+                   SA_Active_Res_IV = 0, 
+                   SA_Transit_Res_IV = 0, 
+                   SA_Car_Res_IV = 0)
+
+grid_control_all_vars <- cbind(grid_all_vars, controls_all_vars)
+
+cols_to_use <- c("TransitPass", "LongTermConditions", "Woman", "Non_White", "CarNumber", "BikeNumber",
+                                          "hh_income", "Immigrant", "Age")
+
+grid_control_all_vars_ready <- grid_control_all_vars %>%
+  mutate(SA_Active_IV = if_else(Mode == "Active", Value, SA_Active_IV),
+         SA_Transit_IV = if_else(Mode == "Transit", Value, SA_Transit_IV),
+         SA_Car_IV = if_else(Mode == "Car", Value, SA_Car_IV), 
+         SA_Active = if_else(Mode == "Active", Value, SA_Active),
+         SA_Transit = if_else(Mode == "Transit", Value, SA_Transit),
+         SA_Car_motor = if_else(Mode == "Car", Value, SA_Car_motor), 
+         Case = pmap_chr(dplyr::select(., all_of(cols_to_use)), ~ {
+           values <- map_chr(list(...), as.character)
+           str_c(cols_to_use, ": ", values, collapse = " - ")}))
+```
+
+
+```{r}
+predict_subset <- data.frame()
+
+for(mode in unique(grid_control_all_vars_ready$Mode)){
+  for(grupo in unique(grid_control_all_vars_ready$Case)){
+     
+    df <- grid_control_all_vars_ready %>% 
+          filter(Case == grupo, 
+                 Mode == mode)
+    
+     # Travel Too Long
+
+     pred_ttl <- predict(TravelTooLong_3mode_lm_SA_clean,
+                               newdata = df,
+                               type = "response",
+                               se.fit = TRUE)
+
+     pred_ttl <- as.data.frame(pred_ttl) %>%
+            rename(Probability = response) %>%
+       mutate(Outcome = "Travel too long") %>%
+       mutate(Case = grupo,
+              Mode = mode,
+              TransitPass = unique(df$TransitPass),
+              LongTermConditions = unique(df$LongTermConditions),
+              Woman = unique(df$Woman),
+              Non_White = unique(df$Non_White),
+              CarNumber = unique(df$CarNumber),
+              BikeNumber = unique(df$BikeNumber),
+              Age = unique(df$Age),
+              hh_income = unique(df$hh_income),
+              Immigrant = unique(df$Immigrant))
+
+     pred_ttl$Value <- seq_val
+
+     # Easy to reach
+     pred_etr <- predict(EasyToGo_3mode_lm_SA_clean,
+                               newdata = df,
+                               type = "response",
+                               se.fit = TRUE)
+
+     pred_etr <- as.data.frame(pred_etr) %>%
+            rename(Probability = response) %>%
+       mutate(Outcome = "Easy to reach") %>%
+       mutate(Case = grupo,
+              Mode = mode,
+              TransitPass = unique(df$TransitPass),
+              LongTermConditions = unique(df$LongTermConditions),
+              Woman = unique(df$Woman),
+              Non_White = unique(df$Non_White),
+              CarNumber = unique(df$CarNumber),
+              BikeNumber = unique(df$BikeNumber),
+              Age = unique(df$Age),
+              hh_income = unique(df$hh_income),
+              Immigrant = unique(df$Immigrant))
+
+     pred_etr$Value <- seq_val
+
+    # Declined employment
+     pred_de <- predict(DeclineEmployment_3mode_lm_SA_clean,
+                               newdata = df,
+                               type = "response",
+                               se.fit = TRUE)
+
+     pred_de <- as.data.frame(pred_de) %>%
+            rename(Probability = response) %>%
+       mutate(Outcome = "Declined employment") %>%
+       mutate(Case = grupo,
+              Mode = mode,
+              TransitPass = unique(df$TransitPass),
+              LongTermConditions = unique(df$LongTermConditions),
+              Woman = unique(df$Woman),
+              Non_White = unique(df$Non_White),
+              CarNumber = unique(df$CarNumber),
+              BikeNumber = unique(df$BikeNumber),
+              Age = unique(df$Age),
+              hh_income = unique(df$hh_income),
+              Immigrant = unique(df$Immigrant))
+
+     pred_de$Value <- seq_val
+
+     # "Few jobs accessible"
+     pred_fj <- predict(FewJobs_3mode_lm_SA_clean,
+                               newdata = df,
+                               type = "response",
+                               se.fit = TRUE)
+
+     pred_fj <- as.data.frame(pred_fj) %>%
+            rename(Probability = response) %>%
+       mutate(Outcome = "Few jobs accessible") %>%
+       mutate(Case = grupo,
+              Mode = mode,
+              TransitPass = unique(df$TransitPass),
+              LongTermConditions = unique(df$LongTermConditions),
+              Woman = unique(df$Woman),
+              Non_White = unique(df$Non_White),
+              CarNumber = unique(df$CarNumber),
+              BikeNumber = unique(df$BikeNumber),
+              Age = unique(df$Age),
+              hh_income = unique(df$hh_income),
+              Immigrant = unique(df$Immigrant))
+
+     pred_fj$Value <- seq_val
+     
+     # Ordinal: Few jobs accessible 
+     
+    df_scaled_fj <- df
+      
+    for(var in vars_to_scale){
+          df_scaled_fj[[var]] <- (df[[var]] - scale_centers_fj[var]) / scale_scales_fj[var]
+    }
+        
+    pred_fj_ord <- predict(FewJobs_ordinal_3modes, 
+                             newdata = df_scaled_fj, 
+                             SE = TRUE, 
+                             type = "probs") 
+    
+    pred_fj_ord <- as.data.frame(pred_fj_ord)
+    
+    pred_fj_ord$Value <- seq_val 
+    
+    pred_fj_ord <- pred_fj_ord %>%  
+        pivot_longer(cols = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"), 
+                     names_to = "Likert", values_to = "Probability") %>% 
+       mutate(Outcome = "Few jobs accessible - Ordinal") %>%
+       mutate(Case = grupo,
+              Mode = mode,
+              TransitPass = unique(df$TransitPass),
+              LongTermConditions = unique(df$LongTermConditions),
+              Woman = unique(df$Woman),
+              Non_White = unique(df$Non_White),
+              CarNumber = unique(df$CarNumber),
+              BikeNumber = unique(df$BikeNumber),
+              Age = unique(df$Age),
+              hh_income = unique(df$hh_income),
+              Immigrant = unique(df$Immigrant))
+    
+    # Ordinal: Easy to Reach 
+    
+    df_scaled_etg <- df
+      
+    for(var in vars_to_scale){
+          df_scaled_etg[[var]] <- (df[[var]] - scale_centers_etg[var]) / scale_scales_etg[var]
+    }
+        
+    pred_etr_ord <- predict(EasyToGo_ordinal_3modes, 
+                             newdata = df_scaled_etg, 
+                             SE = TRUE, 
+                             type = "probs") 
+    
+    pred_etr_ord <- as.data.frame(pred_etr_ord)
+    
+    pred_etr_ord$Value <- seq_val 
+    
+    pred_etr_ord <- pred_etr_ord %>%  
+        pivot_longer(cols = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"), 
+                     names_to = "Likert", values_to = "Probability") %>% 
+       mutate(Outcome = "Easy to reach - Ordinal") %>%
+       mutate(Case = grupo,
+              Mode = mode,
+              TransitPass = unique(df$TransitPass),
+              LongTermConditions = unique(df$LongTermConditions),
+              Woman = unique(df$Woman),
+              Non_White = unique(df$Non_White),
+              CarNumber = unique(df$CarNumber),
+              BikeNumber = unique(df$BikeNumber),
+              Age = unique(df$Age),
+              hh_income = unique(df$hh_income),
+              Immigrant = unique(df$Immigrant))
+
+     predict_subset <- predict_subset %>%
+       dplyr::bind_rows(pred_ttl,
+                        pred_etr,
+                        pred_de,
+                        pred_fj,
+                        pred_fj_ord, 
+                        pred_etr_ord)
+  }
+}
+
+rownames(predict_subset) <- NULL
+```
+
+```{r}
+#predict_subset <- readRDS(paste0(diretorio_export,"predictions.rds"))
+```
+
+```{r}
+predict_subset <- predict_subset %>% 
+  mutate(Model = case_when(
+    is.na(SE) ~ "Ordinal",
+    TRUE ~ "Linear"))
+```
+
+```{r}
+### Most disadvantaged case
+# "TransitPass" = Yes,
+# "LongTermConditions" = ,
+# "Woman" = Yes,
+# "Non_White" = Yes,
+# "CarNumber" = 0,
+# "hh_income" = "$30,000 to $60,000"
+# "Immigrant" = Yes 
+
+disadvantaged <- "TransitPass: Yes - LongTermConditions: Yes - Woman: Yes - Non_White: Yes - CarNumber: 0 - BikeNumber: 0 - hh_income: Less than $30,000 - Immigrant: No - Age: 30"
+
+### Most non-disadvantaged case
+# "TransitPass" = Yes,
+# "LongTermConditions" = No,
+# "Woman" = No,
+# "Non_White" = Yes,
+# "CarNumber" = 2,
+# "hh_income" = "More than 210,000"
+# "Immigrant" = No 
+
+non_disadvantaged <- "TransitPass: No - LongTermConditions: No - Woman: No - Non_White: No - CarNumber: 2 - BikeNumber: 2 - hh_income: More than $210,000 - Immigrant: Yes - Age: 60"
+```
+
+## Linear cases 
+
+```{r}
+predict_subset_linear <- predict_subset %>% 
+  filter(Model == "Linear")
+
+for(caso in unique(predict_subset_linear$Case)){
+  Probabilities <- predict_subset_linear %>% 
+  filter(Case == caso) %>% 
+  mutate(Outcome = factor(Outcome, levels = outcome_order_linear)) %>%
+  ggplot(aes(x = Value, y = Probability, color = Outcome, fill = Outcome)) +
+  geom_line(linewidth = 0.75) +
+  geom_ribbon(aes(ymin = Probability - SE, ymax = Probability + SE), 
+              alpha = 0.15, linetype = 0) +  
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    title = str_wrap(caso, width = 80)) +
+  coord_cartesian(ylim = c(0, 100)) +
+  theme_minimal() + 
+  facet_wrap(~ Mode, ncol = 3)  +
+  scale_color_manual(values = my_colors_linear) +
+  scale_fill_manual(values = my_colors_linear) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images, "/linear/all/", caso,"-linear-all.jpg"),
+       plot = Probabilities,
+       width = 20,
+       height = 8,
+       units = "cm",
+       dpi = 300)
+}
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/linear/all/", disadvantaged,"-linear-all.jpg"))
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/linear/all/", non_disadvantaged,"-linear-all.jpg"))
+```
+
+```{r}
+signif_linear_models <- c("Easy to reach", "Few jobs accessible")
+
+predict_subset_linear_sig  <- predict_subset_linear %>% 
+  filter(Outcome %in% signif_linear_models)
+
+for(caso in unique(predict_subset_linear_sig$Case)){
+  probabilities_sig <- predict_subset_linear_sig %>% 
+  filter(Case == caso) %>% 
+  mutate(Outcome = factor(Outcome, levels = outcome_order_linear)) %>%
+  ggplot(aes(x = Value, y = Probability, color = Outcome, fill = Outcome)) +
+  geom_line(linewidth = 0.75) +
+  geom_ribbon(aes(ymin = Probability - SE, ymax = Probability + SE), 
+              alpha = 0.15, linetype = 0) +  
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    title = str_wrap(caso, width = 80)) +
+  coord_cartesian(ylim = c(0, 100)) +
+  theme_minimal() + 
+  facet_wrap(~ Mode, ncol = 3)  +
+  scale_color_manual(values = my_colors_linear) +
+  scale_fill_manual(values = my_colors_linear) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images, "/linear/sig/", caso,"-linear-sig.jpg"),
+       plot = probabilities_sig,
+       width = 20,
+       height = 8,
+       units = "cm",
+       dpi = 300)
+}
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/linear/sig/", disadvantaged,"-linear-sig.jpg"))
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/linear/sig/", non_disadvantaged,"-linear-sig.jpg"))
+```
+
+Transit: 
+
+```{r}
+accessibility_lines <- data.frame(Statistic = c("Median", "Maximum"),
+  Value = c(Hmisc::wtd.quantile(respondents$SA_Transit, weights = respondents$fexp_final, probs = 0.5), 
+            max(respondents$SA_Transit, na.rm = TRUE)))
+
+median_sa <- Hmisc::wtd.quantile(respondents$SA_Transit, weights = respondents$fexp_final, probs = 0.5)
+max_sa <- max(respondents$SA_Transit, na.rm = TRUE)
+mean_sa <- Hmisc::wtd.mean(respondents$SA_Transit, weights = respondents$fexp_final)
+
+predict_subset_standads_linear <- predict_subset_linear_sig %>% 
+  filter(Mode == "Transit", 
+         Case %in% c(disadvantaged, non_disadvantaged)) %>%  
+    mutate(Outcome = factor(Outcome, levels = outcome_order_linear), 
+           Equity = case_when(Case == disadvantaged ~ "Most Disadvantaged",
+                              Case == non_disadvantaged ~ "Most Non-Disadvantaged"))
+
+probabilities_transit_linear <- predict_subset_standads_linear %>%   
+  ggplot(aes(x = Value, y = Probability, color = Outcome, fill = Outcome)) +
+  geom_line(linewidth = 0.75, alpha = 0.9) +
+  geom_ribbon(aes(ymin = Probability - SE, ymax = Probability + SE), 
+              alpha = 0.10, linetype = 0) +  
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = 97, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = 97, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  labs(x = "Number of jobs reached by public transit",
+    y = "Predicted probability",
+    title = NULL) +
+  coord_cartesian(ylim = c(0, 100), 
+                  xlim = c(0, 1.10 * max(respondents$SA_Transit, na.rm = TRUE))) +
+  theme_minimal() + 
+  facet_wrap(~Equity, ncol = 2)  +
+  scale_color_manual(values = my_colors_linear) +
+  scale_fill_manual(values = my_colors_linear) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/linear/accessibility-effect-transit.jpg"),
+       plot = probabilities_transit_linear,
+       width = 18,
+       height = 7,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/linear/accessibility-effect-transit.jpg"))
+```
+
+## Ordinal cases 
+
+### Few jobs 
+
+"There are too few jobs available for me in my ideal commuting time" 
+
+```{r}
+predict_subset_ordinal_fj <- predict_subset %>% 
+  # filter(Model == "Ordinal", Outcome == "Few jobs accessible") %>% 
+  filter(Model == "Ordinal", Outcome == "Few jobs accessible - Ordinal") %>%
+mutate(Probability = Probability * 100)
+
+for(caso in unique(predict_subset_ordinal_fj$Case)){
+  probabilities_fj <- predict_subset_ordinal_fj %>% 
+  filter(Case == caso) %>% 
+  mutate(Likert = factor(Likert, levels = Likert_order)) %>%
+  ggplot(aes(x = Value, y = Probability, color = Likert)) +
+  geom_line(linewidth = 0.75) +
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    color = "Few jobs available", 
+    title = str_wrap(caso, width = 80)) +
+  coord_cartesian(ylim = c(0, 100)) +
+  theme_minimal() + 
+  facet_wrap(~ Mode, ncol = 3)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images, "/ordinal/", caso,"-ordinal-fj.jpg"),
+       plot = probabilities_fj,
+       width = 20,
+       height = 8,
+       units = "cm",
+       dpi = 300)
+}
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/", disadvantaged,"-ordinal-fj.jpg"))
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/", non_disadvantaged,"-ordinal-fj.jpg"))
+```
+
+Just Transit: 
+
+```{r}
+predict_subset_standads_ordinal_fj <- predict_subset %>%
+  filter(Mode == "Transit", 
+         Case %in% c(disadvantaged, non_disadvantaged), 
+         Model == "Ordinal", 
+         #Outcome == "Few jobs accessible"
+         Outcome == "Few jobs accessible - Ordinal"
+         ) %>%  
+    mutate(Likert = factor(Likert, levels = Likert_order), 
+           Equity = case_when(Case == disadvantaged ~ "Most Disadvantaged",
+                              Case == non_disadvantaged ~ "Most Non-Disadvantaged"), 
+           Probability = Probability * 100)
+
+probabilities_transit_linear_fj <- predict_subset_standads_ordinal_fj %>%   
+  ggplot(aes(x = Value, y = Probability, color = Likert)) +
+  geom_line(linewidth = 0.75, alpha = 0.9) +
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = Inf, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = Inf, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  labs(x = "Number of jobs reached by public transit",
+    y = "Predicted probability",
+    color = "Few jobs available", 
+    title = NULL) +
+  # coord_cartesian(ylim = c(0, 100),
+  #                 xlim = c(0, 1.10 * max_sa )) +
+  theme_minimal() + 
+  facet_wrap(~Equity, ncol = 2)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-fj.jpg"),
+       plot = probabilities_transit_linear_fj,
+       width = 18,
+       height = 7,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-fj.jpg"))
+```
+
+### Easy to reach 
+
+"With the transport options available to me, I can easily participate/reach the following destinations: Work" 
+
+```{r}
+predict_subset_ordinal_etr <- predict_subset %>% 
+  filter(Model == "Ordinal", Outcome == "Easy to reach - Ordinal") %>% 
+  mutate(Probability = Probability * 100)
+
+for(caso in unique(predict_subset_ordinal_etr$Case)){
+  probabilities_ord_etr <- predict_subset_ordinal_etr %>% 
+  filter(Case == caso) %>% 
+  mutate(Likert = factor(Likert, levels = Likert_order)) %>%
+  ggplot(aes(x = Value, y = Probability, color = Likert)) +
+  geom_line(linewidth = 0.75) +
+  labs(x = "Number of jobs reached",
+    y = "Predicted probability",
+    color = "Easy to reach jobs", 
+    title = str_wrap(caso, width = 80)) +
+  coord_cartesian(ylim = c(0, 100)) +
+  theme_minimal() + 
+  facet_wrap(~ Mode, ncol = 3)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images, "/ordinal/", caso,"-ordinal-etr.jpg"),
+       plot = probabilities_ord_etr,
+       width = 20,
+       height = 8,
+       units = "cm",
+       dpi = 300)
+}
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/", disadvantaged,"-ordinal-etr.jpg"))
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/", non_disadvantaged,"-ordinal-etr.jpg"))
+```
+
+Just Transit: 
+
+```{r}
+predict_subset_standads_ordinal_etr <- predict_subset %>%
+  filter(Mode == "Transit", 
+         Case %in% c(disadvantaged, non_disadvantaged), 
+         Model == "Ordinal", 
+         Outcome == "Easy to reach - Ordinal"
+         ) %>%  
+    mutate(Likert = factor(Likert, levels = Likert_order), 
+           Equity = case_when(Case == disadvantaged ~ "Most Disadvantaged",
+                              Case == non_disadvantaged ~ "Most Non-Disadvantaged"), 
+           Probability = Probability * 100)
+
+probabilities_transit_linear_etr <- predict_subset_standads_ordinal_etr %>%   
+  ggplot(aes(x = Value, y = Probability, color = Likert)) +
+  geom_line(linewidth = 0.75, alpha = 0.9) +
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = Inf, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = Inf, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  labs(x = "Number of jobs reached by public transit",
+    y = "Predicted probability",
+    color = "Easy to reach jobs", 
+    title = NULL) +
+  coord_cartesian(#ylim = c(0, 100),
+                   xlim = c(0, 1.10 * max_sa )) +
+  theme_minimal() + 
+  facet_wrap(~Equity, ncol = 2)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-etr.jpg"),
+       plot = probabilities_transit_linear_etr,
+       width = 18,
+       height = 7,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-etr.jpg"))
+```
+
+### Both Models
+
+```{r}
+ordinal_subset <- predict_subset %>%
+  filter(Mode == "Transit", 
+         Case %in% c(disadvantaged, non_disadvantaged), 
+         Model == "Ordinal") %>%  
+    mutate(Likert = factor(Likert, levels = Likert_order), 
+           Equity = case_when(Case == disadvantaged ~ "Most Disadvantaged",
+                              Case == non_disadvantaged ~ "Most Non-Disadvantaged"),            
+           Outcome = case_when(Outcome == "Few jobs accessible - Ordinal" ~ "Few jobs accessible",
+                              Outcome == "Easy to reach - Ordinal" ~ "Easy to reach jobs"), 
+           Probability = Probability * 100)
+
+probabilities_ordinal_equity <- ordinal_subset %>%   
+  ggplot(aes(x = Value, y = Probability, color = Likert)) +
+  geom_line(linewidth = 0.75, alpha = 0.9) +
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = Inf, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = Inf, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  labs(x = "Number of jobs reached by public transit",
+    y = "Predicted probability",
+    color = "Perception Group", 
+    title = NULL) +
+  coord_cartesian(#ylim = c(0, 100),
+                   xlim = c(0, 1.10 * max_sa )) +
+  theme_minimal() + 
+  facet_wrap(~Equity + Outcome, ncol = 2)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-ordinals-both.jpg"),
+       plot = probabilities_ordinal_equity,
+       width = 18,
+       height = 14,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-ordinals-both.jpg"))
+```
+
+```{r}
+probabilities_ordinal_dis <- ordinal_subset %>% 
+  filter(Equity == "Most Disadvantaged") %>%
+  ggplot(aes(x = Value, y = Probability, color = Likert)) +
+  geom_line(linewidth = 0.75, alpha = 0.9) +
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = Inf, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = Inf, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  labs(x = "Number of jobs reached by public transit",
+    y = "Predicted probability: Most Disadvantaged",
+    color = "Perception Group", 
+    title = NULL) +
+  coord_cartesian(#ylim = c(0, 100),
+                   xlim = c(0, 1.10 * max_sa )) +
+  theme_minimal() + 
+  facet_wrap(~Outcome, ncol = 2)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-ordinals-dis.jpg"),
+       plot = probabilities_ordinal_dis,
+       width = 19,
+       height = 9,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-ordinals-dis.jpg"))
+```
+
+```{r}
+probabilities_ordinal_ndis <- ordinal_subset %>% 
+  filter(Equity == "Most Non-Disadvantaged") %>%
+  ggplot(aes(x = Value, y = Probability, color = Likert)) +
+  geom_line(linewidth = 0.75, alpha = 0.9) +
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = Inf, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = Inf, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  labs(x = "Number of jobs reached by public transit",
+    y = "Predicted probability: Most Non-Disadvantaged",
+    color = "Perception Group", 
+    title = NULL) +
+  coord_cartesian(#ylim = c(0, 100),
+                   xlim = c(0, 1.10 * max_sa )) +
+  theme_minimal() + 
+  facet_wrap(~Outcome, ncol = 2)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-ordinals-ndis.jpg"),
+       plot = probabilities_ordinal_ndis,
+       width = 19,
+       height = 9,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-ordinals-ndis.jpg"))
+```
+
+# Key Thresholds
+
+Identifying key thresholds for transit accessibility: 
+```{r}
+##################################
+##################################
+
+outcome <- "Few jobs accessible - Ordinal" 
+"There are too few jobs available for me in my ideal commuting time"
+
+##################################
+##################################
+
+standard_fj <- predict_subset %>%
+  filter(Mode == "Transit",
+         Outcome == outcome) %>%  
+  mutate(Probability = Probability * 100) %>% 
+  filter(Case == disadvantaged) %>% 
+  dplyr::select(Value, Probability, Likert) %>% 
+  pivot_wider(names_from = Likert, values_from = Probability)
+
+fj_threshold <-  standard_fj %>% 
+  filter((`Positive` + `Most Positive` + `Neutral`) > (`Most Negative` + `Negative`)) %>%
+  dplyr::slice(1) %>%
+  pull(Value)
+
+fj_threshold
+```
+
+
+```{r}
+##################################
+##################################
+
+outcome <- "Easy to reach - Ordinal" 
+"With the transport options available to me, I can easily participate/reach the following destinations:” Work" 
+##################################
+##################################
+
+standard_etr <- predict_subset %>%
+  filter(Mode == "Transit",
+         Outcome == outcome) %>%  
+  mutate(Probability = Probability * 100) %>% 
+  filter(Case == disadvantaged) %>% 
+  dplyr::select(Value, Probability, Likert) %>% 
+  pivot_wider(names_from = Likert, values_from = Probability)
+
+ert_treshold <-  standard_etr %>% 
+  filter((`Positive` + `Most Positive` + `Neutral`) > (`Most Negative` + `Negative`)) %>%
+  dplyr::slice(1) %>%
+  pull(Value)
+
+ert_treshold
+```
+
+
+```{r}
+conservative_threshold <- ifelse(fj_threshold <= ert_treshold, fj_threshold, ert_treshold)
+progressive_threshold <- ifelse(fj_threshold <= ert_treshold, ert_treshold, fj_threshold)
+intermediate_threshold <- (progressive_threshold - conservative_threshold)/2 + conservative_threshold
+
+# --- standards ---
+conservative_threshold
+intermediate_threshold
+progressive_threshold
+
+type <- c("Conservative", "Intermediate", "Progressive")
+threshold_values <- c(conservative_threshold, intermediate_threshold, progressive_threshold)
+
+standards_df <- data.frame(Values = threshold_values)
+```
+
+```{r}
+probabilities_ordinal_dis_thresholds <- ordinal_subset %>% 
+  filter(Equity == "Most Disadvantaged") %>%
+  ggplot(aes(x = Value, y = Probability, color = Likert)) +
+  geom_line(linewidth = 0.75, alpha = 0.9) +
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = Inf, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = Inf, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  geom_vline(data = standards_df,
+             aes(xintercept = Values),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = conservative_threshold, y = 60, 
+           label = paste0("Conservative: ", conservative_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333", fontface = "bold") +
+    annotate("text", x = intermediate_threshold, y = 60, 
+           label = paste0("Intermediate: ", intermediate_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333", fontface = "bold") +
+    annotate("text", x = progressive_threshold, y = 60, 
+           label = paste0("Progressive: ", progressive_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3.2, color = "#333333", fontface = "bold") +
+  labs(x = "Number of jobs reached by public transit",
+    y = "Probabilities for 'Most Disadvantaged'",
+    color = "Perception Group", 
+    title = NULL) +
+  coord_cartesian(#ylim = c(0, 100),
+                   xlim = c(0, 1.10 * max_sa )) +
+  theme_minimal() + 
+  facet_wrap(~Outcome, ncol = 2)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-dis-standards.jpg"),
+       plot = probabilities_ordinal_dis_thresholds,
+       width = 20,
+       height = 9,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-dis-standards.jpg"))
+```
+
+```{r}
+probabilities_ordinal_ndis_thresholds <- ordinal_subset %>% 
+  filter(Equity == "Most Non-Disadvantaged") %>%
+  ggplot(aes(x = Value, y = Probability, color = Likert)) +
+  geom_line(linewidth = 0.75, alpha = 0.9) +
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = Inf, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = Inf, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  geom_vline(data = standards_df,
+             aes(xintercept = Values),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = conservative_threshold, y = 60, 
+           label = paste0("Conservative: ", conservative_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333", fontface = "bold") +
+    annotate("text", x = intermediate_threshold, y = 60, 
+           label = paste0("Intermediate: ", intermediate_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333", fontface = "bold") +
+    annotate("text", x = progressive_threshold, y = 60, 
+           label = paste0("Progressive: ", progressive_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3.2, color = "#333333", fontface = "bold") +
+  labs(x = "Number of jobs reached by public transit",
+    y = "Probabilities for 'Most Non-Disadvantaged'",
+    color = "Perception Group", 
+    title = NULL) +
+  coord_cartesian(#ylim = c(0, 100),
+                   xlim = c(0, 1.10 * max_sa )) +
+  theme_minimal() + 
+  facet_wrap(~Outcome, ncol = 2)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-ndis-standards.jpg"),
+       plot = probabilities_ordinal_ndis_thresholds,
+       width = 20,
+       height = 9,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-ndis-standards.jpg"))
+```
+
+Probabilities + Standards + Area Plots: 
+
+```{r}
+probabilities_ordinal_dis_thresholds_area <- ordinal_subset %>% 
+  filter(Equity == "Most Disadvantaged") %>%
+  ggplot(aes(x = Value, y = Probability,  fill = Likert, color = Likert)) +
+  geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = 60, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = 60, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  geom_vline(data = standards_df,
+             aes(xintercept = Values),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = conservative_threshold, y = 60, 
+           label = paste0(conservative_threshold), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, 
+           size = 3, color = "#333333", fontface = "bold") +
+    annotate("text", x = intermediate_threshold, y = 60, 
+           label = paste0(intermediate_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333", fontface = "bold") +
+    annotate("text", x = progressive_threshold, y = 60, 
+           label = paste0(progressive_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333", fontface = "bold") +
+  labs(x = "Number of jobs reached by public transit",
+    y = "Probabilities for 'Most Disadvantaged'",
+       color = "Perception Group", 
+       fill = "Perception Group",
+    title = NULL) +
+  coord_cartesian(#ylim = c(0, 100),
+                   xlim = c(0, 1.10 * max_sa )) +
+  theme_minimal() + 
+  facet_wrap(~Outcome, ncol = 2)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-dis-standards-area.jpg"),
+       plot = probabilities_ordinal_dis_thresholds_area,
+       width = 20,
+       height = 9,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-dis-standards-area.jpg"))
+```
+
+```{r}
+probabilities_ordinal_ndis_thresholds_areas <- ordinal_subset %>% 
+  filter(Equity == "Most Non-Disadvantaged") %>%
+  ggplot(aes(x = Value, y = Probability,  fill = Likert, color = Likert)) +
+  geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = 60, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = 60, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  geom_vline(data = standards_df,
+             aes(xintercept = Values),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = conservative_threshold, y = 60, 
+           label = paste0(conservative_threshold), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, 
+           size = 3, color = "#333333", fontface = "bold") +
+    annotate("text", x = intermediate_threshold, y = 60, 
+           label = paste0(intermediate_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333", fontface = "bold") +
+    annotate("text", x = progressive_threshold, y = 60, 
+           label = paste0(progressive_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333", fontface = "bold") +
+  labs(x = "Number of jobs reached by public transit",
+    y = "Probabilities for 'Most Disadvantaged'",
+       color = "Perception Group", 
+       fill = "Perception Group",
+    title = NULL) +
+  coord_cartesian(#ylim = c(0, 100),
+                   xlim = c(0, 1.10 * max_sa )) +
+  theme_minimal() + 
+  facet_wrap(~Outcome, ncol = 2)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-ndis-standards-areas.jpg"),
+       plot = probabilities_ordinal_ndis_thresholds_areas,
+       width = 20,
+       height = 9,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-ndis-standards-areas.jpg"))
+```
+
+```{r}
+probabilities_ordinal_equity_threshold_area <- ordinal_subset %>%   
+  ggplot(aes(x = Value, y = Probability, color = Likert, fill = Likert)) +
+  geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
+  geom_vline(data = accessibility_lines,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa, y = 60, 
+           label = paste0("Median: ", round(median_sa)), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa, y = 60, 
+           label = paste0("Max: ", round(max_sa)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  geom_vline(data = standards_df,
+             aes(xintercept = Values),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = conservative_threshold, y = 60, 
+           label = paste0(conservative_threshold), 
+           angle = 90, 
+           hjust = 1, vjust = -0.5, 
+           size = 3, color = "#333333", fontface = "bold") +
+    annotate("text", x = intermediate_threshold, y = 60, 
+           label = paste0(intermediate_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333", fontface = "bold") +
+    annotate("text", x = progressive_threshold, y = 60, 
+           label = paste0(progressive_threshold), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333", fontface = "bold") +
+  
+  labs(x = "Number of jobs reached by public transit",
+    y = "Predicted probability",
+    color = "Perception Group", 
+    fill = "Perception Group",
+    title = NULL) +
+  coord_cartesian(ylim = c(0, 100),
+                   xlim = c(0, 1.10 * max_sa )) +
+  theme_minimal() + 
+  facet_wrap(~Equity + Outcome, ncol = 2)  +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(#legend.position = "bottom",         
+    legend.direction = "vertical",    
+    legend.title = element_text(size = 10),
+    legend.text = element_text(size = 9))
+
+ggsave(file = paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-both-area.jpg"),
+       plot = probabilities_ordinal_equity_threshold_area,
+       width = 18,
+       height = 14,
+       units = "cm",
+       dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-both-area.jpg"))
+```
+
+Identifying priority areas based on their transit accessibility gap: 
+
+```{r}
+priority_geo_areas <- census_tracts %>% 
+  sf::st_drop_geometry() %>% 
+  left_join(accessibilities_wide, by = "CTUID") %>% 
+  filter(!is.na(SA_Transit)) %>% 
+  group_by(CTUID) %>% 
+  dplyr::summarise(SA_Transit = first(SA_Transit, na_rm = TRUE),
+               Weighted_Pop = Population) %>% 
+  mutate(range_cons = conservative_threshold - SA_Transit, 
+         range_prog = progressive_threshold - SA_Transit, 
+         range_inte = intermediate_threshold - SA_Transit, 
+         AFI_cons = range_cons * Weighted_Pop, 
+         AFI_prog = range_prog * Weighted_Pop, 
+         AFI_inte = range_inte * Weighted_Pop)
+
+# Conservative threshold 
+cons_classification <- priority_geo_areas %>% 
+  filter(range_cons > 0)
+
+q2  <- quantile(cons_classification$AFI_cons, 0.25, na.rm = TRUE)   
+q50 <- quantile(cons_classification$AFI_cons, 0.50, na.rm = TRUE)   
+q75 <- quantile(cons_classification$AFI_cons, 0.75, na.rm = TRUE) 
+
+cons_classification <- cons_classification %>% 
+  mutate(priority_cons = case_when(AFI_cons > q75 ~ "Very-high priority",
+                              AFI_cons > q50 & AFI_cons <= q75 ~ "High priority",
+                              AFI_cons > q2  & AFI_cons <= q50 ~ "Moderate priority",
+                              AFI_cons <= q2 ~ "Low priority", 
+                              TRUE ~ "No deficit")) %>% 
+  dplyr::select(CTUID, priority_cons)
+
+# Progressive threshold 
+
+prog_classification <- priority_geo_areas %>% 
+  filter(range_prog > 0)
+
+q2  <- quantile(prog_classification$AFI_prog, 0.25, na.rm = TRUE)   
+q50 <- quantile(prog_classification$AFI_prog, 0.50, na.rm = TRUE)   
+q75 <- quantile(prog_classification$AFI_prog, 0.75, na.rm = TRUE) 
+
+prog_classification <- prog_classification %>% 
+  mutate(priority_prog = case_when(AFI_prog > q75 ~ "Very-high priority",
+                              AFI_prog > q50 & AFI_prog <= q75 ~ "High priority",
+                              AFI_prog > q2  & AFI_prog <= q50 ~ "Moderate priority",
+                              AFI_prog <= q2 ~ "Low priority", 
+                              TRUE ~ "No deficit")) %>% 
+  dplyr::select(CTUID, priority_prog)
+
+# Intermediate threshold 
+
+inte_classification <- priority_geo_areas %>% 
+  filter(range_inte > 0)
+
+q2  <- quantile(inte_classification$AFI_inte, 0.25, na.rm = TRUE)   
+q50 <- quantile(inte_classification$AFI_inte, 0.50, na.rm = TRUE)   
+q75 <- quantile(inte_classification$AFI_inte, 0.75, na.rm = TRUE) 
+
+inte_classification <- inte_classification %>% 
+  mutate(priority_inte = case_when(AFI_inte > q75 ~ "Very-high priority",
+                              AFI_inte > q50 & AFI_inte <= q75 ~ "High priority",
+                              AFI_inte > q2  & AFI_inte <= q50 ~ "Moderate priority",
+                              AFI_inte <= q2 ~ "Low priority", 
+                              TRUE ~ "No deficit")) %>% 
+  dplyr::select(CTUID, priority_inte)
+
+
+priority_geo_areas <- priority_geo_areas %>% 
+  left_join(cons_classification, by = "CTUID") %>% 
+  left_join(prog_classification, by = "CTUID") %>% 
+  left_join(inte_classification, by = "CTUID")
+```
+
+Calculating FGT measures:
+
+```{r}
+fgt_equity <- function(df, threshold) {
+  N <- df %>% 
+    dplyr::summarize(Weighted_Pop = sum(Weighted_Pop, na.rm = TRUE))
+  
+  headcount <-
+    df %>%
+    filter(SA_Transit <= threshold) %>%
+    dplyr::summarize(fgt0_toSum = sum(Weighted_Pop),
+              Unweighted = n(), 
+              fgt1_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)),
+              fgt2_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)^2))
+
+    fg <- mutate(headcount,
+               Weighted_Pop = N$Weighted_Pop, 
+               fgt0 = fgt0_toSum / Weighted_Pop,
+               fgt1 = fgt1_toSum / Weighted_Pop,
+               fgt2 = fgt2_toSum / Weighted_Pop,
+               quant = threshold)
+}
+
+fgt_equity_intermediate <- fgt_equity(df = priority_geo_areas, 
+                        threshold = intermediate_threshold) %>%
+  as.data.frame() %>% 
+  mutate(priority = "General", Threshold = "Intermediate")
+
+fgt_equity_conservative <- fgt_equity(df = priority_geo_areas, 
+                               threshold = conservative_threshold) %>%
+  as.data.frame() %>% 
+  mutate(priority = "General", Threshold = "Conservative")
+
+fgt_equity_progressive <- fgt_conservative <- fgt_equity(df = priority_geo_areas, 
+                                                  threshold = progressive_threshold) %>%
+  as.data.frame() %>% 
+  mutate(priority = "General", Threshold = "Progressive")
+
+fgt_priorities <- function(df, threshold, priority) {
+  N <- df %>% 
+    dplyr::summarize(Weighted_Pop = sum(Weighted_Pop, na.rm = TRUE))
+  
+  headcount <- df %>%
+    filter(SA_Transit <= threshold) %>%
+    group_by(.data[[priority]]) %>%
+    dplyr::summarize(fgt0_toSum = sum(Weighted_Pop),
+                            Unweighted = n(), 
+      fgt1_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)),
+      fgt2_toSum = sum(Weighted_Pop * ((threshold - SA_Transit)/threshold)^2),
+      .groups = "drop")
+  
+  fg <- headcount %>% 
+    mutate(Weighted_Pop = N$Weighted_Pop, 
+      fgt0 = fgt0_toSum / Weighted_Pop,
+      fgt1 = fgt1_toSum / Weighted_Pop,
+      fgt2 = fgt2_toSum / Weighted_Pop,
+      quant = threshold)
+  
+  return(fg)
+}
+
+fgt_prior_intermediate <- fgt_priorities(
+  df = priority_geo_areas,
+  threshold = intermediate_threshold,
+  priority = "priority_inte") %>%
+  as.data.frame() %>% 
+  rename(priority = priority_inte) %>% 
+  mutate(Threshold = "Intermediate")
+  
+fgt_prior_conservative <- fgt_priorities(
+  df = priority_geo_areas,
+  threshold = conservative_threshold,
+  priority = "priority_cons") %>%
+  as.data.frame() %>% 
+  rename(priority = priority_cons) %>% 
+  mutate(Threshold = "Conservative")
+
+fgt_prior_progressive <- fgt_priorities(
+  df = priority_geo_areas,
+  threshold = progressive_threshold,
+  priority = "priority_prog") %>% 
+  rename(priority = priority_prog) %>%
+  as.data.frame() %>% 
+  mutate(Threshold = "Progressive")
+
+fgt_measures <- bind_rows(fgt_equity_intermediate, fgt_equity_conservative, fgt_equity_progressive,
+                           fgt_prior_intermediate, fgt_prior_conservative, fgt_prior_progressive) %>% 
+  filter(!is.na(priority)) 
+```
+
+Plotting graphs of FGT measures: 
+
+```{r}
+plot_fgt_data <-  fgt_measures %>% 
+  pivot_longer(cols = c(fgt0, fgt1, fgt2)) %>%
+  mutate(name = ifelse(name == "fgt0", "FGT-0",
+                ifelse(name == "fgt1", "FGT-1", "FGT-2")), 
+         pop = "Population")
+
+priority_order <- c("General", 
+                   "Very-high priority", 
+                   "High priority", 
+                   "Moderate priority", 
+                   "Low priority")
+
+my_colors <- c("#525252","#e31a1c","#fd8d3c", "#feb24c","#fed976")
+
+names(my_colors) <- priority_order
+  
+plot_fgt <- plot_fgt_data %>% 
+  mutate(priority = factor(priority, levels = priority_order)) %>%
+  ggplot(aes(y = Threshold, x = value, fill = priority)) + 
+  geom_point(size = 2.5, alpha = 0.70, pch=21, colour = "black")  + 
+  scale_x_continuous(limits = c(0, 1)) + 
+  scale_fill_manual(values = my_colors) +
+  facet_wrap(~ name) + 
+  theme_minimal() +
+  xlab(NULL) + 
+  ylab(NULL) + 
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        panel.grid.minor = element_blank())
+
+ggplot2::ggsave(plot = plot_fgt, 
+          filename = paste0(diretorio_export_images,"FGT_plots.jpg"), 
+          width = 18, 
+          height= 5, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r}
+knitr::include_graphics(paste0(diretorio_export_images,"/FGT_plots.jpg"))
+```
+
+Plotting priority areas for each standard: 
+
+```{r}
+priority_geo_areas <- priority_geo_areas %>%
+   mutate(priority_cons = replace_na(priority_cons, "No deficit"),
+          priority_prog = replace_na(priority_prog, "No deficit"),
+          priority_inte = replace_na(priority_inte, "No deficit"))
+
+priority_geo_areas_long_a <- priority_geo_areas %>% 
+  pivot_longer(cols = c("AFI_cons", "AFI_prog", "AFI_inte"),
+               names_to = c("AFI_type"), 
+               values_to  ="AFI_value") %>%
+  mutate(AFI_type = case_when(AFI_type == 'AFI_cons' ~ "Conservative", 
+                   AFI_type == 'AFI_prog' ~ "Progressive", 
+                   AFI_type == 'AFI_inte' ~ "Intermediate")) %>%
+    dplyr::select("CTUID","AFI_type", "AFI_value")
+
+  
+priority_geo_areas_long_b <- priority_geo_areas %>% 
+  pivot_longer(cols = c("priority_cons", "priority_prog", "priority_inte"),
+               names_to = c("Priority_type"), 
+               values_to  = "Priority_value") %>%
+  mutate(Priority_type = case_when(Priority_type == 'priority_cons' ~ "Conservative", 
+                   Priority_type == 'priority_prog' ~ "Progressive", 
+                   Priority_type == 'priority_inte' ~ "Intermediate")) %>% 
+      dplyr::select("CTUID","Priority_type", "Priority_value")
+
+
+priority_geo_areas_long <- priority_geo_areas_long_a %>% 
+  left_join(priority_geo_areas_long_b, 
+            by = c("CTUID" = "CTUID", 
+                   "AFI_type" = "Priority_type")) %>% 
+  distinct(CTUID, AFI_type, .keep_all = TRUE) %>%
+  full_join(census_tracts, by = c("CTUID" = "CTUID"))
+
+priority_order <- c("Very-high priority", 
+                   "High priority", 
+                   "Moderate priority", 
+                   "Low priority")
+
+my_colors <- c("#e31a1c","#fd8d3c", "#feb24c","#fed976")
+
+names(my_colors) <- priority_order
+  
+priority_geo_areas_long <- priority_geo_areas_long %>% 
+  mutate(Priority_value = factor(Priority_value, levels = priority_order), 
+                  pcd_label = case_when(PCD == "3518" ~ "Durham", 
+                               PCD == "3519" ~ "York", 
+                               PCD == "3520" ~ "Toronto", 
+                               PCD == "3521" ~ "Peel", 
+                               PCD == "3524" ~ "Halton", 
+                               PCD == "3525" ~ "Hamilton")) %>%
+  filter(!is.na(AFI_type)) %>% 
+  st_as_sf(crs = st_crs(census_tracts))
+
+
+priority_plot <- tm_shape(priority_geo_areas_long) +
+    tm_polygons("Priority_value",
+            palette = my_colors,
+            style = "cat",
+            border.col = NULL,
+            textNA = "No deficit",
+            title = "Priority Level") +
+  tm_facets(by = "AFI_type",
+    drop.empty.facets = TRUE,
+    ncol = 3) +
+  tm_shape(census_divisions) +
+  tm_borders(col = "black", lwd = 0.75) +
+  tm_scalebar(position = c("right", "bottom"), breaks = c(0, 10, 15, 25)) +
+  tm_compass(position = c("left", "top"), size = 1) +
+  tm_layout(
+    legend.outside = TRUE,
+    legend.outside.position = c("right"))
+
+tmap_save(priority_plot, 
+          paste0(diretorio_export_images,"geographical_priorities.jpg"), 
+          width = 17, 
+          height= 10, 
+          units = "cm", 
+          dpi = 500)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities.jpg"))
+```
+
+
+```{r}
+conservative_threshold_plot <- priority_geo_areas_long %>%
+  filter(AFI_type == "Conservative") %>% 
+  tm_shape(priority_geo_areas_long) +
+    tm_polygons("Priority_value",
+            palette = my_colors,
+            style = "cat",
+            border.col = NULL,
+            textNA = "No deficit",
+            title = paste0("Conservative Threshold: ", conservative_threshold)) + 
+  tm_shape(census_divisions) +
+  tm_borders(col = "black", lwd = 0.75) +
+  tm_scalebar(position = c("right", "bottom"), breaks = c(0, 10, 15, 25)) +
+  tm_compass(position = c("left", "top"), size = 1) +
+  tm_layout(
+    legend.outside = TRUE,
+    legend.outside.position = c("right"))
+
+tmap_save(conservative_threshold_plot, 
+          paste0(diretorio_export_images,"geographical_priorities_conservative.jpg"), 
+          width = 14, 
+          height= 10, 
+          units = "cm", 
+          dpi = 500)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_conservative.jpg"))
+```
+
+```{r}
+conservative_threshold_pcd <- priority_geo_areas_long %>%
+  filter(AFI_type == "Conservative") %>% 
+  tm_shape(.) + 
+  tm_polygons("Priority_value",
+            palette = my_colors,
+            style = "cat",
+            border.col = NULL,
+            textNA = "No deficit",
+            title = paste0("Conservative Threshold: ", conservative_threshold)) + 
+  tm_facets(by = "pcd_label", drop.empty.facets = TRUE, ncol = 3, free.coords = TRUE) +
+  tm_shape(census_divisions) +
+  tm_borders(col = "black", lwd = 0.75)  +
+  tm_facets(by = "pcd_label", drop.empty.facets = TRUE, ncol = 3, free.coords = TRUE) +
+  tm_scalebar(position = c("left", "bottom"), breaks = c(0, 2, 5)) +
+  tm_compass(position = c("right", "top"), size = 0.7) +
+  tm_layout(legend.outside = TRUE,
+    legend.outside.position = c("right"))
+
+tmap_save(conservative_threshold_pcd, 
+          paste0(diretorio_export_images,"/geographical_priorities_conservative_pcd.jpg"), 
+          width = 18, 
+          height= 12, 
+          units = "cm", 
+          dpi = 500)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_conservative_pcd.jpg"))
+```
+
+```{r}
+intermediate_threshold_plot <- priority_geo_areas_long %>%
+  filter(AFI_type == "Intermediate") %>% 
+  tm_shape(priority_geo_areas_long) +
+    tm_polygons("Priority_value",
+            palette = my_colors,
+            style = "cat",
+            border.col = NULL,
+            textNA = "No deficit",
+            title = paste0("Intermediate Threshold: ", intermediate_threshold)) + 
+  tm_shape(census_divisions) +
+  tm_borders(col = "black", lwd = 0.75) +
+  tm_scalebar(position = c("right", "bottom"), breaks = c(0, 10, 15, 25)) +
+  tm_compass(position = c("left", "top"), size = 1) +
+  tm_layout(
+    legend.outside = TRUE,
+    legend.outside.position = c("right"))
+
+tmap_save(intermediate_threshold_plot, 
+          paste0(diretorio_export_images,"geographical_priorities_intermediate.jpg"), 
+          width = 14, 
+          height= 10, 
+          units = "cm", 
+          dpi = 500)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_intermediate.jpg"))
+```
+
+```{r}
+intermediate_threshold_pcd <- priority_geo_areas_long %>%
+  filter(AFI_type == "Intermediate") %>% 
+  tm_shape(.) + 
+  tm_polygons("Priority_value",
+            palette = my_colors,
+            style = "cat",
+            border.col = NULL,
+            textNA = "No deficit",
+            title = paste0("Intermediate Threshold: ", intermediate_threshold)) + 
+  tm_facets(by = "pcd_label", drop.empty.facets = TRUE, ncol = 3, free.coords = TRUE) +
+  tm_shape(census_divisions) +
+  tm_borders(col = "black", lwd = 0.75)  +
+  tm_facets(by = "pcd_label", drop.empty.facets = TRUE, ncol = 3, free.coords = TRUE) +
+  tm_scalebar(position = c("left", "bottom"), breaks = c(0, 2, 5)) +
+  tm_compass(position = c("right", "top"), size = 0.7) +
+  tm_layout(legend.outside = TRUE,
+    legend.outside.position = c("right"))
+
+tmap_save(intermediate_threshold_pcd, 
+          paste0(diretorio_export_images,"/geographical_priorities_intermediate_pcd.jpg"), 
+          width = 18, 
+          height= 12, 
+          units = "cm", 
+          dpi = 500)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_intermediate_pcd.jpg"))
+```
+
+
+```{r}
+progressive_threshold_plot <- priority_geo_areas_long %>%
+  filter(AFI_type == "Progressive") %>% 
+  tm_shape(priority_geo_areas_long) +
+    tm_polygons("Priority_value",
+            palette = my_colors,
+            style = "cat",
+            border.col = NULL,
+            textNA = "No deficit",
+            title = paste0("Progressive Threshold: ", progressive_threshold)) + 
+  tm_shape(census_divisions) +
+  tm_borders(col = "black", lwd = 0.75) +
+  tm_scalebar(position = c("right", "bottom"), breaks = c(0, 10, 15, 25)) +
+  tm_compass(position = c("left", "top"), size = 1) +
+  tm_layout(
+    legend.outside = TRUE,
+    legend.outside.position = c("right"))
+
+tmap_save(progressive_threshold_plot, 
+          paste0(diretorio_export_images,"geographical_priorities_progressive.jpg"), 
+          width = 14, 
+          height= 10, 
+          units = "cm", 
+          dpi = 500)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_progressive.jpg"))
+```
+
+```{r}
+progressive_threshold_pcd <- priority_geo_areas_long %>%
+  filter(AFI_type == "Progressive") %>% 
+  tm_shape(.) + 
+  tm_polygons("Priority_value",
+            palette = my_colors,
+            style = "cat",
+            border.col = NULL,
+            textNA = "No deficit",
+            title = paste0("Progressive Threshold: ", progressive_threshold)) + 
+  tm_facets(by = "pcd_label", drop.empty.facets = TRUE, ncol = 3, free.coords = TRUE) +
+  tm_shape(census_divisions) +
+  tm_borders(col = "black", lwd = 0.75)  +
+  tm_facets(by = "pcd_label", drop.empty.facets = TRUE, ncol = 3, free.coords = TRUE) +
+  tm_scalebar(position = c("left", "bottom"), breaks = c(0, 2, 5)) +
+  tm_compass(position = c("right", "top"), size = 0.7) +
+  tm_layout(legend.outside = TRUE,
+    legend.outside.position = c("right"))
+
+tmap_save(progressive_threshold_pcd, 
+          paste0(diretorio_export_images,"/geographical_priorities_progressive_pcd.jpg"), 
+          width = 18, 
+          height= 12, 
+          units = "cm", 
+          dpi = 500)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_progressive_pcd.jpg"))
+```
+
+# Saving model files 
+
+```{r}
+saveRDS(TravelTooLong_3mode_lm_SA_clean, paste0(diretorio_export,"travel_too_long.rds"))
+saveRDS(EasyToGo_3mode_lm_SA_clean, paste0(diretorio_export,"easy_to_reach.rds"))
+saveRDS(DeclineEmployment_3mode_lm_SA_clean, paste0(diretorio_export,"decline_employments.rds"))
+saveRDS(FewJobs_3mode_lm_SA_clean, paste0(diretorio_export,"few_jobs.rds"))
+saveRDS(FewJobs_ordinal_3modes, paste0(diretorio_export,"few_jobs_ordinal.rds"))
+saveRDS(EasyToGo_ordinal_3modes, paste0(diretorio_export,"easy_to_reach_ordinal.rds"))
+saveRDS(predict_subset, paste0(diretorio_export,"predictions.rds"))
+```
+
+```{r}
+fgt_measures <- fgt_measures %>% 
+  dplyr::select("priority", "Threshold", "quant", "Weighted_Pop", "fgt0_toSum", "fgt1_toSum", "fgt2_toSum", 
+                "Weighted_Pop", "fgt0", "fgt1", "fgt2", "Unweighted")
+
+write.csv(fgt_measures, paste0(diretorio_export, "fgt_measures.csv"), row.names=FALSE)
+```
+
+```{r}
+ census_tracts_export <- census_tracts %>% 
+  left_join(priority_geo_areas, by = "CTUID") %>% 
+  mutate(Conservative = conservative_threshold, 
+         Intermediate = intermediate_threshold,
+         Progressive = progressive_threshold)
+
+sf::st_write(census_tracts_export, paste0(diretorio_export, "census_tract_with_priorities.gpkg"), append = FALSE)
+```
+
+
