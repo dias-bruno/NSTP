@@ -88,7 +88,7 @@ available in this package, to plot maps of the study area.
 Load the packages:
 
 ```{r load-packages}
-library('CommuteCA') # Access data sets from CommuteCA R package
+#library('CommuteCA') # Access data sets from CommuteCA R package
 library(dplyr)# A Grammar of Data Manipulation 
 library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
 library(RColorBrewer) # color schemes for maps (and other graphics) designed
@@ -219,9 +219,9 @@ SA_metrics_ct <- SA_metrics_ct %>%
   
 labour_force_plot <- tm_shape(SA_metrics_ct) + 
    tm_polygons("labour_force",
-              style = "quantile",
+              style = "jenks",
               palette = "Reds",
-              title = " ",
+              title = "Legend",
               border.col = NULL) + 
   tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) +
@@ -233,9 +233,9 @@ labour_force_plot <- tm_shape(SA_metrics_ct) +
 
 labour_force_km_plot <- tm_shape(SA_metrics_ct) + 
    tm_polygons("lf_km",
-              style = "quantile",
+              style = "jenks",
               palette = "Reds",
-              title = " ",
+              title = "Legend",
               border.col = NULL) + 
   tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) +
@@ -247,9 +247,9 @@ labour_force_km_plot <- tm_shape(SA_metrics_ct) +
 
 jobs_plot <- tm_shape(SA_metrics_ct) + 
    tm_polygons("jobs",
-              style = "quantile",
+              style = "jenks",
               palette = "Blues",
-              title = " ",
+              title = "Legend",
               border.col = NULL) + 
   tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) + 
@@ -261,9 +261,9 @@ jobs_plot <- tm_shape(SA_metrics_ct) +
 
 jobs_per_km_plot <- tm_shape(SA_metrics_ct) + 
    tm_polygons("jobs_km",
-              style = "quantile",
+              style = "jenks",
               palette = "Blues",
-              title = " ",
+              title = "Legend",
               border.col = NULL) + 
   tm_shape(census_divisions) +
   tm_borders("black", lwd=0.5) + 
@@ -307,6 +307,7 @@ knitr::include_graphics(paste0(diretorio_export_figures,"/lf_jobs_CT.jpg"))
 ```{r}
 knitr::include_graphics(paste0(diretorio_export_figures,"/lf_jobs_CT_densities.jpg"))
 ```
+
 
 Plotting the accessibility measures:
 
@@ -602,11 +603,11 @@ SA_nonc_by_mode_CT
 ```{r}
 SA_by_mode_CT_2 <- tm_shape(mode_metrics_ct_sf) + 
    tm_polygons("SA_im",
-              style = "quantile",
+              style = "jenks",
               palette = "Oranges",
-              title = " ",
+              title = "Jobs accessible",
               border.col = NULL) + 
-  tm_scale_bar(position = c("right", "top"))+
+  tm_scale_bar(position = c("right", "top"), breaks = c(0, 10, 15, 25))+
   tm_compass(position = c("left", "top"), size=1.0)  + 
    tm_facets(by = "PwMode_label", ncol = 2, free.scales = TRUE) +       
    tm_shape(census_divisions) +
@@ -723,7 +724,7 @@ Pop_SA_by_mode_CT <- ggplot(modal_SA_long,
       aes(x = perc, y = measure, fill = PwMode_label, label = measure %>% percent(accuracy = 0.1))) +
       scale_x_discrete(labels = c(
       "perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", round(total_SA), ")"),
-      "perc_pop" = paste("Population\n by Mode\n(Total: ", round(total_pop), ")") )) +
+      "perc_pop" = paste("Population\n by Mode\n(Total: ", format(round(total_pop)), ")") )) +
   geom_col() + 
   geom_text(position = position_stack(vjust=0.5), color="black") +
   theme_classic() +
