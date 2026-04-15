@@ -163,14 +163,14 @@ code <- c("3518", # Durham
           "3525" # Hamilton
           ) 
 
-code <- c("3525") 
+#code <- c("3525") 
 ```
 
 In our case, we are interested on the Census Divisions:
 
 ```{r}
 census_divisions <- get_census(dataset='CA21', 
-                               regions=list(CSD=code), 
+                               regions=list(CD=code), 
                                level='CSD', 
                                geo_format = "sf")
 ```
@@ -179,6 +179,7 @@ Filtering and adjusting variable names:
 
 ```{r}
 census_divisions <- census_divisions %>% 
+  filter(!is.na(CMA_UID)) %>%
   dplyr::select(GeoUID, name, PR_UID, `Shape Area`, geometry) %>% 
   dplyr::rename(CDUID = GeoUID, 
                 CDNAME = name,
@@ -194,22 +195,23 @@ is not within a Census Agglomeration or Census Metropolitan Area, you
 will not have census tract available for your city!):
 
 ```{r}
-census_tracts <- get_census(dataset='CA21', regions=list(CSD=code), level='CT', geo_format = "sf")
+census_tracts <- get_census(dataset='CA21', regions=list(CD=code), level='CT', geo_format = "sf")
 ```
 
 Filtering and adjusting variable names:
 
 ```{r}
 census_tracts <- census_tracts %>% 
-  dplyr::select(GeoUID, name, `Shape Area`, Population, Households, CD_UID, CMA_UID, geometry) %>% 
+  dplyr::select(GeoUID, name, `Shape Area`, Population, Households, CD_UID, CMA_UID, CSD_UID, geometry) %>% 
   dplyr::rename(CTUID = GeoUID, 
                 CTNAME = name,
                 PCD = CD_UID,
                 LANDAREA =`Shape Area`,
-                CMAUID = CMA_UID) %>% 
+                CMAUID = CMA_UID,
+                PCSD = CSD_UID) %>% 
   mutate(PRUID = substr(CMAUID, start = 1, stop = 2),
          CMAUID = substr(CMAUID, start = 3, stop = 5)) %>% 
-  dplyr::select(CTUID,CTNAME, LANDAREA, PCD, CMAUID, PRUID, Population, Households, geometry)
+  dplyr::select(CTUID,CTNAME, LANDAREA, PCD, PCSD, CMAUID, PRUID, Population, Households, geometry)
 ```
 
 ```{r}
@@ -219,14 +221,14 @@ plot(census_tracts["geometry"])
 And Dissemination areas:
 
 ```{r}
-dissemination_areas <- get_census(dataset='CA21', regions=list(CSD=code), level='DA', geo_format = "sf")
+dissemination_areas <- get_census(dataset='CA21', regions=list(CD=code), level='DA', geo_format = "sf")
 ```
 
 Filtering and adjusting variable names:
 
 ```{r}
 dissemination_areas <- dissemination_areas %>% 
-  dplyr::select(GeoUID, `Shape Area`, CD_UID, CT_UID, CMA_UID, geometry) %>% 
+  dplyr::select(GeoUID, `Shape Area`, CD_UID, CT_UID, CMA_UID, Population, geometry) %>% 
   dplyr::rename(DAUID = GeoUID, 
                 PCD = CD_UID,
                 LANDAREA =`Shape Area`,
@@ -234,7 +236,7 @@ dissemination_areas <- dissemination_areas %>%
                 CTUID = CT_UID) %>% 
   mutate(PRUID = substr(CMAUID, start = 1, stop = 2),
          CMAUID = substr(CMAUID, start = 3, stop = 5)) %>% 
-  dplyr::select(DAUID, LANDAREA, PCD, CTUID, CMAUID, PRUID, geometry)
+  dplyr::select(DAUID, LANDAREA, PCD, CTUID, CMAUID, PRUID, Population, geometry)
 ```
 
 ```{r}
@@ -249,7 +251,7 @@ using the city code of our study area. This organization makes it easier
 to manage files if we decide to analyze multiple study areas.
 
 ```{r}
-directory <- paste0(here(), "/data-raw/output/PCD3525/spatial-files/")
+directory <- paste0(here(), "/data-raw/output/GTAH/spatial-files/")
 
 if(!dir.exists(directory)){
   dir.create(directory, recursive = TRUE)}

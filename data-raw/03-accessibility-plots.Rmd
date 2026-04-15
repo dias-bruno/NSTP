@@ -698,6 +698,118 @@ tmap_save(SA_nonc_by_mode_CT_2,
 SA_nonc_by_mode_CT_2
 ```
 
+## SA per person 
+
+```{r}
+lf_pp_mode <- SA_mode %>%
+    dplyr::select(-c(SA_nonc_im, SA_im )) %>% 
+    pivot_wider(names_from = PwMode_label, values_from = labour_force, names_sep = "_", names_prefix = "lf_", values_fill = 0) %>% 
+  mutate("lf_Active" = lf_Walk + lf_Bike)
+
+SA_im_mode <- SA_mode %>%
+    dplyr::select(-c(SA_nonc_im, labour_force )) %>% 
+    pivot_wider(names_from = PwMode_label, values_from = SA_im, names_sep = "_", names_prefix = "SA_", values_fill = 0) %>% 
+  mutate("SA_Active" = SA_Walk + SA_Bike) 
+
+SA_general <- SA %>% 
+  rename(SA_General = SA_i,
+         lf_General = labour_force) %>%
+  dplyr::select(-c(SA_nonc_i))
+
+SA_pp <- lf_pp_mode %>% 
+  left_join(SA_im_mode, by = "from_id") %>% 
+  left_join(SA_general, by = "from_id") %>% 
+  mutate(Walk = SA_Walk/lf_Walk, 
+         Walk = ifelse(is.nan(Walk), 0, Walk), 
+         
+         Bike = SA_Bike/lf_Bike, 
+         Bike = ifelse(is.nan(Bike), 0, Bike), 
+         
+         Transit = SA_Transit/lf_Transit, 
+         Transit = ifelse(is.nan(Transit), 0, Transit), 
+         
+         `Car-motor` = `SA_Car-motor`/`lf_Car-motor`, 
+         `Car-motor` = ifelse(is.nan(`Car-motor`), 0, `Car-motor`), 
+         
+         Active = SA_Active/lf_Active, 
+         Active = ifelse(is.nan(Active), 0, Active), 
+         
+         General = SA_General/lf_General, 
+         General = ifelse(is.nan(General), 0, General)) %>% 
+  rename(CTUID = from_id) %>% 
+  dplyr::select(c(CTUID, "Walk", 
+                  "Bike", 
+                  "Transit",
+                  "Car-motor",
+                  "Active", 
+                  "General")) %>% 
+  pivot_longer(cols = c(Bike, Walk, `Car-motor`, Transit, Active, General), 
+               names_to = "PwMode_label",
+               values_to = "SA_pp_im")
+```
+
+
+```{r}
+mode_pp_metrics_ct <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
+              PwMode_label = unique(SA_pp$PwMode_label)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(SA_pp, by = c("CTUID" = "CTUID", "PwMode_label" = "PwMode_label")) %>% 
+  mutate(SA_pp_im = ifelse(is.nan(SA_pp_im), 0, SA_pp_im))
+
+mode_pp_metrics_ct_sf <- st_as_sf(mode_pp_metrics_ct, crs = st_crs(census_tracts))
+
+SA_pp_3modes <- mode_pp_metrics_ct_sf %>% 
+  filter(PwMode_label %in% c("Active", "Transit", "Car-motor")) %>%
+  tm_shape() + 
+   tm_polygons("SA_pp_im",
+              style = "jenks",
+              palette = "Oranges",
+              title = "Job SA per person",
+              border.col = NULL) + 
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 15, 25)) +
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+   tm_facets(by = "PwMode_label", ncol = 3, free.scales = TRUE) +       
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5) +
+    tm_layout(legend.outside = TRUE,
+            legend.outside.position = c("right", "bottom"))
+
+tmap_save(SA_pp_3modes, 
+          paste0(diretorio_export_figures,"SA_pp_3modes.jpg"), 
+          width = 25, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r}
+SA_pp_4modes <- mode_pp_metrics_ct_sf %>% 
+  filter(PwMode_label %in% c("Walk", "Bike", "Transit", "Car-motor")) %>%
+  tm_shape() + 
+   tm_polygons("SA_pp_im",
+              style = "jenks",
+              palette = "Oranges",
+              title = "Job SA per person",
+              border.col = NULL) + 
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 15, 25)) +
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+   tm_facets(by = "PwMode_label", ncol = 4, free.scales = TRUE) +       
+   tm_shape(census_divisions) +
+   tm_borders("black", lwd=0.5) +
+    tm_layout(legend.outside = TRUE,
+            legend.outside.position = c("right", "bottom"))
+
+
+tmap_save(SA_pp_4modes, 
+          paste0(diretorio_export_figures,"SA_pp_4modes.jpg"), 
+          width = 25, 
+          height = 12, 
+          units = "cm", 
+          dpi = 300)
+
+```
+
 Computing of the labour force by transportation mode:
 
 ```{r}

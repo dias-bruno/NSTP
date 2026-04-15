@@ -1,0 +1,407 @@
+---
+title: "06-EDA-respondents"
+output: html_document
+---
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(survey)
+library(ggplot2)
+```
+
+```{r}
+respondents_sf <- st_as_sf(respondents, coords = c("h_geography_x", "h_geography_y"), crs = st_crs(census_tracts))
+```
+
+```{r}
+respondents_long_outcome_score <- respondents %>% 
+  dplyr::select(interview_id, fexp_final, CTUID, "h_geography_x", "h_geography_y",
+         FewJobs, DeclineEmployment, 
+         EasyToGo, TravelTooLong) %>%
+  pivot_longer(cols = c("FewJobs", "DeclineEmployment", "EasyToGo", "TravelTooLong"),
+               names_to = "outcome_score", values_to = "score") %>% 
+  filter(!is.na(score)) %>% 
+  mutate(outcome = case_when(outcome_score == "FewJobs" ~ "Few jobs",
+                             outcome_score == "DeclineEmployment" ~ "Declined employment",
+                             outcome_score == "EasyToGo" ~ "Easy to reach job",
+                             outcome_score == "TravelTooLong" ~ "Travel to work too long"))
+
+respondents_long_outcome_likert <- respondents %>% 
+  dplyr::select(interview_id, 
+         FewJobs_Likert, DeclineEmployment_Likert, 
+         EasyToGo_Likert, TravelTooLong_Likert) %>%
+  pivot_longer(cols = c("FewJobs_Likert", "DeclineEmployment_Likert", "EasyToGo_Likert", "TravelTooLong_Likert"),
+               names_to = "outcome_raw", values_to = "likert") %>% 
+  filter(!is.na(likert)) %>% 
+  mutate(outcome = case_when(outcome_raw == "FewJobs_Likert" ~ "Few jobs",
+                             outcome_raw == "DeclineEmployment_Likert" ~ "Declined employment",
+                             outcome_raw == "EasyToGo_Likert" ~ "Easy to reach job",
+                             outcome_raw == "TravelTooLong_Likert" ~ "Travel to work too long"))
+
+respondents_long_outcome <- respondents_long_outcome_score %>% 
+  left_join(respondents_long_outcome_likert, by = c("interview_id", "outcome")) %>% 
+  dplyr::select(-c(outcome_raw, outcome_score)) %>% 
+  dplyr::select(interview_id, fexp_final, CTUID,  outcome, score, likert, "h_geography_x", "h_geography_y") %>% 
+  mutate(likert = factor(likert))
+
+  
+respondents_long_outcome_score_sf <- st_as_sf(respondents_long_outcome, 
+                                        coords = c("h_geography_x", "h_geography_y"), crs = st_crs(census_tracts))
+
+respondents_long_outcome_score_sf %>% 
+  ggplot() +
+  geom_sf(data = census_divisions, fill = "white") +   
+  geom_sf(aes(color = score), size = 0.1, alpha = 0.4) +          
+  scale_color_viridis_c() +
+  facet_wrap(~outcome , ncol = 2) + 
+  labs(size = "Weight", color = "Agreement") +
+  theme_minimal() +
+  coord_sf()
+
+```
+
+```{r}
+Likert_order <- c("Most Negative", "Negative", "Neutral", "Positive", "Most Positive")
+
+my_colors_likert <- c("#d7191c", "#fdae61", "#bababa", "#a6d96a", "#1a9641")
+names(my_colors_likert) <- Likert_order
+
+respondents_long_outcome_score_sf %>% 
+  ggplot() +
+  geom_sf(data = census_divisions, fill = "white") +   
+  geom_sf(aes(color = likert, size = fexp_final), alpha = 0.4) +          
+  scale_color_manual(values = my_colors_likert) + 
+  facet_wrap(~outcome , ncol = 2) + 
+  labs(size = "Weight", color = "Perception") +
+  theme_minimal() +
+  coord_sf()
+```
+
+```{r}
+outcome_means <- respondents_long_outcome_score %>%
+  group_by(CTUID, outcome) %>%
+  summarise(mean_score = weighted.mean(score, w = fexp_final, na.rm = TRUE))
+
+outcome_means_sf <- outcome_means %>% 
+  left_join(census_tracts, by = "CTUID") %>% 
+  st_as_sf(crs = st_crs(census_tracts))
+
+outcome_means_sf %>% 
+  ggplot() +
+  geom_sf(data = census_divisions, fill = "white") +   
+  geom_sf(aes(fill = mean_score), color = NA) + 
+  scale_color_viridis_c() +
+  facet_wrap(~outcome , ncol = 2) + 
+  labs(color = "Agreement") +
+  theme_minimal() +
+  coord_sf()
+```
+
+```{r}
+outcome_likert_proportions <- respondents_long_outcome %>%
+  group_by(CTUID, outcome, likert) %>%
+  summarise(weighted_count = sum(fexp_final, na.rm = TRUE), .groups = "drop") %>%
+  group_by(CTUID, outcome) %>%
+  mutate(total_weight = sum(weighted_count),
+         proportion = weighted_count / total_weight) %>%
+  ungroup() %>%
+  dplyr::select(CTUID, outcome, likert, proportion)
+
+outcome_likert_proportions_sf <- outcome_likert_proportions %>% 
+  left_join(census_tracts, by = "CTUID") %>% 
+  st_as_sf(crs = st_crs(census_tracts))
+
+outcome_likert_proportions_sf %>% 
+  ggplot() +
+  geom_sf(data = census_divisions, fill = "white") +   
+  geom_sf(aes(fill = proportion), color = NA) + 
+  facet_wrap(~outcome+likert, ncol = 5) + 
+  labs(color = "Agreement") +
+  theme_minimal() +
+  coord_sf()
+```
+```{r}
+mode_likert_outcome <- respondents_long_outcome %>%
+  group_by(CTUID, outcome, likert) %>%
+  summarise(weighted_count = sum(fexp_final, na.rm = TRUE), .groups = "drop") %>%
+  group_by(CTUID, outcome) %>%
+  slice_max(weighted_count, n = 1, with_ties = FALSE) %>%
+  ungroup() %>%
+  dplyr::select(CTUID, outcome, mode_likert = likert, weighted_count)
+
+mode_likert_outcome_sf <- mode_likert_outcome %>% 
+  left_join(census_tracts, by = "CTUID") %>% 
+  st_as_sf(crs = st_crs(census_tracts))
+
+mode_likert_outcome_sf %>% 
+  ggplot() +
+  geom_sf(data = census_divisions, fill = "white") +   
+  geom_sf(aes(fill = mode_likert), color = NA) + 
+  scale_fill_manual(values = my_colors_likert) + 
+  facet_wrap(~outcome, ncol = 2) + 
+  labs(fill = "Perception") +
+  theme_minimal() +
+  coord_sf()
+
+```
+
+# Boxplots 
+
+```{r}
+long_outcomes <- respondents %>%
+  dplyr::select(interview_id, fexp_final,
+         FewJobs_Likert, DeclineEmployment_Likert, 
+         EasyToGo_Likert, TravelTooLong_Likert) %>%
+  pivot_longer(cols = ends_with("_Likert"), names_to = "outcome_raw", values_to = "response") %>%
+  filter(!is.na(response)) %>%
+  mutate(outcome = case_when(outcome_raw == "FewJobs_Likert" ~ "Few jobs accessible",
+    outcome_raw == "DeclineEmployment_Likert" ~ "Declined employment",
+    outcome_raw == "EasyToGo_Likert" ~ "Easy to reach",
+    outcome_raw == "TravelTooLong_Likert" ~ "Travel too long"))
+```
+
+
+```{r}
+sa_pp_long <- respondents %>%
+  dplyr::select(interview_id, starts_with("SA_pp_")) %>%
+  pivot_longer(cols = starts_with("SA_pp_"),
+    names_to = "mode_raw",
+    values_to = "measure_value")%>%
+  mutate(mode = case_when(mode_raw == "SA_pp_Active" ~ "Active",
+                          mode_raw == "SA_pp_Bike" ~ "Cycling",
+                          mode_raw == "SA_pp_Walk" ~ "Walk",
+                          mode_raw == "SA_pp_Transit" ~ "Transit",
+                          mode_raw == "SA_pp_Car_motor" ~ "Car",
+                          mode_raw == "SA_pp_General" ~ "General"), 
+         measure = "SA_pp")
+
+sa_long <- respondents %>%
+  dplyr::select(interview_id, SA_Bike, SA_Walk , SA_Car_motor, SA_Transit, SA_Active, SA_General) %>%
+  pivot_longer(cols = starts_with("SA_"),
+    names_to = "mode_raw",
+    values_to = "measure_value")%>%
+  mutate(mode = case_when(mode_raw == "SA_Active" ~ "Active",
+                          mode_raw == "SA_Bike" ~ "Cycling",
+                          mode_raw == "SA_Walk" ~ "Walk",
+                          mode_raw == "SA_Transit" ~ "Transit",
+                          mode_raw == "SA_Car_motor" ~ "Car",
+                          mode_raw == "SA_General" ~ "General"), 
+         measure = "SA")
+
+ht_long <- respondents %>%
+  dplyr::select(interview_id, starts_with("HT_")) %>%
+  pivot_longer(cols = starts_with("HT_"),
+    names_to = "mode_raw",
+    values_to = "measure_value")%>%
+  mutate(mode = case_when(mode_raw == "HT_Active" ~ "Active",
+                          mode_raw == "HT_Bike" ~ "Cycling",
+                          mode_raw == "HT_Walk" ~ "Walk",
+                          mode_raw == "HT_Transit" ~ "Transit",
+                          mode_raw == "HT_Car_motor" ~ "Car",
+                          mode_raw == "HT_General" ~ "General"), 
+         measure = "HT")
+
+measures_long <- rbind(sa_pp_long, sa_long, ht_long)
+```
+
+
+```{r}
+plot_data <- long_outcomes %>%
+  inner_join(measures_long, by = "interview_id") %>%
+  filter(!is.na(response), !is.na(measure_value), ) %>%
+  mutate(response = factor(response, levels = c("Most Negative", "Negative", "Neutral", "Positive", "Most Positive")))
+
+design <- svydesign(ids = ~1, weights = ~fexp_final, data = plot_data)
+```
+
+```{r}
+weighted_boxplot_stats <- function(subset_design) {
+  quantiles <- svyby(~measure_value, by = ~ mode + outcome + response + measure, 
+                     design = subset_design, 
+                     FUN = svyquantile, 
+                     quantiles = c(0, 0.25, 0.5, 0.75, 1),
+                     na.rm = TRUE, 
+                     keep.var = FALSE, 
+                     ci = FALSE)
+  
+  quantiles_df <- quantiles %>%
+    dplyr::rename(ymin = "1", 
+                  lower = "2", 
+                  middle = "3",
+                  upper = "4",
+                  ymax = "5") %>% 
+  return(quantiles_df)
+}
+
+box_stats <- weighted_boxplot_stats(design)
+```
+
+```{r}
+outcome_order_linear <- c("Travel too long", 
+                          "Easy to reach", 
+                          "Declined employment", 
+                          "Few jobs accessible")
+my_colors_linear <- c("#66c2a5", "#fc8d62", "#8da0cb", "#e78ac3")
+names(my_colors_linear) <- outcome_order_linear
+
+box_stats$outcome <- factor(box_stats$outcome, levels = outcome_order_linear)
+```
+
+
+```{r}
+SA_pp_outcomes_boxplots <- box_stats %>% 
+  filter(mode %in% c("Active","Transit","Car"), 
+         measure == "SA_pp") %>%
+ggplot(aes(x = response, fill = outcome)) +
+  geom_boxplot(aes(lower = lower, upper = upper, middle = middle, ymin = ymin, ymax = ymax),
+               stat = "identity", alpha = 0.7, width = 0.7, linewidth = 0.20, color = "grey20" ) +
+  facet_wrap(~mode, scales = "free_y", ncol = 1) +
+  scale_fill_manual(values = my_colors_linear) +
+  labs(x = "Perception group",
+    y = "SA_pp (job spatial availability per person)",
+    fill = "Outcome") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+ggsave(file = paste0(diretorio_export_images, "SA_pp_outcomes_boxplots.png"),
+       plot = SA_pp_outcomes_boxplots,
+       width = 15,
+       height = 15,
+       units = "cm",
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"SA_pp_outcomes_boxplots.png"))
+```
+
+```{r}
+HT_outcomes_boxplots <- box_stats %>% 
+  filter(mode %in% c("Active","Transit","Car"), 
+         measure == "HT") %>%
+ggplot(aes(x = response, fill = outcome)) +
+  geom_boxplot(aes(lower = lower, upper = upper, middle = middle, ymin = ymin, ymax = ymax),
+               stat = "identity", alpha = 0.7, width = 0.7, linewidth = 0.20, color = "grey20" ) +
+  facet_wrap(~mode, scales = "free_y", ncol = 1) +
+  scale_fill_manual(values = my_colors_linear) +
+  labs(x = "Perception group",
+    y = "Job accessibility (Hansen)",
+    fill = "Outcome") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+ggsave(file = paste0(diretorio_export_images, "HT_outcomes_boxplots.png"),
+       plot = HT_outcomes_boxplots,
+       width = 15,
+       height = 15,
+       units = "cm",
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"HT_outcomes_boxplots.png"))
+```
+
+```{r}
+SA_outcomes_boxplots <- box_stats %>% 
+  filter(mode %in% c("Active","Transit","Car"), 
+         measure == "SA") %>%
+ggplot(aes(x = response, fill = outcome)) +
+  geom_boxplot(aes(lower = lower, upper = upper, middle = middle, ymin = ymin, ymax = ymax),
+               stat = "identity", alpha = 0.7, width = 0.7, linewidth = 0.20, color = "grey20" ) +
+  facet_wrap(~mode, scales = "free_y", ncol = 1) +
+  scale_fill_manual(values = my_colors_linear) +
+  labs(x = "Perception group",
+    y = "Job Spatial Availability",
+    fill = "Outcome") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), legend.position = "bottom")
+
+ggsave(file = paste0(diretorio_export_images, "SA_outcomes_boxplots.png"),
+       plot = SA_outcomes_boxplots,
+       width = 15,
+       height = 15,
+       units = "cm",
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"SA_outcomes_boxplots.png"))
+```
+
+
+```{r}
+SA_pp_transit_boxplots <- box_stats %>% 
+  filter(mode %in% c("Transit"), 
+         measure == "SA_pp") %>%
+ggplot(aes(x = response, fill = outcome)) +
+  geom_boxplot(aes(lower = lower, upper = upper, middle = middle, ymin = ymin, ymax = ymax),
+               stat = "identity", alpha = 0.7, width = 0.7, linewidth = 0.20, color = "grey20" ) +
+  facet_wrap(~outcome, scales = "free_y", ncol = 2) +
+  scale_fill_manual(values = my_colors_linear) +
+  labs(x = "Perception group",
+    y = "Job spatial availability per person (by public transit)",
+    fill = "Outcome") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "none")
+
+ggsave(file = paste0(diretorio_export_images, "SA_pp_transit_boxplots.png"),
+       plot = SA_pp_transit_boxplots,
+       width = 13,
+       height = 13,
+       units = "cm",
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"SA_pp_transit_boxplots.png"))
+```
+
+
+
+```{r}
+SA_transit_boxplots <- box_stats %>% 
+  filter(mode %in% c("Transit"), 
+         measure == "SA") %>%
+ggplot(aes(x = response, fill = outcome)) +
+  geom_boxplot(aes(lower = lower, upper = upper, middle = middle, ymin = ymin, ymax = ymax),
+               stat = "identity", alpha = 0.7, width = 0.7, linewidth = 0.20, color = "grey20" ) +
+  facet_wrap(~outcome, scales = "free_y", ncol = 2) +
+  scale_fill_manual(values = my_colors_linear) +
+  labs(x = "Perception group",
+    y = "Job spatial availability (by public transit)",
+    fill = "Outcome") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "none")
+
+ggsave(file = paste0(diretorio_export_images, "SA_transit_boxplots.png"),
+       plot = SA_transit_boxplots,
+       width = 13,
+       height = 13,
+       units = "cm",
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"SA_transit_boxplots.png"))
+```
+
+
+```{r}
+HT_transit_boxplots <- box_stats %>% 
+  filter(mode %in% c("Transit"), 
+         measure == "HT") %>%
+ggplot(aes(x = response, fill = outcome)) +
+  geom_boxplot(aes(lower = lower, upper = upper, middle = middle, ymin = ymin, ymax = ymax),
+               stat = "identity", alpha = 0.7, width = 0.7, linewidth = 0.20, color = "grey20" ) +
+  facet_wrap(~outcome, scales = "free_y", ncol = 2) +
+  scale_fill_manual(values = my_colors_linear) +
+  labs(x = "Perception group",
+    y = "Job accessibility (Hansen type, by public transit)",
+    fill = "Outcome") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1), 
+        legend.position = "none")
+
+ggsave(file = paste0(diretorio_export_images, "HT_transit_boxplots.png"),
+       plot = HT_transit_boxplots,
+       width = 13,
+       height = 13,
+       units = "cm",
+       dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"HT_transit_boxplots.png"))
+```
