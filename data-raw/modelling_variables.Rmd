@@ -12,35 +12,33 @@ design_respondents <- svydesign(
   ids = ~1,  # No clustering
   weights = ~fexp_final,
   data = respondents)
-
-stage1_formula <- as.formula(
-  Accessibility ~ Sf_dist_SA_pp_Active +  
-    Sf_dist_SA_pp_Transit + 
-    `Sf_dist_SA_pp_Car_motor` + 
- 
-                                ## Transport Variables  
-                                CarNumber +  
-                                BikeNumber +
-                                Transport_3mode + 
-                                Match_mode + 
-                                
-                                ## Socio and demographic variables
-                                Indigenous_or_racialized +  
-                                Temporary_or_refugee +  
-                                LongTermConditions + 
-                                Woman_or_genderdiverse +   
-                                Age +  
-                                hh_size  + 
-                                hh_income4 + 
-    Pop_density + 
-    BuiltV_median + SMOD_type
-  )
 ```
 
 Creating the first stage for transit accessibility: 
 
 ```{r}
-stage1_transit_SA_pp <- svyglm(update(stage1_formula, SA_pp_Transit ~ .), design = design_respondents)
+stage1_transit_SA_pp <- svyglm(SA_pp_Transit ~ SA_pp_Active   +
+SA_pp_Active:Active_user +
+Sf_dist_SA_pp_Transit   +
+Sf_dist_SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+## Transport Variables
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+## Socio and demographic variables
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size  +
+hh_income4 +
+Pop_density +
+pc_class, design = design_respondents)
+
 
 summary(stage1_transit_SA_pp, diagnostics = TRUE)
 ```
@@ -48,7 +46,27 @@ summary(stage1_transit_SA_pp, diagnostics = TRUE)
 Creating the first stage for Car-motorized accessibility: 
 
 ```{r}
-stage1_car_SA_pp <- svyglm(update(stage1_formula, `SA_pp_Car_motor` ~ .), design = design_respondents)
+stage1_car_SA_pp <- svyglm(`SA_pp_Car_motor` ~ SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+Sf_dist_SA_pp_Car_motor +
+## Transport Variables
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+## Socio and demographic variables
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size  +
+hh_income4 +
+Pop_density +
+pc_class, design = design_respondents)
 
 summary(stage1_car_SA_pp, diagnostics = TRUE)
 ```
@@ -56,7 +74,27 @@ summary(stage1_car_SA_pp, diagnostics = TRUE)
 Creating the first stage for Active accessibility: 
 
 ```{r}
-stage1_active_SA_pp <- svyglm(update(stage1_formula, `SA_pp_Active` ~ .), design = design_respondents)
+stage1_active_SA_pp <- svyglm(`SA_pp_Active` ~ Sf_dist_SA_pp_Active   +
+Sf_dist_SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+## Transport Variables
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+## Socio and demographic variables
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size  +
+hh_income4 +
+Pop_density +
+pc_class, design = design_respondents)
 
 summary(stage1_active_SA_pp)
 ```
@@ -72,55 +110,55 @@ respondents <- respondents %>%
     SA_pp_Active_Res_IV = SA_pp_Active - SA_pp_Active_IV)
 ```
 
+
 # Ordinal 
 
 ```{r}
 ordinal_SA_pp_3mode_formula <- as.formula(Outcome ~ 
                                 # Spatial Availability variables
-                                SA_pp_Active  +
-                                SA_pp_Transit  +
-                                SA_pp_Car_motor +
-
-                                # Transport variables
-                                 
-                                CarNumber +  
-                                BikeNumber + 
-                                #Transport_3mode + 
-                                Match_mode + 
-                                #TransitPass + 
-
-                                # Socio and demographic variables
-                                Indigenous_or_racialized + 
-                                Temporary_or_refugee +  
-                                LongTermConditions + 
-                                Woman_or_genderdiverse +   
-                                Age +  
-                                #Child_under_10 + 
-                                hh_size + 
-                                hh_income4 + 
-                                
-                                # Environmental 
-                                Pop_density +
-                                 BuiltV_median + SMOD_type + 
-                                
-                                # # Causal-effect 
-                                SA_pp_Active_Res_IV +
-                                SA_pp_Transit_Res_IV +
-                                SA_pp_Car_Res_IV)
+SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+# Transport variables
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+# Socio and demographic variables
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+# Environmental
+Pop_density +
+pc_class +
+# # Causal-effect
+SA_pp_Active_Res_IV +
+SA_pp_Transit_Res_IV +
+SA_pp_Car_Res_IV)
 ```
 
 ```{r}
 respondents_filtered <- respondents %>%
-dplyr::select(SA_pp_Active, SA_pp_Transit, SA_pp_Car_motor, Transit_user_bin, Active_user_bin, pc_class, hh_income4, Transport_3mode, BuiltV_median, SMOD_type, SMOD_majority, 
-                 CarNumber, BikeNumber, Match_mode, Indigenous_or_racialized,
-                Temporary_or_refugee, LongTermConditions, Woman_or_genderdiverse,
-                Age, hh_size, hh_income, Pop_density, SA_pp_Active_Res_IV,
-                SA_pp_Transit_Res_IV, SA_pp_Car_Res_IV, Transit_user,
-                FewJobs, FewJobs_Likert, 
-                TravelTooLong, TravelTooLong_Likert,
-                EasyToGo, EasyToGo_Likert, 
-                DeclineEmployment, DeclineEmployment_Likert,
-                fexp_final, education_level)
+dplyr::select(SA_pp_Active, SA_pp_Transit, SA_pp_Car_motor, 
+              Sf_dist_SA_pp_Active, Sf_dist_SA_pp_Transit, Sf_dist_SA_pp_Car_motor, 
+              SA_Active, SA_Transit, SA_Car_motor, Transit_user_bin, Active_user_bin, Transit_user, Active_user, TransitPass,  Car_user_bin, pc_class, hh_income4, Transport_3mode, BuiltV_median, SMOD_type, SMOD_majority,
+CarNumber, BikeNumber, Match_mode, Indigenous_or_racialized,
+Temporary_or_refugee, LongTermConditions, Woman_or_genderdiverse,
+Age, hh_size, hh_income, Pop_density, SA_pp_Active_Res_IV,
+SA_pp_Transit_Res_IV, SA_pp_Car_Res_IV, Transit_user,
+FewJobs, FewJobs_Likert,
+TravelTooLong, TravelTooLong_Likert,
+EasyToGo, EasyToGo_Likert,
+DeclineEmployment, DeclineEmployment_Likert,
+fexp_final, education_level, TransitAvailable, PCD, employment_status)
+
 ```
 
 ## Few jobs: Likert 
@@ -128,22 +166,13 @@ dplyr::select(SA_pp_Active, SA_pp_Transit, SA_pp_Car_motor, Transit_user_bin, Ac
 ```{r}
 complete_data_fj <- respondents_filtered %>% 
   filter(!is.na(FewJobs))  %>%
-  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE), 
-         FewJobs_Likert = 
-           cut(FewJobs,
-               #breaks = Hmisc::wtd.quantile(FewJobs, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
-               breaks = c(0,20,40,60,80,100), 
-               labels = c("Most Positive", "Positive", "Neutral", "Negative", "Most Negative"),
-               include.lowest = TRUE), 
-         FewJobs_Likert = factor(FewJobs_Likert, 
-                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
-             ordered = TRUE))
+  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
 
 # complete_data_fj <- FewJobs_3mode_lm_SA_pp_clean_design$variables %>%
 #   mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
 
 vars_to_scale <- c("SA_pp_Active", "SA_pp_Transit", "SA_pp_Car_motor",
-  "Pop_density", "BuiltV_median", 
+  "Pop_density", 
   "SA_pp_Active_Res_IV", "SA_pp_Transit_Res_IV", "SA_pp_Car_Res_IV")
 
 # vars_to_scale <- c("SA_pp_Active", "SA_pp_Transit", "SA_pp_Car_motor",
@@ -191,6 +220,17 @@ car::vif(FewJobs_ordinal_3modes)
 survey::regTermTest(FewJobs_ordinal_3modes, "SA_pp_Transit", method = "LRT")
 ```
 
+```{r}
+active_cor <- svycor(~ Sf_dist_SA_pp_Active + FewJobs, design = design_ordinal_norm_fj)$cors[2]
+transit_cor <-svycor(~ Sf_dist_SA_pp_Transit + FewJobs, design = design_ordinal_norm_fj)$cors[2]
+car_cor <-svycor(~ Sf_dist_SA_pp_Car_motor + FewJobs, design = design_ordinal_norm_fj)$cors[2]
+
+filters <- c("Active", "Transit", "Car")
+values <- c(active_cor, transit_cor, car_cor)
+fewjobscorr <- data.frame(Filter = filters, "FewJobs" = values)
+fewjobscorr
+```
+
 ## Travel Too Long: Likert 
 
 ```{r}
@@ -233,6 +273,18 @@ TravelTooLong_ordinal_3modes <- svyolr(TravelTooLong_formula_3mode_ordinal_SA,
 summary(TravelTooLong_ordinal_3modes)
 ```
 
+
+```{r}
+active_cor <- svycor(~ Sf_dist_SA_pp_Active + TravelTooLong, design = design_ordinal_norm_ttg)$cors[2]
+transit_cor <- svycor(~ Sf_dist_SA_pp_Transit + TravelTooLong, design = design_ordinal_norm_ttg)$cors[2]
+car_cor <- svycor(~ Sf_dist_SA_pp_Car_motor + TravelTooLong, design = design_ordinal_norm_ttg)$cors[2]
+
+filters <- c("Active", "Transit", "Car")
+values <- c(active_cor, transit_cor, car_cor)
+traveltoolongcorr <- data.frame(Filter = filters, "TravelTooLong" = values)
+
+traveltoolongcorr
+```
 
 ## Easy to Reach: Likert 
 
@@ -280,24 +332,25 @@ summary(EasyToGo_ordinal_3modes)
 survey::regTermTest(EasyToGo_ordinal_3modes, "SA_pp_Transit", method = "LRT")
 ```
 
+```{r}
+active_cor <- svycor(~ Sf_dist_SA_pp_Active + EasyToGo, design = design_ordinal_norm_etg)$cors[2]
+transit_cor <- svycor(~ Sf_dist_SA_pp_Transit + EasyToGo, design = design_ordinal_norm_etg)$cors[2]
+car_cor <- svycor(~ Sf_dist_SA_pp_Car_motor + EasyToGo, design = design_ordinal_norm_etg)$cors[2]
+
+filters <- c("Active", "Transit", "Car")
+values <- c(active_cor, transit_cor, car_cor)
+easytogocorr <- data.frame(Filter = filters, "EasyToGo" = values)
+easytogocorr
+```
+
+
 ## Declined Employment: Likert 
 
 ```{r}
 complete_data_de <- respondents_filtered %>% 
-  filter(!is.na(DeclineEmployment)) %>%
-  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE), 
-         DeclineEmployment_Likert = 
-           cut(DeclineEmployment,
-               breaks = Hmisc::wtd.quantile(DeclineEmployment, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
-               #breaks = c(0,20,40,60,80,100), 
-               labels = c("Most Positive", "Positive", "Neutral", "Negative", "Most Negative"),
-               include.lowest = TRUE), 
-         DeclineEmployment_Likert = factor(DeclineEmployment_Likert, 
-                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
-             ordered = TRUE))
+  filter(!is.na(DeclineEmployment), !is.na(employment_status)) %>%
+  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
 
-# complete_data_de <- DeclineEmployment_3mode_lm_SA_pp_clean_design$variables %>% 
-#   mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
 
 complete_data_scaled_de <- complete_data_de %>%
   mutate(across(all_of(vars_to_scale), 
@@ -330,3 +383,16 @@ DeclineEmployment_ordinal_3modes <- svyolr(DeclineEmployment_formula_3mode_ordin
 
 summary(DeclineEmployment_ordinal_3modes)
 ```
+```{r}
+active_cor <- svycor(~ Sf_dist_SA_pp_Active + DeclineEmployment, design = design_ordinal_norm_de)$cors[2]
+transit_cor <- svycor(~ Sf_dist_SA_pp_Transit + DeclineEmployment, design = design_ordinal_norm_de)$cors[2]
+car_cor <- svycor(~ Sf_dist_SA_pp_Car_motor + DeclineEmployment, design = design_ordinal_norm_de)$cors[2]
+
+
+filters <- c("Active", "Transit", "Car")
+values <- c(active_cor, transit_cor, car_cor)
+declineemploymentcorr <- data.frame(Filter = filters, "DeclineEmployment" = values)
+
+declineemploymentcorr
+```
+

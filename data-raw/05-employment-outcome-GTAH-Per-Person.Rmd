@@ -24,6 +24,9 @@ library(purrr)
 library(stringr)
 library(nngeo)
 library(jtools)
+library(marginaleffects)
+library(svyEffects)
+library(estimatr)
 ```
 
 ```{r}
@@ -553,6 +556,7 @@ control_var <- mjsurvey_study_area %>%
     
     Transit_user = case_when(Transport_mode == "Transit" ~ "Yes",
                              !Transport_mode == "Transit" ~ "No"),
+    
     Transit_user = factor(Transit_user, levels = c("No","Yes")),
     
     Transit_user_bin = case_when(Transport_mode == "Transit" ~ 1,
@@ -564,6 +568,11 @@ control_var <- mjsurvey_study_area %>%
     Active_user_bin = case_when(Transport_mode %in% c("Walk","Bike") ~ 1,
                              !Transport_mode %in% c("Walk","Bike") ~ 0), 
     
+    Active_user = case_when(Transport_mode %in% c("Walk","Bike") ~ "Yes",
+                             !Transport_mode %in% c("Walk","Bike") ~ "No"),
+   
+     Active_user = factor(Active_user, levels = c("No","Yes")),
+
     Match_mode = case_when(pe_doesFrequentModeMatchPreferred == "yes" ~ "Yes",
                            pe_doesFrequentModeMatchPreferred == "no" ~ "No"),
     Match_mode = factor(Match_mode, levels = c("No","Yes")), 
@@ -673,8 +682,7 @@ respondents <- geo_vars %>%
   filter(!is.na(CTUID), 
          !is.na(SA_pp_Active), 
          !is.na(SA_pp_Transit), 
-         !is.na(hh_income), 
-         !SMOD_type %in% c("Rural cluster","Water")) %>% 
+         !is.na(hh_income)) %>% 
   mutate(SMOD_type = factor(SMOD_type))
 ```
 
@@ -697,9 +705,9 @@ Creating the first stage for transit accessibility:
 
 ```{r}
 stage1_transit_SA_pp <- svyglm(SA_pp_Transit ~ SA_pp_Active   +
-SA_pp_Active:Active_user_bin +
+SA_pp_Active:Active_user +
 Sf_dist_SA_pp_Transit   +
-Sf_dist_SA_pp_Transit:Transit_user_bin +
+Sf_dist_SA_pp_Transit:Transit_user +
 SA_pp_Car_motor +
 ## Transport Variables
 CarNumber +
@@ -726,9 +734,9 @@ Creating the first stage for Car-motorized accessibility:
 
 ```{r}
 stage1_car_SA_pp <- svyglm(`SA_pp_Car_motor` ~ SA_pp_Active   +
-SA_pp_Active:Active_user_bin +
+SA_pp_Active:Active_user +
 SA_pp_Transit   +
-SA_pp_Transit:Transit_user_bin +
+SA_pp_Transit:Transit_user +
 Sf_dist_SA_pp_Car_motor +
 ## Transport Variables
 CarNumber +
@@ -754,9 +762,9 @@ Creating the first stage for Active accessibility:
 
 ```{r}
 stage1_active_SA_pp <- svyglm(`SA_pp_Active` ~ Sf_dist_SA_pp_Active   +
-Sf_dist_SA_pp_Active:Active_user_bin +
+Sf_dist_SA_pp_Active:Active_user +
 SA_pp_Transit   +
-SA_pp_Transit:Transit_user_bin +
+SA_pp_Transit:Transit_user +
 SA_pp_Car_motor +
 ## Transport Variables
 CarNumber +
@@ -799,11 +807,10 @@ respondents <- respondents %>%
 
 stage2_linear_formula <- as.formula(Outcome ~
 ## Spatial Availability variables
-+
 SA_pp_Active_IV   +
-SA_pp_Active_IV:Active_user_bin +
+SA_pp_Active_IV:Active_user +
 SA_pp_Transit_IV   +
-SA_pp_Transit_IV:Transit_user_bin +
+SA_pp_Transit_IV:Transit_user +
 SA_pp_Car_IV +
 ## Transport Variables
 CarNumber +
@@ -942,6 +949,72 @@ FewJobs_3mode_lm_SA_pp_clean <- model_current
 FewJobs_3mode_lm_SA_pp_clean_design <- design_current
 ```
 
+Test to identify weak instruments:
+
+```{r}
+iv_model_fj <- iv_robust(FewJobs ~ 
+SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class 
+| Sf_dist_SA_pp_Active   +
+Sf_dist_SA_pp_Active:Active_user +
+Sf_dist_SA_pp_Transit   +
+Sf_dist_SA_pp_Transit:Transit_user +
+Sf_dist_SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class, data = FewJobs_3mode_lm_SA_pp_clean_design$variables,
+                      weights = fexp_final,
+                      diagnostics = TRUE)
+
+summary(iv_model_fj)
+```
+
+
+```{r}
+morans_fj <- FewJobs_3mode_lm_SA_pp_clean$data %>% 
+  dplyr::select("interview_id") %>% 
+  left_join(respondents %>% dplyr::select("interview_id", "Sf_dist_SA_pp_Active", "Sf_dist_SA_pp_Transit", "Sf_dist_SA_pp_Car_motor",  "CTUID"), by = "interview_id") %>% 
+  left_join(census_tracts, by = "CTUID") %>% 
+  st_as_sf(crs = st_crs(census_tracts))
+
+morans_fj$residuals <- svystdres(FewJobs_3mode_lm_SA_pp_clean)$stdresids
+
+wieghts <- morans_fj %>% 
+poly2nb(queen = TRUE) %>% 
+nb2listw(style = "W", zero.policy = TRUE)
+
+moran.test(morans_fj$residuals, listw = wieghts, zero.policy = TRUE)
+```
+
+
 ## Travel Too Long
 
 ```{r}
@@ -962,6 +1035,7 @@ TravelTooLong_3mode_lm_SA <- svyglm(TravelTooLong_formula_3mode_lm_SA,
 
 summary(TravelTooLong_3mode_lm_SA)
 ```
+
 ```{r}
 null_deviance <- TravelTooLong_3mode_lm_SA$null.deviance
 model_deviance <- TravelTooLong_3mode_lm_SA$deviance
@@ -1017,6 +1091,7 @@ cat("Total outliers removed:", outliers_removed, "\n")
 ```{r}
 summary(model_current)
 ```
+
 ```{r}
 null_deviance <- model_new$null.deviance
 model_deviance <- model_new$deviance
@@ -1039,6 +1114,54 @@ summary(svydiags::svystdres(model_current)$stdresids)
 ```{r}
 TravelTooLong_3mode_lm_SA_pp_clean <- model_current
 TravelTooLong_3mode_lm_SA_pp_clean_design <- design_current
+```
+
+Test to identify weak instruments:
+
+```{r}
+iv_model_ttl <- iv_robust(TravelTooLong ~ 
+SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class 
+| Sf_dist_SA_pp_Active   +
+Sf_dist_SA_pp_Active:Active_user +
+Sf_dist_SA_pp_Transit   +
+Sf_dist_SA_pp_Transit:Transit_user +
+Sf_dist_SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class, data = TravelTooLong_3mode_lm_SA_pp_clean_design$variables,
+                      weights = fexp_final,
+                      diagnostics = TRUE)
+
+summary(iv_model_ttl)
 ```
 
 ## Easy to Reach
@@ -1144,6 +1267,54 @@ EasyToGo_3mode_lm_SA_pp_clean <- model_current
 EasyToGo_3mode_lm_SA_pp_clean_design <- design_current
 ```
 
+Test to identify weak instruments:
+
+```{r}
+iv_model_etg <- iv_robust(EasyToGo ~ 
+SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class 
+| Sf_dist_SA_pp_Active   +
+Sf_dist_SA_pp_Active:Active_user +
+Sf_dist_SA_pp_Transit   +
+Sf_dist_SA_pp_Transit:Transit_user +
+Sf_dist_SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class, data = EasyToGo_3mode_lm_SA_pp_clean_design$variables,
+                      weights = fexp_final,
+                      diagnostics = TRUE)
+
+summary(iv_model_etg)
+```
+
 ## Decline Employment
 
 ```{r}
@@ -1245,15 +1416,63 @@ DeclineEmployment_3mode_lm_SA_pp_clean <- model_current
 DeclineEmployment_3mode_lm_SA_pp_clean_design <- design_current
 ```
 
+Test to identify weak instruments:
+
+```{r}
+iv_model_de <- iv_robust(DeclineEmployment ~ 
+SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class 
+| Sf_dist_SA_pp_Active   +
+Sf_dist_SA_pp_Active:Active_user +
+Sf_dist_SA_pp_Transit   +
+Sf_dist_SA_pp_Transit:Transit_user +
+Sf_dist_SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class, data = DeclineEmployment_3mode_lm_SA_pp_clean_design$variables,
+                      weights = fexp_final,
+                      diagnostics = TRUE)
+
+summary(iv_model_de)
+```
+
 # Ordinal 
 
 ```{r}
 ordinal_SA_pp_3mode_formula <- as.formula(Outcome ~ 
                                 # Spatial Availability variables
 SA_pp_Active   +
-SA_pp_Active:Active_user_bin +
+SA_pp_Active:Active_user +
 SA_pp_Transit   +
-SA_pp_Transit:Transit_user_bin +
+SA_pp_Transit:Transit_user +
 SA_pp_Car_motor +
 # Transport variables
 CarNumber +
@@ -1282,7 +1501,8 @@ SA_pp_Car_Res_IV)
 respondents_filtered <- respondents %>%
 dplyr::select(SA_pp_Active, SA_pp_Transit, SA_pp_Car_motor, 
               Sf_dist_SA_pp_Active, Sf_dist_SA_pp_Transit, Sf_dist_SA_pp_Car_motor, 
-              SA_Active, SA_Transit, SA_Car_motor, Transit_user_bin, Active_user_bin, TransitPass,  Car_user_bin, pc_class, hh_income4, Transport_3mode, BuiltV_median, SMOD_type, SMOD_majority,
+              SA_Active, SA_Transit, SA_Car_motor, Transit_user_bin, Active_user_bin, 
+               Transit_user, Active_user, TransitPass,  Car_user_bin, pc_class, hh_income4, Transport_3mode, BuiltV_median, SMOD_type, SMOD_majority,
 CarNumber, BikeNumber, Match_mode, Indigenous_or_racialized,
 Temporary_or_refugee, LongTermConditions, Woman_or_genderdiverse,
 Age, hh_size, hh_income, Pop_density, SA_pp_Active_Res_IV,
@@ -1355,8 +1575,6 @@ survey::regTermTest(FewJobs_ordinal_3modes, "SA_pp_Transit", method = "LRT")
 ```
 
 ```{r}
-car::vif(FewJobs_ordinal_3modes)
-survey::regTermTest(FewJobs_ordinal_3modes, "SA_pp_Transit", method = "LRT")
 active_cor <- svycor(~ Sf_dist_SA_pp_Active + FewJobs, design = design_ordinal_norm_fj)$cors[2]
 transit_cor <-svycor(~ Sf_dist_SA_pp_Transit + FewJobs, design = design_ordinal_norm_fj)$cors[2]
 car_cor <-svycor(~ Sf_dist_SA_pp_Car_motor + FewJobs, design = design_ordinal_norm_fj)$cors[2]
@@ -1533,6 +1751,28 @@ declineemploymentcorr
 ```
 
 
+```{r}
+de_ame_active_user <- svyAME(DeclineEmployment_ordinal_3modes, 
+              varname = "SA_pp_Active",
+              diffchange = "sd",
+              byvar = "Active_user",
+              seed = 51)
+
+plot(de_ame_active_user) + 
+  theme_minimal()
+```
+
+```{r}
+de_ame_transit_user <- svyAME(DeclineEmployment_ordinal_3modes, 
+              varname = "SA_pp_Transit",
+              diffchange = "sd",
+              byvar = "Transit_user",
+              seed = 51)
+
+plot(de_ame_transit_user) + 
+  theme_minimal()
+```
+
 # Predicting probabilities 
 
 Now, based on the relationship identified between accessibility and employment outcomes, we will identify some key thresholds to employment accessibility, focusing on the disadvantaged population. To do this, we need to control for other variables (indicators of non-accessibility) and vary the accessibility values in order to identify these key thresholds. The following chunks create a data frame with the median values (control) of the socioeconomic variables. 
@@ -1571,8 +1811,8 @@ grid_disadvantaged <- as.data.frame(expand.grid("Mode" = c("Active","Transit","C
                     "hh_size" = 3, 
                     "Age" = 35,
                     "Match_mode" = "No",
-                    "Transit_user_bin" = 1,
-                    "Active_user_bin" = 0,
+                    "Transit_user" = "Yes",
+                    "Active_user" = "No",
                     "pc_class" = "Small",
                     "TransitPass" = "Yes",
                     "TransitAvailable" = "Yes",
@@ -1589,8 +1829,8 @@ grid_non_disadvantaged <- as.data.frame(expand.grid("Mode" = c("Active","Transit
                     "hh_size" = 2, 
                     "Age" = 50,
                     "Match_mode" = "Yes",
-                    "Transit_user_bin" = 0,
-                    "Active_user_bin" = 0,
+                    "Transit_user" = "No",
+                    "Active_user" = "No",
                     "pc_class" = "Large",
                     "TransitPass" = "No",
                     "TransitAvailable" = "Yes",
@@ -1607,8 +1847,8 @@ grid_majority <- as.data.frame(expand.grid("Mode" = c("Active","Transit","Car"),
                     "hh_size" = 3, 
                     "Age" = 40,
                     "Match_mode" = "Yes",
-                    "Transit_user_bin" = 0,
-                    "Active_user_bin" = 0,
+                    "Transit_user" = "No",
+                    "Active_user" = "No",
                     "pc_class" = "Large",
                     "TransitPass" = "No",
                     "TransitAvailable" = "Yes",
@@ -1994,6 +2234,59 @@ knitr::include_graphics(paste0(diretorio_export_images,"/linear/sig/", majority_
 Just Transit: 
 
 ```{r}
+fj_ame <- svyAME(FewJobs_ordinal_3modes, 
+              varname = "SA_pp_Transit",
+              diffchange = "sd",
+              seed = 51)
+
+AME_transit_fj <- ggplot(fj_ame$preds) +
+  aes(x = SA_pp_Transit, y = predicted*100, ymin = conf.low*100, ymax = conf.high*100, colour = y, fill = y) +
+  geom_line() +
+  geom_ribbon(colour = "transparent", alpha = 0.2) +
+  labs(x = "Public transit accessibility",
+       y = "Predicted probability",
+       color = "Perception group", fill = "Perception group",
+       title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 70)) +
+coord_cartesian() +
+theme_minimal() +
+facet_wrap(~y, ncol = 3)  +
+scale_color_manual(values = my_colors_likert) +
+scale_fill_manual(values = my_colors_likert) +
+theme(legend.position = "bottom",
+legend.direction = "horizontal",
+legend.title = element_text(size = 10),
+legend.text = element_text(size = 9),
+plot.title = element_text(face = "italic"))
+
+ggsave(file = paste0(diretorio_export_images,"/ordinal/average-marginal-effect-transit-accessibility.jpg"),
+plot = AME_transit_fj,
+width = 17,
+height = 12,
+units = "cm",
+dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/average-marginal-effect-transit-accessibility.jpg"))
+```
+
+
+```{r}
+fj_ame_active_user <- svyAME(FewJobs_ordinal_3modes, 
+              varname = "SA_pp_Active",
+              diffchange = "sd",
+              byvar = "Active_user",
+              seed = 51)
+
+plot(fj_ame_active_user) +   
+  labs(x = "Active accessibility",
+       y = "Predicted probability",
+       color = "Active user", fill = "Active user",
+       title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 70)) +
+theme_minimal()
+```
+
+
+
+```{r}
 predict_subset_standads_ordinal_fj <- predict_subset_ordinal %>%
 filter(Mode == "Transit",
 Case %in% c(priority_group, non_priority_group, majority_group)) %>%
@@ -2027,11 +2320,14 @@ legend.direction = "horizontal",
 legend.title = element_text(size = 10),
 legend.text = element_text(size = 9),
 plot.title = element_text(face = "italic"))
+
 ggsave(file = paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-fj.jpg"),
+plot = probabilities_transit_linear_fj,
 width = 18,
 height = 10,
 units = "cm",
 dpi = 300)
+
 knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/accessibility-effect-transit-fj.jpg"))
 ```
 
