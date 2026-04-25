@@ -171,7 +171,7 @@ In our case, we are interested on the Census Divisions:
 ```{r}
 census_divisions <- get_census(dataset='CA21', 
                                regions=list(CD=code), 
-                               level='CSD', 
+                               level='CD', 
                                geo_format = "sf")
 ```
 
@@ -179,7 +179,6 @@ Filtering and adjusting variable names:
 
 ```{r}
 census_divisions <- census_divisions %>% 
-  filter(!is.na(CMA_UID)) %>%
   dplyr::select(GeoUID, name, PR_UID, `Shape Area`, geometry) %>% 
   dplyr::rename(CDUID = GeoUID, 
                 CDNAME = name,
@@ -190,6 +189,34 @@ census_divisions <- census_divisions %>%
 plot(census_divisions["geometry"])
 ```
 
+Census subdivisions:  
+
+```{r}
+census_subdivisions <- get_census(dataset='CA21', 
+                               regions=list(CD=code), 
+                               level='CSD', 
+                               geo_format = "sf")
+```
+
+Filtering and adjusting variable names:
+
+```{r}
+census_subdivisions <- census_subdivisions %>% 
+  filter(!is.na(CMA_UID)) %>%
+  dplyr::select(GeoUID, name, CD_UID, PR_UID, `Shape Area`, geometry) %>% 
+  dplyr::rename(CSDUID = GeoUID, 
+                CSDNAME = name,
+                PRUID = PR_UID, 
+                CDUID = CD_UID) 
+
+census_subdivisions <- census_subdivisions %>% 
+  left_join(census_divisions %>% st_drop_geometry() %>% 
+              dplyr::select(CDUID, CDNAME), by = "CDUID" )
+```
+
+```{r}
+plot(census_subdivisions["geometry"])
+```
 Census tracts (it is important to remember that if you city of analysis
 is not within a Census Agglomeration or Census Metropolitan Area, you
 will not have census tract available for your city!):
@@ -261,6 +288,8 @@ Saving the files:
 
 ```{r}
 sf::st_write(census_divisions, paste0(directory, "census_divisions.shp"), append=FALSE)
+
+sf::st_write(census_subdivisions, paste0(directory, "census_subdivisions.shp"), append=FALSE)
 
 sf::st_write(census_tracts, paste0(directory, "census_tracts.shp"), append=FALSE)
 

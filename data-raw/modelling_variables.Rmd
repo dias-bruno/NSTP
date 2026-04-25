@@ -14,6 +14,8 @@ design_respondents <- svydesign(
   data = respondents)
 ```
 
+## Transit IV
+
 Creating the first stage for transit accessibility: 
 
 ```{r}
@@ -22,8 +24,8 @@ SA_pp_Active:Active_user +
 Sf_dist_SA_pp_Transit   +
 Sf_dist_SA_pp_Transit:Transit_user +
 SA_pp_Car_motor +
+SA_pp_Car_motor:CarNumber + 
 ## Transport Variables
-CarNumber +
 BikeNumber +
 Match_mode +
 TransitPass +
@@ -43,6 +45,13 @@ pc_class, design = design_respondents)
 summary(stage1_transit_SA_pp, diagnostics = TRUE)
 ```
 
+```{r}
+wald_transit <- regTermTest(stage1_transit_SA_pp, ~ Sf_dist_SA_pp_Transit)
+wald_transit
+```
+
+## Car IV
+
 Creating the first stage for Car-motorized accessibility: 
 
 ```{r}
@@ -51,8 +60,8 @@ SA_pp_Active:Active_user +
 SA_pp_Transit   +
 SA_pp_Transit:Transit_user +
 Sf_dist_SA_pp_Car_motor +
+Sf_dist_SA_pp_Car_motor:CarNumber + 
 ## Transport Variables
-CarNumber +
 BikeNumber +
 Match_mode +
 TransitPass +
@@ -70,6 +79,12 @@ pc_class, design = design_respondents)
 
 summary(stage1_car_SA_pp, diagnostics = TRUE)
 ```
+```{r}
+wald_car <- regTermTest(stage1_car_SA_pp, ~ Sf_dist_SA_pp_Car_motor)
+wald_car
+```
+
+## Active IV
 
 Creating the first stage for Active accessibility: 
 
@@ -79,8 +94,8 @@ Sf_dist_SA_pp_Active:Active_user +
 SA_pp_Transit   +
 SA_pp_Transit:Transit_user +
 SA_pp_Car_motor +
+SA_pp_Car_motor:CarNumber +
 ## Transport Variables
-CarNumber +
 BikeNumber +
 Match_mode +
 TransitPass +
@@ -97,6 +112,10 @@ Pop_density +
 pc_class, design = design_respondents)
 
 summary(stage1_active_SA_pp)
+```
+```{r}
+wald_active <- regTermTest(stage1_active_SA_pp, ~ Sf_dist_SA_pp_Active)
+wald_active
 ```
 
 Adding the residuals to the data frame: 
@@ -121,8 +140,8 @@ SA_pp_Active:Active_user +
 SA_pp_Transit   +
 SA_pp_Transit:Transit_user +
 SA_pp_Car_motor +
+SA_pp_Car_motor:CarNumber +
 # Transport variables
-CarNumber +
 BikeNumber +
 Match_mode +
 TransitPass +
@@ -148,7 +167,8 @@ SA_pp_Car_Res_IV)
 respondents_filtered <- respondents %>%
 dplyr::select(SA_pp_Active, SA_pp_Transit, SA_pp_Car_motor, 
               Sf_dist_SA_pp_Active, Sf_dist_SA_pp_Transit, Sf_dist_SA_pp_Car_motor, 
-              SA_Active, SA_Transit, SA_Car_motor, Transit_user_bin, Active_user_bin, Transit_user, Active_user, TransitPass,  Car_user_bin, pc_class, hh_income4, Transport_3mode, BuiltV_median, SMOD_type, SMOD_majority,
+              SA_Active, SA_Transit, SA_Car_motor, Transit_user_bin, Active_user_bin, 
+               Transit_user, Active_user, TransitPass,  Car_user_bin, pc_class, hh_income4, Transport_3mode, BuiltV_median, SMOD_type, SMOD_majority,
 CarNumber, BikeNumber, Match_mode, Indigenous_or_racialized,
 Temporary_or_refugee, LongTermConditions, Woman_or_genderdiverse,
 Age, hh_size, hh_income, Pop_density, SA_pp_Active_Res_IV,
@@ -158,7 +178,6 @@ TravelTooLong, TravelTooLong_Likert,
 EasyToGo, EasyToGo_Likert,
 DeclineEmployment, DeclineEmployment_Likert,
 fexp_final, education_level, TransitAvailable, PCD, employment_status)
-
 ```
 
 ## Few jobs: Likert 
@@ -166,10 +185,10 @@ fexp_final, education_level, TransitAvailable, PCD, employment_status)
 ```{r}
 complete_data_fj <- respondents_filtered %>% 
   filter(!is.na(FewJobs))  %>%
-  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
-
-# complete_data_fj <- FewJobs_3mode_lm_SA_pp_clean_design$variables %>%
-#   mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
+  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE), 
+         SA_pp_Active_unscaled = SA_pp_Active,
+         SA_pp_Car_motor_unscaled = SA_pp_Car_motor,
+         SA_pp_Transit_unscaled = SA_pp_Transit)
 
 vars_to_scale <- c("SA_pp_Active", "SA_pp_Transit", "SA_pp_Car_motor",
   "Pop_density", 
@@ -217,7 +236,7 @@ car::vif(FewJobs_ordinal_3modes)
 ```
 
 ```{r}
-survey::regTermTest(FewJobs_ordinal_3modes, "SA_pp_Transit", method = "LRT")
+survey::regTermTest(FewJobs_ordinal_3modes, "SA_pp_Transit")
 ```
 
 ```{r}
@@ -235,8 +254,11 @@ fewjobscorr
 
 ```{r}
 complete_data_ttg <- respondents_filtered %>% 
-  filter(!is.na(TravelTooLong)) %>%
-  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
+  filter(!is.na(TravelTooLong), employment_status == 1) %>%
+  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE), 
+         SA_pp_Active_unscaled = SA_pp_Active,
+         SA_pp_Car_motor_unscaled = SA_pp_Car_motor,
+         SA_pp_Transit_unscaled = SA_pp_Transit)
 
 # complete_data_ttg <- TravelTooLong_3mode_lm_SA_pp_clean_design$variables %>% 
 #   mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
@@ -290,8 +312,11 @@ traveltoolongcorr
 
 ```{r}
 complete_data_etg <- respondents_filtered %>% 
-  filter(!is.na(EasyToGo)) %>%
-  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
+  filter(!is.na(EasyToGo), employment_status == 1) %>%
+  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE), 
+         SA_pp_Active_unscaled = SA_pp_Active,
+         SA_pp_Car_motor_unscaled = SA_pp_Car_motor,
+         SA_pp_Transit_unscaled = SA_pp_Transit)
 
 # complete_data_etg <- EasyToGo_3mode_lm_SA_pp_clean_design$variables %>% 
 #   mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
@@ -329,7 +354,7 @@ summary(EasyToGo_ordinal_3modes)
 ```
 
 ```{r}
-survey::regTermTest(EasyToGo_ordinal_3modes, "SA_pp_Transit", method = "LRT")
+survey::regTermTest(EasyToGo_ordinal_3modes, "SA_pp_Transit")
 ```
 
 ```{r}
@@ -348,8 +373,11 @@ easytogocorr
 
 ```{r}
 complete_data_de <- respondents_filtered %>% 
-  filter(!is.na(DeclineEmployment), !is.na(employment_status)) %>%
-  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE))
+  filter(!is.na(DeclineEmployment)) %>%
+  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE), 
+         SA_pp_Active_unscaled = SA_pp_Active,
+         SA_pp_Car_motor_unscaled = SA_pp_Car_motor,
+         SA_pp_Transit_unscaled = SA_pp_Transit)
 
 
 complete_data_scaled_de <- complete_data_de %>%
@@ -396,3 +424,25 @@ declineemploymentcorr <- data.frame(Filter = filters, "DeclineEmployment" = valu
 declineemploymentcorr
 ```
 
+
+```{r}
+# de_ame_active_user <- svyAME(DeclineEmployment_ordinal_3modes,
+#               varname = "SA_pp_Active",
+#               diffchange = "sd",
+#               byvar = "Active_user",
+#               seed = 51)
+# 
+# plot(de_ame_active_user) +
+#   theme_minimal()
+```
+
+```{r}
+# de_ame_transit_user <- svyAME(DeclineEmployment_ordinal_3modes,
+#               varname = "SA_pp_Transit",
+#               diffchange = "sd",
+#               byvar = "Transit_user",
+#               seed = 51)
+# 
+# plot(de_ame_transit_user) +
+#   theme_minimal()
+```

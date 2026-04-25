@@ -251,6 +251,7 @@ library(fitdistrplus) # Help to Fit of a Parametric Distribution to Non-Censored
 library(scales) # Scale data column-wise in a computationally efficient way
 library(here) # enable easy file referencing in project-oriented workflows
 library(readr) # Read csv files setting column data types
+library(rlang)
 ```
 
 # Reading the Land-use table
@@ -267,7 +268,7 @@ code <- c("3518", # Durham
           "3521", # Peel
           "3524", # Halton
           "3525" # Hamilton
-          )  # selected census division (Toronto)
+          ) 
 
 # Filtering by census division
 land_use <- land_use_CT_mode %>% 
@@ -670,7 +671,7 @@ spatial_availability <- function(df, origin, destination, pop, opp, mode, f){
     sum_pop <- df %>%
     dplyr::distinct(!!origin, !!mode,  
                   .keep_all = TRUE) %>%
-    dplyr::summarise(pop = (!!pop)) %>%
+    dplyr::summarise(pop = sum(!!pop)) %>%
     dplyr::pull(pop) %>%
     sum()
   
@@ -779,6 +780,51 @@ Note that the sum of spatial availability matches with the total amount
 of job opportunities in the system. As explained above, this happens
 because this metric is constrained.
 
+```{r}
+lf_pp_mode <- SA_mode %>%
+    dplyr::select(-c(SA_nonc_im, SA_im )) %>% 
+    pivot_wider(names_from = PwMode_label, values_from = labour_force, names_sep = "_", names_prefix = "lf_", values_fill = 0) %>% 
+  mutate("lf_Active" = lf_Walk + lf_Bike)
+
+SA_im_mode <- SA_mode %>%
+    dplyr::select(-c(SA_nonc_im, labour_force )) %>% 
+    pivot_wider(names_from = PwMode_label, values_from = SA_im, names_sep = "_", names_prefix = "SA_", values_fill = 0) %>% 
+  mutate("SA_Active" = SA_Walk + SA_Bike) 
+
+
+SA_General <- SA %>% 
+  rename(SA_General = SA_i,
+         lf_General = labour_force) %>%
+  dplyr::select(-c(SA_nonc_i))
+
+SA_pp_wide <- lf_pp_mode %>% 
+  left_join(SA_im_mode, by = "from_id") %>% 
+  left_join(SA_General, by = "from_id") %>% 
+  mutate(Walk = SA_Walk/lf_Walk, 
+         Walk = ifelse(is.nan(Walk), 0, Walk), 
+         
+         Bike = SA_Bike/lf_Bike, 
+         Bike = ifelse(is.nan(Bike), 0, Bike), 
+         
+         Transit = SA_Transit/lf_Transit, 
+         Transit = ifelse(is.nan(Transit), 0, Transit), 
+         
+         `Car-motor` = `SA_Car-motor`/`lf_Car-motor`, 
+         `Car-motor` = ifelse(is.nan(`Car-motor`), 0, `Car-motor`), 
+         
+         Active = SA_Active/lf_Active, 
+         Active = ifelse(is.nan(Active), 0, Active), 
+         
+         General = SA_General/lf_General, 
+         General = ifelse(is.nan(General), 0, General))
+
+SA_pp_long <- SA_pp_wide %>% 
+  dplyr::select(c(from_id, Walk, Bike, Transit, `Car-motor`, Active, General)) %>% 
+  pivot_longer(cols = c(Walk, Bike, Transit, `Car-motor`, Active, General), names_to = "PwMode_label", values_to = "SA_pp")
+```
+
+# Export tables
+
 Creating the directory:
 
 ```{r directory-export}
@@ -787,10 +833,6 @@ diretorio_export <- paste0(here(),"/data-raw/output/GTAH/CT/accessibility-measur
 if(!dir.exists(diretorio_export)){
   dir.create(diretorio_export, recursive = TRUE)}
 ```
-
-Although we also export outputs not marked as released, only data marked as released is in a format suitable for sharing by the RDC. We are exporting this data because it is a good data management technique to keep full data available for possible future queries.
-
-# Export tables
 
 Export the original files for future consultations (this data can not be released by RDC):
 ```{r export-original-files}
@@ -801,6 +843,8 @@ write.csv(HT_mode, paste0(diretorio_export, "HT_mode.csv"), row.names=FALSE)
 # SA tables
 write.csv(SA, paste0(diretorio_export, "SA_general.csv"), row.names=FALSE)
 write.csv(SA_mode, paste0(diretorio_export, "SA_mode.csv"), row.names=FALSE)
+write.csv(SA_pp_wide, paste0(diretorio_export, "SA_pp_wide.csv"), row.names=FALSE)
+write.csv(SA_pp_long, paste0(diretorio_export, "SA_pp_long.csv"), row.names=FALSE)
 
 # Land use table
 land_use_mode <- land_use_exp %>%
@@ -825,3 +869,10 @@ Exporting the ttm_f table (not for release):
 ```{r export-ttm_f}
 write.csv(ttm_f, paste0(ttm_folder, "ttm_f.csv"), row.names=FALSE)
 ```
+
+Exporting impedance functions used to created the metrics:
+
+```{r}
+write.csv(specific_function_final, paste0(here(), "/manuscript/tables/impedance_functions.csv"), row.names=FALSE)
+```
+

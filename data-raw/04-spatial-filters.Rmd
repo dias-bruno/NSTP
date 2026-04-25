@@ -444,58 +444,12 @@ SA_final_nonc <- grid_expanded %>%
 
 ```{r}
 # Read file job spatial availability by mode
-SA_pp_mode <- read.csv(paste0(measures_folder, "SA_mode.csv"), 
-               colClasses = c("character", "factor", "numeric", "numeric", "numeric"))
+SA_pp_mode <- SA_pp <- read_csv(paste0(measures_folder, "SA_pp_long.csv"),
+                col_types = cols(
+                  from_id = col_character())) 
 
-lf_pp_mode <- SA_pp_mode %>%
-    dplyr::select(-c(SA_nonc_im, SA_im )) %>% 
-    pivot_wider(names_from = PwMode_label, values_from = labour_force, names_sep = "_", names_prefix = "lf_", values_fill = 0) %>% 
-  mutate("lf_Active" = lf_Walk + lf_Bike)
-
-SA_im_mode <- SA_pp_mode %>%
-    dplyr::select(-c(SA_nonc_im, labour_force )) %>% 
-    pivot_wider(names_from = PwMode_label, values_from = SA_im, names_sep = "_", names_prefix = "SA_", values_fill = 0) %>% 
-  mutate("SA_Active" = SA_Walk + SA_Bike) 
-
-
-SA_pp_general <- read.csv(paste0(measures_folder, "SA_general.csv"), 
-               colClasses = c("character", "numeric", "numeric", "numeric"))
-
-SA_general <- SA_pp_general %>% 
-  rename(SA_General = SA_i,
-         lf_General = labour_force) %>%
-  dplyr::select(-c(SA_nonc_i))
-
-SA_pp <- lf_pp_mode %>% 
-  left_join(SA_im_mode, by = "from_id") %>% 
-  left_join(SA_general, by = "from_id") %>% 
-  mutate(Walk = SA_Walk/lf_Walk, 
-         Walk = ifelse(is.nan(Walk), 0, Walk), 
-         
-         Bike = SA_Bike/lf_Bike, 
-         Bike = ifelse(is.nan(Bike), 0, Bike), 
-         
-         Transit = SA_Transit/lf_Transit, 
-         Transit = ifelse(is.nan(Transit), 0, Transit), 
-         
-         `Car-motor` = `SA_Car-motor`/`lf_Car-motor`, 
-         `Car-motor` = ifelse(is.nan(`Car-motor`), 0, `Car-motor`), 
-         
-         Active = SA_Active/lf_Active, 
-         Active = ifelse(is.nan(Active), 0, Active), 
-         
-         General = SA_General/lf_General, 
-         General = ifelse(is.nan(General), 0, General)) %>% 
-  rename(CTUID = from_id) %>% 
-  dplyr::select(c(CTUID, "Walk", 
-                  "Bike", 
-                  "Transit",
-                  "Car-motor",
-                  "Active", 
-                  "General")) %>% 
-  pivot_longer(cols = c(Bike, Walk, `Car-motor`, Transit, Active, General), 
-               names_to = "PwMode_label",
-               values_to = "SA_pp_im")
+SA_pp <- SA_pp_mode %>% 
+  rename(CTUID = from_id, SA_pp_im = SA_pp)
 ```
 
 Preparing the accessibility file:
