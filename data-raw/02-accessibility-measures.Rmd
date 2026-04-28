@@ -1,18 +1,16 @@
 ---
-title: "Calculating the accessibility and spatial availability of jobs (*Census Tract* level)"
-runningheader: "a methodology for Canadian regions based on the 2021 Census of Population" # only for pdf output
-subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
+title: "Calculating the accessibility and spatial availability of jobs (Census Tract level)"
 author: "Bruno Santos & Antonio Paez"
 date: "`r Sys.Date()`"
 output:
-  tufte::tufte_html: default
   tufte::tufte_handout:
     citation_package: natbib
     latex_engine: xelatex
+  tufte::tufte_html: default
   tufte::tufte_book:
     citation_package: natbib
     latex_engine: xelatex
-bibliography: skeleton.bib
+bibliography: mybibfile.bib
 link-citations: yes
 editor_options: 
   markdown: 
@@ -32,15 +30,28 @@ options(htmltools.dir.version = FALSE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
 
+```{r load-packages}
+library('CommuteCA') # Access data sets from CommuteCA R package
+library(dplyr)# A Grammar of Data Manipulation 
+library(fitdistrplus) # Help to Fit of a Parametric Distribution to Non-Censored or Censored Data
+library(scales) # Scale data column-wise in a computationally efficient way
+library(here) # enable easy file referencing in project-oriented workflows
+library(readr) # Read csv files setting column data types
+library(rlang)
+library(tidyr) # Create tidy data
+library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
+library(RColorBrewer) # color schemes for maps (and other graphics) designed
+library(sf) # support for simple features, a standardized way to encode spatial vector data 
+library(tmap) # thematic maps
+library(nngeo)
+```
+
 # Introduction
 
-This Rmarkdown file is part of the
-[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
-This package was created in conjunction with the office of the
-[*Research Data Center* at *McMaster
-University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
-Scholarship*](https://scds.ca/) and the [*Mobilizing
-Justice*](https://mobilizingjustice.ca/)[^1].
+This file is an adaptation of an Rmarkdown from the  [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. CommuteCA was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
 
 [^1]: The Mobilizing Justice project is a multidisciplinary and
     multi-sector collaboration with the objective of understand and
@@ -59,7 +70,7 @@ which provides valuable variables and information on commuting for the Canadian 
 
 Considering the number of workers and employment opportunities obtained
 from the [*2021 Census of
-Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm),
+Population*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm), using `CommuteCA`,
 this R markdown aims to create a methodology to obtain Hansen-type
 accessibility [@hansen1959] and spatial accessibility [@soukhov2023],
 for all Canadian provinces and territories, considering different modes
@@ -87,8 +98,7 @@ For the Census Tract level analysis, *CommuteCA* provides data sets with land us
 #?land_use_CT_mode
 ```
 
-We will also use the travel time table created in the previous step, in
-the R markdown called *03_travel_times.Rmd*.
+We will also use the travel time table and spatial files created in the previous step.
 
 # Measuring accessibility
 
@@ -134,7 +144,7 @@ The measure of Hansen [-@hansen1959] considers that the sum of
 opportunities in each destination in gradually discounted as the travel
 cost increases. In this case, opportunities that area easier to access
 counts more for the measure. Many accessibility measures derive from
-this work [@MJ-A2-0002], according to the equation:
+this work [@soukhov2024a], according to the equation:
 
 $$ HT_i = \sum_{j=1}^{J}O_j \cdot f(c_{ij})$$
 
@@ -161,7 +171,7 @@ wants the accessibility estimates to be representative of the people's
 travel behavior. In our case, we'll use the Census data in the
 calibration process.
 
-Soukhov and Páez [-@MJ-A2-0002] reviewed commonly used impedance
+Soukhov and Páez [-@soukhov2024a] reviewed commonly used impedance
 functions $f(\bullet)$ in accessibility research, explaining their
 impacts on the summation of opportunities at specific travel costs
 $c_{ij}$. In this study, we will explore the following functions to
@@ -228,31 +238,17 @@ $$ F_{ij}^{t} = \frac{F_i^{p} \cdot F_{ij}^{(c_ij)}}{\sum_{i}F_i^{p} \cdot F_{ij
 
 The methodology for obtaining the accessibility measures for Census Tract:
 
-1.  First, we estimate the travel time for each transportation mode using the [{r5r}](https://cloud.r-project.org/web/packages/fitdistrplus/index.html) package [@Pereira2021], considering all possible combinations of census tracts of the selected study area. The methodology used to obtain the travel time table is in the *03_travel_times.Rmd*. 
+1.  First, we load the travel time for each transportation mode. The methodology used to obtain the travel time table is in the previous Rmd.  
 
-2.  Next, we read the land use table of our city of study. This table contains the labour force population and the number of job opportunities for each census tract.
+2.  Next, we read the land use table of our study area. This table contains the labour force population and the number of job opportunities for each census tract.
 
-3.  We select the impedance functions from our city of study. 
+3.  We select the impedance functions from our study area. 
 
 4.  We then apply the impedance functions to the travel time table.
 
 5.  We join the travel time and labour force tables, creating the accessibility table. This last table has all the data needed to carry out the accessibility analysis. 
 
 6.  Finally, we perform the Hansen accessibility type and the spatial availability.
-
-![Methodology to obtain the accessibility measures.](rmarkdown_figures/Flowchart_transparent.png) 
-
-Load the packages:
-
-```{r load-packages}
-library('CommuteCA') # Access data sets from CommuteCA R package
-library(dplyr)# A Grammar of Data Manipulation 
-library(fitdistrplus) # Help to Fit of a Parametric Distribution to Non-Censored or Censored Data
-library(scales) # Scale data column-wise in a computationally efficient way
-library(here) # enable easy file referencing in project-oriented workflows
-library(readr) # Read csv files setting column data types
-library(rlang)
-```
 
 # Reading the Land-use table
 
@@ -269,6 +265,8 @@ code <- c("3518", # Durham
           "3524", # Halton
           "3525" # Hamilton
           ) 
+
+code_label <- "GTAH"
 
 # Filtering by census division
 land_use <- land_use_CT_mode %>% 
@@ -328,7 +326,7 @@ adjust the associated parameters, and use the calibrated theoretical PDF
 to incorporate the assumptions about the population's travel behavior
 into the accessibility calculation.
 
-Soukhov and Páez [-@MJ-A2-0002] demonstrated the process of calibrating
+Soukhov and Páez [-@soukhov2024a] demonstrated the process of calibrating
 and selecting the best distribution to represent an impedance function
 based on travel flows from workers who live and work (full-time) within
 the City of Hamilton. The authors used the data from the R data package
@@ -347,7 +345,7 @@ We already calibrated impedance functions based on travel time distribution for 
 [^12]: The Akaike Information Criterion (AIC) estimates prediction error
     and model quality for a given data set.
 
-The chunk below display how to obtain the impedance function for my city of study: 
+The chunk below display how to obtain the impedance function for my study area: 
 
 ```{r pcd-functions}
 data("pcd_impedance_functions")
@@ -436,10 +434,10 @@ specific_function_final <- specific_function_final %>%
 
 # Reading and preparing the travel matrix table
 
-Reading the travel time table created in the *03_travel_times.Rmd*^[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
+Reading the travel time table created in the previous rmarkdown^.[*If you are working with another study area or with the original Census data, don't forget to change the address file for the next chunk.*]:
 
 ```{r read-ttm}
-ttm_folder <- paste0(here(),"/data-raw/output/GTAH/CT/travel_times/")
+ttm_folder <- paste0(here(),"/data-raw/output/",code_label,"/CT/travel_times/")
 ttm_file <- paste0(ttm_folder,"ttm.csv")
 
 ttm <- read_csv(ttm_file,
@@ -539,16 +537,6 @@ for(pcd_codes in unique(ttm$PCD)){
      ttm_f <- rbind(ttm_f, ttm_f_mode)
   }
 }
-```
-
-
-```{r}
-confirm_ttmf <- ttm_f %>% 
-  group_by(PCD, PwMode_label) %>% 
-  dplyr::summarise(distribution = first(distribution),
-                   est_1 = first(est_1),
-                   est_2 = first(est_2),)
-  
 ```
 
 
@@ -738,7 +726,6 @@ SA_ij_mode %>%
 
 ```{r}
 sum(SA_ij_mode$SA_ij)
-sum(SA_ij_mode$SA_nonc_ij)
 ```
 
 The table above displays the spatial availability for each combination
@@ -757,7 +744,6 @@ SA_mode <- SA_ij_mode %>%
 sum(SA_mode$labour_force)
 ```
 
-
 The *SA_im* presents the value of spatial availability for each CT by
 *mode*. The next chunk sum all *SA* values by CT of origin:
 
@@ -773,12 +759,13 @@ Visualizing the sum of spatial availability:
 
 ```{r sum-Vi}
 sum(SA$SA_i, na.rm = TRUE)
-sum(SA$SA_nonc_i, na.rm = TRUE)
 ``` 
 
 Note that the sum of spatial availability matches with the total amount
 of job opportunities in the system. As explained above, this happens
 because this metric is constrained.
+
+Now, we will also obtain the spatial availability per person, simply dividing the number of jobs accessible in each transportation mode by the number of people actually taking these modes:
 
 ```{r}
 lf_pp_mode <- SA_mode %>%
@@ -823,18 +810,571 @@ SA_pp_long <- SA_pp_wide %>%
   pivot_longer(cols = c(Walk, Bike, Transit, `Car-motor`, Active, General), names_to = "PwMode_label", values_to = "SA_pp")
 ```
 
+# Visualizing accessibility 
+
+Reading the census_tracts geometries:
+
+```{r}
+directory_spatial_files <- paste0(here(), "/data-raw/output/",code_label,"/spatial-files/") # Update this address if necessary
+census_tracts <-   st_read(paste0(directory_spatial_files, "census_tracts.gpkg"))
+census_tracts <- nngeo::st_remove_holes(census_tracts)
+```
+
+Reading the census_divisions geometries:
+
+```{r}
+census_subdivisions_raw <-   st_read(paste0(directory_spatial_files, "census_subdivisions.gpkg"))
+
+census_subdivisions <- nngeo::st_remove_holes(census_subdivisions_raw)
+```
+
+Merging the census_tracts with the accessibility measures tables:
+
+```{r}
+land_use_mode <- land_use_exp %>%
+  left_join(unique(land_use[,c("CTUID", "CTNAME", "CMAUID", "CMANAME", "PCD","PRUID")]), by = c("CTUID" = "CTUID"))
+
+land_use_general <- land_use_exp %>%
+  group_by(CTUID) %>%
+  summarise(labour_force = sum(labour_force), 
+            jobs = first(jobs)) %>%  
+  left_join(land_use %>% 
+              dplyr::select("CTUID","CTNAME","CMAUID",
+                              "CMANAME","PCD","PRUID"), by = c('CTUID')) %>% 
+  distinct()
+```
+
+```{r}
+names(census_tracts)[1] <- "CTUID"
+
+mode_metrics_ct <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
+              PwMode_label = unique(HT_mode$PwMode_label)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(HT_mode, by = c("CTUID" = "from_id", "PwMode_label" = "PwMode_label")) %>%
+  left_join(SA_mode, by = c("CTUID" = "from_id", "PwMode_label" = "PwMode_label")) %>% 
+  left_join(land_use_mode[,c("CTUID","PwMode")], by = c("CTUID" = "CTUID", "PwMode_label" = "PwMode"))
+
+mode_metrics_ct <- mode_metrics_ct %>% 
+  mutate(SA_im_pp = SA_im/labour_force, 
+         SA_im_pp = ifelse(is.nan(SA_im_pp), 0, SA_im_pp))
+
+mode_metrics_ct_sf <- st_as_sf(mode_metrics_ct, crs = st_crs(census_tracts))
+```
+
+Preparing the tables to plot the maps:
+
+```{r}
+# Hansen
+HT_metrics_ct <- census_tracts %>% 
+  full_join(HT, by = c("CTUID" = "from_id")) %>%
+  full_join(land_use_general[,c("CTUID", "labour_force", "jobs")], by = c("CTUID" = "CTUID")) 
+
+# Spatial Availability
+SA_metrics_ct <- census_tracts %>% 
+  full_join(SA, by = c("CTUID" = "from_id")) %>%
+  full_join(land_use_general[,c("CTUID","jobs")], by = c("CTUID" = "CTUID"))
+```
+
+## General accessibility maps
+
+Creating a directory to export the figures:
+
+```{r }
+diretorio_export_figures <- paste0(here(),"/data-raw/output/",code_label,"/CT/accessibility-figures/") # Update the address to export the data, if necessary
+
+if(!dir.exists(diretorio_export_figures)){
+  dir.create(diretorio_export_figures, recursive = TRUE)}
+```
+
+Plotting the count of people within the labour force and count of job
+opportunities in each census_tracts:
+
+```{r}
+SA_metrics_ct <- SA_metrics_ct %>% 
+  mutate(lf_km = labour_force/LANDAREA, 
+         jobs_km = jobs/LANDAREA)
+  
+labour_force_plot <- tm_shape(SA_metrics_ct) + 
+   tm_polygons("labour_force",
+              style = "jenks",
+              palette = "Reds",
+              title = "Legend",
+              border.col = NULL) + 
+  tm_shape(census_subdivisions) +
+  tm_borders("black", lwd=0.5) +
+  tm_scale_bar(position = c("right", "bottom"))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "left",
+            panel.labels = "Labour force")
+
+labour_force_km_plot <- tm_shape(SA_metrics_ct) + 
+   tm_polygons("lf_km",
+              style = "jenks",
+              palette = "Reds",
+              title = "Legend",
+              border.col = NULL) + 
+  tm_shape(census_subdivisions) +
+  tm_borders("black", lwd=0.5) +
+  tm_scale_bar(position = c("right", "bottom"))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "left",
+            panel.labels = "Labour force per km²")
+
+jobs_plot <- tm_shape(SA_metrics_ct) + 
+   tm_polygons("jobs",
+              style = "jenks",
+              palette = "Blues",
+              title = "Legend",
+              border.col = NULL) + 
+  tm_shape(census_subdivisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scale_bar(position = c("right", "bottom"))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "left",
+            panel.labels = "Job opportunities")
+
+jobs_per_km_plot <- tm_shape(SA_metrics_ct) + 
+   tm_polygons("jobs_km",
+              style = "jenks",
+              palette = "Blues",
+              title = "Legend",
+              border.col = NULL) + 
+  tm_shape(census_subdivisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scale_bar(position = c("right", "bottom"))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = "left",
+            panel.labels = "Jobs per km²")
+
+lf_jobs_CT <- tmap_arrange(labour_force_plot, labour_force_km_plot, 
+                           jobs_plot, jobs_per_km_plot, ncol = 2)
+
+tmap_save(lf_jobs_CT, 
+          paste0(diretorio_export_figures,"lf_jobs_CT.jpg"), 
+          width = 20, 
+          height = 15, 
+          units = "cm", 
+          dpi = 300)
+
+lf_jobs_CT_densities <- tmap_arrange(labour_force_km_plot, jobs_per_km_plot, ncol = 2)
+
+tmap_save(lf_jobs_CT, 
+          paste0(diretorio_export_figures,"lf_jobs_CT.jpg"), 
+          width = 20, 
+          height = 15, 
+          units = "cm", 
+          dpi = 300)
+
+tmap_save(lf_jobs_CT_densities, 
+          paste0(diretorio_export_figures,"lf_jobs_CT_densities.jpg"), 
+          width = 18, 
+          height = 8, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r out.width="100%"}
+knitr::include_graphics(paste0(diretorio_export_figures,"/lf_jobs_CT.jpg"))
+```
+
+```{r out.width="100%"}
+knitr::include_graphics(paste0(diretorio_export_figures,"/lf_jobs_CT_densities.jpg"))
+```
+
+Plotting the accessibility measures:
+
+```{r}
+ht_plot <- tm_shape(HT_metrics_ct) + 
+   tm_polygons("HT_i",
+              style = "quantile",
+              palette = "Purples",
+              title = " ",
+              border.col = NULL) + 
+  tm_shape(census_subdivisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scale_bar(position = c("right", "bottom"))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = c("left","top"),
+            panel.labels = "Hansen-type accessibility of jobs")
+
+sa_plot <- tm_shape(SA_metrics_ct) + 
+   tm_polygons("SA_i",
+              style = "quantile",
+              palette = "Oranges",
+              title = " ",
+              border.col = NULL) + 
+  tm_shape(census_subdivisions) +
+  tm_borders("black", lwd=0.5) +
+  tm_scale_bar(position = c("right", "bottom"))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+  tm_layout(legend.outside = TRUE,
+            legend.outside.position = c("left","top"),
+            panel.labels = "Spatial availability of jobs")
+
+HT_SA_CT <- tmap_arrange(ht_plot, sa_plot, ncol = 2)
+
+tmap_save(HT_SA_CT, 
+          paste0(diretorio_export_figures,"HT_SA_CT.jpg"), 
+          width = 20, 
+          height = 15, 
+          units = "cm", 
+          dpi = 300)
+```
+
+```{r out.width="100%"}
+knitr::include_graphics(paste0(diretorio_export_figures,"/HT_SA_CT.jpg"))
+```
+
+Plotting the jobs per labour force, and the spatial availability per
+labour force:
+
+```{r out.width="100%"}
+HT_metrics_ct$metric <-  HT_metrics_ct$jobs / HT_metrics_ct$labour_force
+
+HT_metrics_ct <- HT_metrics_ct %>%
+  mutate(metric = case_when(
+    jobs == 0 & labour_force == 0 ~ 0,
+    labour_force == 0 & jobs != 0 ~ jobs,  
+    TRUE ~ metric),
+    type = "Jobs per person") %>%
+  dplyr::select(CTUID, metric, type)
+  
+
+SA_metrics_ct$metric <- SA_metrics_ct$SA_i / SA_metrics_ct$labour_force
+
+SA_metrics_ct <- SA_metrics_ct %>%
+  mutate(metric = case_when(
+    jobs == 0 & labour_force == 0 ~ 0,
+    labour_force == 0 & jobs != 0 ~ jobs,  
+    TRUE ~ metric),
+    type = "Spatial availability per person") %>%
+  dplyr::select(CTUID, metric, type) 
+
+metric_ct <- rbind(HT_metrics_ct, SA_metrics_ct)
+
+SA_per_labour_force <- tm_shape(metric_ct) + 
+   tm_polygons("metric",
+              style = "fixed",
+              breaks = c(0, 0.25, 0.5, 0.75, 1, 2, Inf),
+              palette = "RdYlGn",
+              title = "Legend",
+              border.col = NULL) +  
+  tm_facets(by = "type") + 
+  tm_shape(census_subdivisions) +
+  tm_borders("black", lwd=0.5) + 
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 20, 30))+
+  tm_compass(position = c("left", "top"), size=1.0)
+
+tmap_save(SA_per_labour_force, 
+          paste0(diretorio_export_figures,"SA_per_labour_force.jpg"), 
+          width = 14, 
+          height = 10, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"SA_per_labour_force.jpg"))
+```
+
+## Visualizing the accessibility measures by transportation modes with maps
+
+Visualizing the total labour force by transportation mode:
+
+```{r out.width="100%"}
+total_pop_by_mode_CT <- tm_shape(mode_metrics_ct_sf) + 
+   tm_polygons("labour_force",
+              style = "cont",
+              palette = "Reds",
+              title = "Labour force",
+              border.col = NULL) +  
+   tm_facets(by = "PwMode_label", ncol = 2) +       
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 20, 30))+
+   tm_compass(position = c("left", "top"), size = 1.0) + 
+   tm_shape(census_subdivisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(total_pop_by_mode_CT, 
+          paste0(diretorio_export_figures,"total_pop_by_mode_CT.jpg"), 
+          width = 14, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"total_pop_by_mode_CT.jpg"))
+```
+
+```{r out.width="100%"}
+total_pop_by_mode_CT_2 <- tm_shape(mode_metrics_ct_sf) + 
+   tm_polygons("labour_force",
+              style = "quantile",
+              palette = "Reds",
+              title = "Labour force",
+              border.col = NULL) +  
+   tm_facets(by = "PwMode_label", ncol = 2) +       
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 20, 30))+
+   tm_compass(position = c("left", "top"), size = 1.0) + 
+   tm_shape(census_subdivisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(total_pop_by_mode_CT_2, 
+          paste0(diretorio_export_figures,"total_pop_by_mode_CT_2.jpg"), 
+          width = 14, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"total_pop_by_mode_CT_2.jpg"))
+```
+
+```{r out.width="100%"}
+mode_metrics_ct_sf <- mode_metrics_ct_sf %>% 
+  mutate(lf_pp = labour_force/LANDAREA)
+
+
+pop_dens_by_mode_CT_2 <- tm_shape(mode_metrics_ct_sf) + 
+   tm_polygons("lf_pp",
+              style = "quantile",
+              palette = "Reds",
+              title = "Labour force per km²",
+              border.col = NULL) +  
+   tm_facets(by = "PwMode_label", ncol = 2) +       
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 20, 30))+
+   tm_compass(position = c("left", "top"), size = 1.0) + 
+   tm_shape(census_subdivisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(pop_dens_by_mode_CT_2, 
+          paste0(diretorio_export_figures,"pop_dens_by_mode_CT_2.jpg"), 
+          width = 14, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"pop_dens_by_mode_CT_2.jpg"))
+```
+
+Visualizing the Hansen-type accessibility by transportation mode:
+
+```{r out.width="100%"}
+HT_by_mode_CT <- tm_shape(mode_metrics_ct_sf) + 
+   tm_polygons("HT_im",
+              style = "quantile",
+              palette = "Purples",
+              title = "Hansen accessibility",
+              border.col = NULL) + 
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 20, 30))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+   tm_facets(by = "PwMode_label", ncol = 2) +       
+   tm_shape(census_subdivisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(HT_by_mode_CT, 
+          paste0(diretorio_export_figures,"HT_by_mode_CT.jpg"), 
+          width = 14, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"HT_by_mode_CT.jpg"))
+```
+
+Visualizing the Spatial Availability by transportation mode:
+
+```{r out.width="100%"}
+SA_by_mode_CT <- tm_shape(mode_metrics_ct_sf) + 
+   tm_polygons("SA_im",
+              style = "quantile",
+              palette = "Oranges",
+              title = "Spatial availability",
+              border.col = NULL) + 
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 20, 30))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+   tm_facets(by = "PwMode_label", ncol = 2) +       
+   tm_shape(census_subdivisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(SA_by_mode_CT, 
+          paste0(diretorio_export_figures,"SA_by_mode_CT.jpg"), 
+          width = 14, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"SA_by_mode_CT.jpg"))
+```
+
+```{r out.width="100%"}
+SA_per_person_by_mode_CT_2 <- tm_shape(mode_metrics_ct_sf) + 
+   tm_polygons("SA_im_pp",
+              style = "quantile",
+              palette = "Oranges",
+              title = "SA per person",
+              border.col = NULL) + 
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 20, 30))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+   tm_facets(by = "PwMode_label", ncol = 2) +       
+   tm_shape(census_subdivisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(SA_per_person_by_mode_CT_2, 
+          paste0(diretorio_export_figures,"SA_per_person_by_mode.jpg"), 
+          width = 14, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"SA_per_person_by_mode.jpg"))
+```
+
+
+```{r out.width="100%"}
+SA_pp <- SA_pp_long %>%
+  rename(CTUID = from_id)
+
+mode_pp_metrics_ct <- 
+  expand.grid(CTUID = unique(census_tracts$CTUID), 
+              PwMode_label = unique(SA_pp$PwMode_label)) %>%
+  left_join(census_tracts, by = "CTUID") %>% 
+  left_join(SA_pp, by = c("CTUID" = "CTUID", "PwMode_label" = "PwMode_label")) %>% 
+  mutate(SA_pp_im = ifelse(is.nan(SA_pp), 0, SA_pp))
+
+mode_pp_metrics_ct_sf <- st_as_sf(mode_pp_metrics_ct, crs = st_crs(census_tracts))
+
+SA_pp_3modes <- mode_pp_metrics_ct_sf %>% 
+  filter(PwMode_label %in% c("Active", "Transit", "Car-motor")) %>%
+  tm_shape() + 
+   tm_polygons("SA_pp_im",
+              style = "jenks",
+              palette = "Oranges",
+              title = "Job SA per person",
+              border.col = NULL) + 
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 15, 25)) +
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+   tm_facets(by = "PwMode_label", ncol = 3, free.scales = TRUE) +       
+   tm_shape(census_subdivisions) +
+   tm_borders("black", lwd=0.5) +
+    tm_layout(legend.outside = TRUE,
+            legend.outside.position = c("right", "bottom"))
+
+tmap_save(SA_pp_3modes, 
+          paste0(diretorio_export_figures,"SA_pp_3modes.jpg"), 
+          width = 14, 
+          height = 10, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"SA_pp_3modes.jpg"))
+```
+
+```{r out.width="100%"}
+SA_pp_3modes_v2 <- mode_pp_metrics_ct_sf %>% 
+  filter(PwMode_label %in% c("Active", "Transit", "Car-motor")) %>%
+  tm_shape() + 
+   tm_polygons("SA_pp_im",
+              style = "quantile",
+              palette = "Oranges",
+              title = "Spatial availability per person",
+              border.col = NULL) + 
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 15, 25)) +
+  tm_compass(position = c("left", "top"), size=0.5)  + 
+   tm_facets(by = "PwMode_label", ncol = 3) +       
+   tm_shape(census_subdivisions) +
+   tm_borders("black", lwd=0.5) +
+   tm_layout(legend.outside = TRUE, 
+            legend.outside.position = c("right", "top"))  
+
+tmap_save(SA_pp_3modes_v2, 
+          paste0(diretorio_export_figures,"SA_pp_3modes_v2.jpg"), 
+          width = 14,
+          height = 10,
+          units = "cm",
+          dpi = 300)
+
+# For paper 
+# tmap_save(SA_pp_3modes_v2, 
+#           paste0(paste0(here::here(),"/manuscript/figures/SA_pp_3modes_v2.jpg")), 
+#           width = 14,
+#           height = 10,
+#           units = "cm",
+#           dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"/SA_pp_3modes_v2.jpg"))
+```
+
+Computing of the labour force by transportation mode:
+
+```{r}
+total_pop <- sum(land_use_mode$labour_force)
+total_SA <- sum(mode_metrics_ct$SA_im, na.rm = TRUE)
+
+modal_SA_percents <- mode_metrics_ct %>% 
+  group_by(PwMode_label) %>%
+  dplyr::summarize(total_labour_fource = sum(labour_force, na.rm = TRUE),
+            SA_meam = mean(SA_im, na.rm = TRUE),
+            SA_sum = sum(SA_im, na.rm = TRUE),
+            perc_SA = sum(SA_im, na.rm = TRUE)/total_SA, 
+            perc_pop= sum(labour_force, na.rm = TRUE)/total_pop)
+
+modal_SA_long <- modal_SA_percents %>%
+  pivot_longer(cols = c(perc_SA, perc_pop), names_to = "perc", values_to = "measure")
+```
+
+Visualizing the share of labour force and spatial availability by
+transportation mode:
+
+```{r out.width="100%"}
+Pop_SA_by_mode_CT <- ggplot(modal_SA_long, 
+      aes(x = perc, y = measure, fill = PwMode_label, label = measure %>% percent(accuracy = 0.1))) +
+      scale_x_discrete(labels = c(
+      "perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", round(total_SA), ")"),
+      "perc_pop" = paste("Population\n by Mode\n(Total: ", format(round(total_pop)), ")") )) +
+  geom_col() + 
+  geom_text(position = position_stack(vjust=0.5), color="black") +
+  theme_classic() +
+  theme(axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        axis.line = element_blank(),
+        axis.text.y = element_blank(),
+        axis.text = element_text(color="black"),
+        legend.position = "bottom",
+        legend.title = element_blank())
+
+ggsave(file = paste0(diretorio_export_figures,"Pop_SA_by_mode_CT.jpg"), 
+       plot = Pop_SA_by_mode_CT,
+       width = 10, 
+       height = 10, 
+       units = "cm", 
+       dpi = 300)
+
+# # For paper 
+# tmap_save(Pop_SA_by_mode_CT, 
+#           paste0(paste0(here::here(),"/manuscript/figures/modal_SA_long.jpg")), 
+#           width = 10,
+#           height = 10,
+#           units = "cm",
+#           dpi = 300)
+
+Pop_SA_by_mode_CT
+```
+
 # Export tables
 
 Creating the directory:
 
 ```{r directory-export}
-diretorio_export <- paste0(here(),"/data-raw/output/GTAH/CT/accessibility-measures/") # Update the address to export the data, if necessary
+diretorio_export <- paste0(here(),"/data-raw/output/",code_label,"/CT/accessibility-measures/") # Update the address to export the data, if necessary
 
 if(!dir.exists(diretorio_export)){
   dir.create(diretorio_export, recursive = TRUE)}
 ```
 
-Export the original files for future consultations (this data can not be released by RDC):
+Export the accessibility files:
+
 ```{r export-original-files}
 # HT tables
 write.csv(HT, paste0(diretorio_export, "HT_general.csv"), row.names=FALSE)
@@ -847,24 +1387,12 @@ write.csv(SA_pp_wide, paste0(diretorio_export, "SA_pp_wide.csv"), row.names=FALS
 write.csv(SA_pp_long, paste0(diretorio_export, "SA_pp_long.csv"), row.names=FALSE)
 
 # Land use table
-land_use_mode <- land_use_exp %>%
-  left_join(unique(land_use[,c("CTUID", "CTNAME", "CMAUID", "CMANAME", "PCD","PRUID")]), by = c("CTUID" = "CTUID"))
-  
 write.csv(land_use_mode, paste0(diretorio_export, "land_use_mode.csv"), row.names=FALSE)
 
-land_use_general <- land_use_exp %>%
-  group_by(CTUID) %>%
-  summarise(labour_force = sum(labour_force), 
-            jobs = first(jobs)) %>%  
-  left_join(land_use %>% 
-              dplyr::select("CTUID","CTNAME","CMAUID",
-                              "CMANAME","PCD","PRUID"), by = c('CTUID')) %>% 
-  distinct()
-  
 write.csv(land_use_general, paste0(diretorio_export, "land_use_general.csv"), row.names=FALSE)
 ```
 
-Exporting the ttm_f table (not for release):
+Exporting the ttm_f table:
 
 ```{r export-ttm_f}
 write.csv(ttm_f, paste0(ttm_folder, "ttm_f.csv"), row.names=FALSE)
@@ -873,6 +1401,6 @@ write.csv(ttm_f, paste0(ttm_folder, "ttm_f.csv"), row.names=FALSE)
 Exporting impedance functions used to created the metrics:
 
 ```{r}
-write.csv(specific_function_final, paste0(here(), "/manuscript/tables/impedance_functions.csv"), row.names=FALSE)
+# write.csv(specific_function_final, paste0(here(), "/manuscript/tables/impedance_functions.csv"), row.names=FALSE)
 ```
 

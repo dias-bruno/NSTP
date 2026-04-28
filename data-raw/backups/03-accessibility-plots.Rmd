@@ -32,13 +32,10 @@ knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 
 # Introduction
 
-This Rmarkdown file is part of the
-[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package.
-This package was created in conjunction with the office of the
-[*Research Data Center* at *McMaster
-University*](https://rdc.mcmaster.ca/), the [*Sherman Centre for Digital
-Scholarship*](https://scds.ca/) and the [*Mobilizing
-Justice*](https://mobilizingjustice.ca/)[^1].
+This file is an adaptation of an Rmarkdown from the  [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. CommuteCA was created in conjunction with the office of the [*Research
+Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
+[*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
+[*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
 
 [^1]: The Mobilizing Justice project is a multidisciplinary and
     multi-sector collaboration with the objective of understand and
@@ -79,9 +76,7 @@ After obtaining the accessibility measures for our study area, in this
 ## Data
 
 The data used in this R markdown is the output of the previous `R`
-markdown, in which we calculated accessibility and spatial availability
-for our study area. We will use the census tract (census_tracts) geometry,
-available in this package, to plot maps of the study area.
+markdown, in which we calculated accessibility measures for our study area. We will use the census tract geometry to plot maps of the study area.
 
 # Let's code!
 
@@ -94,20 +89,20 @@ library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graph
 library(RColorBrewer) # color schemes for maps (and other graphics) designed
 library(scales) # for scaling data
 library(sf) # support for simple features, a standardized way to encode spatial vector data 
-library(tmap) # thematic maps - version  "3.3-4"!!!
+library(tmap) # thematic maps
 library(tidyr) # tidying data
 library(readr) # Read csv files setting column data types
 library('here') # enable easy file referencing in project-oriented workflows
-library(ggspatial)
-library(patchwork)
+#library(ggspatial)
+#library(patchwork)
 library(nngeo)
 ```
 
 Setting the folder with the accessibility measures: 
 
 ```{r}
-code <- "GTAH"
-measures_folder <- paste0(here::here(),"/data-raw/output/", code, "/CT/accessibility-measures/")
+code_label <- "GTAH"
+measures_folder <- paste0(here::here(),"/data-raw/output/", code_label, "/CT/accessibility-measures/")
 ```
 
 
@@ -144,7 +139,7 @@ land_use_general <- read_csv(paste0(measures_folder, "land_use_general.csv"),
 Reading the census_tracts geometries:
 
 ```{r}
-directory_spatial_files <- paste0(here(), "/data-raw/output/GTAH/spatial-files/") # Update this address if necessary
+directory_spatial_files <- paste0(here(), "/data-raw/output/",code_label,"/spatial-files/") # Update this address if necessary
 census_tracts <-   st_read(paste0(directory_spatial_files, "census_tracts.shp"))
 census_tracts <- nngeo::st_remove_holes(census_tracts)
 ```
@@ -207,7 +202,7 @@ SA_metrics_ct <- census_tracts %>%
 Creating a directory to export the figures:
 
 ```{r directory-export}
-diretorio_export_figures <- paste0(here(),"/data-raw/output/GTAH/CT/accessibility-figures/") # Update the address to export the data, if necessary
+diretorio_export_figures <- paste0(here(),"/data-raw/output/",code_label,"/CT/accessibility-figures/") # Update the address to export the data, if necessary
 
 if(!dir.exists(diretorio_export_figures)){
   dir.create(diretorio_export_figures, recursive = TRUE)}

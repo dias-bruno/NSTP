@@ -1,6 +1,5 @@
 ---
-title: "Creating synthetic instrumental variables from spatial filters"
-subtitle: "a methodology for Canadian regions based on the 2021 Census of Population" # only for html output
+title: "Creating spatial filters"
 author: "Bruno Santos & Antonio Paez"
 date: "`r Sys.Date()`"
 output:
@@ -11,7 +10,7 @@ output:
     citation_package: natbib
     latex_engine: xelatex
   tufte::tufte_html: default
-bibliography: skeleton.bib
+bibliography: mybibfile.bib
 link-citations: yes
 editor_options: 
   markdown: 
@@ -30,10 +29,25 @@ library(knitr)
 options(htmltools.dir.version = FALSE)
 knitr::opts_chunk$set(warning = FALSE, message = FALSE)
 ```
+```{r load-packages}
+library(CommuteCA)
+library(dplyr)# A Grammar of Data Manipulation 
+library(fitdistrplus) # Help to Fit of a Parametric Distribution to Non-Censored or Censored Data
+library(scales) # Scale data column-wise in a computationally efficient way
+library(here) # enable easy file referencing in project-oriented workflows
+library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
+library(RColorBrewer) # color schemes for maps (and other graphics) designed
+library(sf) # support for simple features, a standardized way to encode spatial vector data
+library(tmap) # thematic maps
+library(tidyr) # tidying data
+library(matlib) # To get the eigenvectors  
+library(Hmisc) # To considerate weights when calculate the median
+library(sf) # support for simple features, a standardized way to encode spatial vector data
+library(spdep) # Construct neighbours list from polygon list
+library(readr)
+```
 
-This Rmarkdown file is part of the
-[**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. This
-package was created in conjunction with the office of the [*Research
+This file is an adaptation of an Rmarkdown from the  [**CommuteCA**](https://github.com/dias-bruno/CommuteCA) package. CommuteCA was created in conjunction with the office of the [*Research
 Data Center* at *McMaster University*](https://rdc.mcmaster.ca/), the
 [*Sherman Centre for Digital Scholarship*](https://scds.ca/) and the
 [*Mobilizing Justice*](https://mobilizingjustice.ca/)[^1].
@@ -55,8 +69,7 @@ Canadian population aged 15 and older living in private households.
 
 # Section objectives
 
-After identifying disadvantaged populations in terms of job
-accessibility, we will now advance our analysis by developing regression
+After calculating accessibility, we will now advance our analysis by developing regression
 models to explore the relationship between job accessibility and
 individual outcomes. These models examine the connection between a
 dependent variable (an outcome) and predictor variables (job
@@ -65,7 +78,7 @@ estimate the probability of the dependent variable, conditional on a
 linear combination of the predictor variables.
 
 In social science, it is well understood that "correlation does not
-imply causality" [@cunningham2021]. Therefore, it is important to
+imply causality" [@cunningham2021causal]. Therefore, it is important to
 evaluate the actual impact of a predictor variable (the cause) on the
 outcome (the effect). This requires studying the process that determines
 the cause-and-effect relationship between variables, a process known as
@@ -106,7 +119,7 @@ establish a cause-effect relationship between the explanatory and
 dependent variables.
 
 An instrumental variable Z must satisfy the following criteria
-([@cunningham2021; @luz2022]):
+[@cunningham2021causal; @luz2022]:
 
 1.  Z must be highly correlated with and have a causal effect on the
     endogenous variable D, or share a common cause with D.
@@ -126,10 +139,10 @@ employment outcomes only through accessibility.
 Examples of instrumental variables used in studies analyzing the
 relationship between employment outcomes and job accessibility include
 Euclidean distance from the spatial unit centroid to the nearest major
-road or employment subcenter ([@delmelle2021; @jin2018]), share of
-no-vehicle households ([@hu2017]), transit accessibility and car
-unavailability ([@johnson2017]), distance to rivers ([@duarte2023]), and
-population density ([@bastiaanssen2021]).
+road or employment subcenter [@delmelle2021; @jin2018], share of
+no-vehicle households [@merlin2017], transit accessibility and car
+unavailability [@johnson2017], distance to rivers [@duarte2023], and
+population density ([@bastiaanssen2021].
 
 However, two important challenges arise in the search for relevant
 instruments:
@@ -142,7 +155,7 @@ instruments:
 2.  Instruments that are only weakly correlated with the endogenous
     variable may be ineffective and perform poorly.
 
-In response to these challenges, Le Gallo and Páez ([-@legallo2013])
+In response to these challenges, Le Gallo and Páez [-@legallo2013]
 developed an alternative, cutting-edge approach that relies on synthetic
 instrumental variables when the model involves spatial data. The
 researchers demonstrated that synthetic variables can be generated using
@@ -220,136 +233,13 @@ $$
 -   The spatial filter $S$ is the synthetic instrumental variable.
 
 In summary, a spatial filter will be created to generate a synthetic
-counterpart that accurately reproduces a spatial random variable. To
-explore the potential of using eigenvectors to build synthetic
-instrumental variables, we will not only construct a spatial filter
-based on the contiguity matrix but also create additional filters based
-on commuting duration. Specifically, we will use a travel time matrix -
-since commute duration also depends on the spatial structure and
-represents an explicit space-time relationship. Additionally, we will
-develop a spatial filter based on commuting time impedance values that
-were derived after applying impedance functions (calculated from spatial
-accessibility) to the travel time matrix.
+counterpart that accurately reproduces a spatial random variable. 
 
 # Let's code!
 
 Load the packages:
 
-```{r load-packages}
-library(CommuteCA)
-library(dplyr)# A Grammar of Data Manipulation 
-library(fitdistrplus) # Help to Fit of a Parametric Distribution to Non-Censored or Censored Data
-library(scales) # Scale data column-wise in a computationally efficient way
-library(here) # enable easy file referencing in project-oriented workflows
-library(ggplot2) # Create Elegant Data Visualizations Using the Grammar of Graphics
-library(RColorBrewer) # color schemes for maps (and other graphics) designed
-library(sf) # support for simple features, a standardized way to encode spatial vector data
-library(tmap) # thematic maps
-library(tidyr) # tidying data
-library(matlib) # To get the eigenvectors  
-library(Hmisc) # To considerate weights when calculate the median
-library(sf) # support for simple features, a standardized way to encode spatial vector data
-library(spdep) # Construct neighbours list from polygon list
-```
-
-## Data
-
-The dataset used in this demonstration is test data produced to
-replicate the variables available in the original Census of Population
-for the City of Toronto. The test data contains 52,650 rows and 31
-columns. As in the original census data, each row refers to a respondent
-and each column refers to a variable[^2]. The creation of test data was
-necessary because the surveys provided by Statistics Canada are
-confidential and cannot be accessed outside of a Research Data Center.
-
-[^2]: You can check out more information about the Census on the
-    [Dictionary
-    website](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/index-eng.cfm).
-
-If you want to work with the original Census dataset, the process for
-obtaining the spatial filters will be the same as for the test data,
-except that you will have to update the address of the file in the chunk
-called *load-census-data*.
-
-For this R markdown, we'll use the following variables[^3]:
-
-[^3]: The explanation of each variable can be found in the [*2021 Census
-    of Population's
-    website*](https://www12.statcan.gc.ca/census-recensement/index-eng.cfm).
-
-|  |  |
-|--------------------------|----------------------------------------------|
-| **Variable** | **Description** |
-| PRCDDA | Refers to the dissemination area (DA) of current residence. |
-| PCD | Census division of current residence. |
-| CompW1 | Weight for the households and dwellings universes. |
-| PWDA | Place of work dissemination area. |
-| PWCD | Place of work census division. |
-| PWDUR | Commuting duration, it refers to the length of time, in minutes, usually required by a person to travel to their place of work. |
-| PwMode | Main mode of commuting' refers to the main mode of transportation a person uses to travel to their place of work. |
-
-: Census variables used in this section.
-
-We will use the job spatial availability measures. The job spatial
-availability file has the following variables:
-
-| **Variable** | **Description**                                        |
-|--------------|--------------------------------------------------------|
-| PRCDDA       | Refers to the DA defined as the origin.                |
-| PwMode       | Transportation mode used to calculate the travel time. |
-| SA_im        | Job spatial availability for the DA.                   |
-
-: Job spatial availability variables.
-
-To build the distance matrix, we will use the dissemination areas
-spatial file, previously downloaded using the `cancensus` package.
-Finally, we will explore the production of other spatial filters using
-the travel time matrix with the impedance values, created and exported
-after modelling job accessibilities. We are interested in the following
-variables of the travel time matrix:
-
-| **Variable** | **Description** |
-|----------------------|--------------------------------------------------|
-| from_id | Refers to the DA defined as the origin. |
-| to_id | Refers to the DA defined as the destination. |
-| travel_time | Estimated travel time in minutes from origin to destination. |
-| PwMode | Transportation mode used to calculate the travel time. |
-| f | The impedance value obtained for the travel time in `travel_time` column. |
-
-: Travel time table variables used in this section.
-
 ## Read and preprocess the files
-
-- Census
-
-Reading census data and creating a R data frame[^4]:
-
-[^4]: For this demonstration, we will use the case of the city of
-    Toronto. If you want to use the other options, the original data
-    from the Census in an RDC office or the test data for all locations
-    in Canada, *update* the address in the chunk.
-
-
-If the original Census dataset available in the RDC is not in .csv
-(comma-separated values) format but is instead provided in other formats
-such as SPSS, SAS, or SAS Data, you can use the foreign package (a
-built-in R library) to import it:
-
-| ⚠️**NOTE:** If the code above did not run correctly, you probably are experiencing a file address error. Try to identify the correct address and update the chunk named `census-file-address` to continue.
-
-We will filter the data frame by census division[^5]. The chunk below
-shows how to make this procedure:
-
-[^5]: As said before, we will perform our analysis for the city of
-    Toronto. If you want to select a specific area to work, uncomment
-    the code above that applies to your case and select the apropriate
-    code of your interest unit. Please, check the dictionary to have
-    more informations about the [provinces
-    code](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/tab/index-eng.cfm?ID=t1_8),
-    [census
-    divisions](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo008),
-    and [census metropolitan
-    areas](https://www12.statcan.gc.ca/census-recensement/2021/ref/dict/az/Definition-eng.cfm?ID=geo009)
 
 ```{r filter-boundaries}
 code <- c("3518", # Durham
@@ -359,6 +249,8 @@ code <- c("3518", # Durham
           "3524", # Halton
           "3525" # Hamilton
           ) 
+
+code_label <- "GTAH"
 ```
 
 - Accessibility measures
@@ -367,7 +259,7 @@ code <- c("3518", # Durham
 
 ```{r read-accessibility}
 # Folder with the accessibility files 
-measures_folder <- paste0(here::here(),"/data-raw/output/GTAH/CT/accessibility-measures/")
+measures_folder <- paste0(here::here(),"/data-raw/output/",code_label,"/CT/accessibility-measures/")
 
 # Read file job spatial availability by mode
 SA_mode <- read.csv(paste0(measures_folder, "SA_mode.csv"), 
@@ -396,48 +288,11 @@ grid_expanded <- expand.grid(CTUID = unique(SA$CTUID),
                              PwMode_label = unique(SA$PwMode_label))
 ```
 
-```{r accessibility-process}
+```{r }
 SA_final <- grid_expanded %>% 
   left_join(SA, by = c("CTUID","PwMode_label")) %>%
   mutate(SA_im = replace_na(SA_im, 0)) %>% 
   dplyr::distinct(CTUID, PwMode_label, SA_im)
-```
-
-- Spatial Availability (nonc):
-
-```{r}
-# Read file job spatial availability by mode
-SA_mode <- read.csv(paste0(measures_folder, "SA_mode.csv"), 
-               colClasses = c("character", "factor", "numeric", "numeric")) %>% 
-    dplyr::select(-c(labour_force, SA_im)) %>% 
-    pivot_wider(names_from = PwMode_label, values_from = "SA_nonc_im", names_sep = "_", values_fill = 0) %>% 
-  mutate(Active = Walk + Bike) %>% 
-  rename(CTUID = from_id)
-
-SA_general <- read.csv(paste0(measures_folder, "SA_general.csv"), 
-               colClasses = c("character", "numeric", "numeric")) %>% 
-  rename(CTUID = from_id, General = SA_nonc_i) %>% 
-  dplyr::select(-SA_i)
-
-SA <- SA_mode %>% 
-  left_join(SA_general, by = "CTUID") %>% 
-  pivot_longer(cols = c(Bike, Walk, `Car-motor`, Transit, Active, General), 
-               names_to = "PwMode_label",
-               values_to = "SA_nonc_im")
-```
-
-Preparing the accessibility file:
-
-```{r census-exp}
-grid_expanded <- expand.grid(CTUID = unique(SA$CTUID),
-                             PwMode_label = unique(SA$PwMode_label))
-```
-
-```{r accessibility-process}
-SA_final_nonc <- grid_expanded %>% 
-  left_join(SA, by = c("CTUID","PwMode_label")) %>%
-  mutate(SA_nonc_im = replace_na(SA_nonc_im, 0)) %>% 
-  dplyr::distinct(CTUID, PwMode_label, SA_nonc_im)
 ```
 
 - Spatial Availability per person:
@@ -454,7 +309,7 @@ SA_pp <- SA_pp_mode %>%
 
 Preparing the accessibility file:
 
-```{r accessibility-process}
+```{r }
 SA_final_pp <- grid_expanded %>% 
   left_join(SA_pp, by = c("CTUID","PwMode_label")) %>%
   mutate(SA_pp_im = replace_na(SA_pp_im, 0)) %>% 
@@ -484,13 +339,13 @@ HT <- HT_mode %>%
 
 Preparing the accessibility file:
 
-```{r census-exp}
+```{r }
 grid_expanded <- expand.grid(CTUID = unique(HT$CTUID),
                              PwMode_label = unique(HT$PwMode_label))
 ```
 
 
-```{r accessibility-process}
+```{r }
 HT_final <- grid_expanded %>% 
   left_join(HT, by = c("CTUID","PwMode_label")) %>%
   mutate(HT_im = replace_na(HT_im, 0))
@@ -502,17 +357,17 @@ Reading the dissemination areas spatial file:
 
 ```{r read-spatial-files}
 # Folder  
-directory_spatial_files <- paste0(here(),"/data-raw/output/GTAH/spatial-files/") # Update it if necessary 
+directory_spatial_files <- paste0(here(),"/data-raw/output/",code_label,"/spatial-files/") # Update it if necessary 
 
 # Read file
-ct_file <- st_read(paste0(directory_spatial_files, "census_tracts.shp"))
+ct_file <- st_read(paste0(directory_spatial_files, "census_tracts.gpkg"))
 ```
 
 Reading the census_divisions geometries:
 
-```{r census-div}
-census_divisions <-   st_read(paste0(directory_spatial_files, "census_divisions.shp"))
-census_divisions <- nngeo::st_remove_holes(census_divisions)
+```{r census-subdiv}
+census_subdivisions <-   st_read(paste0(directory_spatial_files, "census_subdivisions.gpkg"))
+census_subdivisions <- nngeo::st_remove_holes(census_subdivisions)
 ```
 
 ## Creating folder to save files
@@ -520,12 +375,12 @@ census_divisions <- nngeo::st_remove_holes(census_divisions)
 Creating a directory to export the figures and tables:
 
 ```{r directory-export}
-diretorio_export_figures <- paste0(here(),"/data-raw/output/GTAH/CT/spatial-filter-figures/") # Update the address to export the data, if necessary
+diretorio_export_figures <- paste0(here(),"/data-raw/output/",code_label,"/CT/spatial-filter-figures/") # Update the address to export the data, if necessary
 
 if(!dir.exists(diretorio_export_figures)){
   dir.create(diretorio_export_figures, recursive = TRUE)}
 
-diretorio_export_tables <- paste0(here(),"/data-raw/output/GTAH/CT/spatial-filter-measures/") # Update the address to export the data, if necessary
+diretorio_export_tables <- paste0(here(),"/data-raw/output/",code_label,"/CT/spatial-filter-measures/") # Update the address to export the data, if necessary
 
 if(!dir.exists(diretorio_export_tables)){
   dir.create(diretorio_export_tables, recursive = TRUE)}
@@ -651,13 +506,13 @@ ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_
        dpi = 300)
 ```
 
-```{r sf-dist-figure}
-knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_SA.jpg"))
+```{r sf-dist-figure, out.width="100%"}
+knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_SA.jpg"), )
 ```
 
 Visualizing the spatial filter in form of maps:
 
-```{r sf-contiguity-map}
+```{r sf-contiguity-map, out.width="100%"}
 spatial_filter_contiguity_spatial <- grid_expanded %>%
   filter(!is.na(PwMode_label)) %>% 
   left_join(spatial_filter_dist, by = c("CTUID" = "CTUID",
@@ -676,7 +531,7 @@ spatial_filter_contiguity_fig <- spatial_filter_contiguity_spatial %>%
    tm_facets(by = "PwMode_label") +       
    tm_scalebar(position = c("right", "bottom")) +
    tm_compass(position = c("left", "top"), size = 1.0) + 
-   tm_shape(census_divisions) +
+   tm_shape(census_subdivisions) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(spatial_filter_contiguity_fig, 
@@ -687,134 +542,13 @@ tmap_save(spatial_filter_contiguity_fig,
           dpi = 300)
 ```
 
-```{r sf-contiguity-map-fig}
+```{r sf-contiguity-map-fig, out.width="100%"}
 knitr::include_graphics(paste0(diretorio_export_figures,"/contiguity_spatial_filter_SA.jpg"))
 ```
 
-
-## Spatial Availability Non-competitive
-
-```{r sf-all-modes}
-mode_results_dist <- list()
-
-for (mode in modes) {
-  cat("Creating the spatial filter (distance) for the transportation mode:", mode, "\n")
-
-  # Creating a df with the accessibility values
-  y <- SA_final_nonc %>%
-    filter(PwMode_label == mode) %>%
-    left_join(weight_matrix_eigv_dist, by = c("CTUID" = "CTUID")) %>%
-    mutate(x = 1, Sf_dist_SA_nonc = 0)
-  
-  # Creating the spatial filter (Sf_dist_SA_nonc)
-  for (ev_name in names(y)[startsWith(names(y), "EV")]) {
-    formula <- as.formula(paste("SA_nonc_im ~ x + Sf_dist_SA_nonc +", ev_name))
-    model <- lm(formula, data = y)
-    coefs <- summary(model)$coefficients
-
-    if (ev_name %in% rownames(coefs)) {
-      p_value <- coefs[ev_name, "Pr(>|t|)"]
-      B_value <- coefs[ev_name, "Estimate"]
-
-      if (!is.na(p_value) && p_value < 0.05) {
-        y$Sf_dist_SA_nonc <- y$Sf_dist_SA_nonc + B_value * y[[ev_name]]
-      }
-    }
-  }
- 
- mode_results_dist[[mode]] <- y
-}
-```
-
-Creating a data frame with all spatial filters and accessibility:
-
-```{r Sf_dist_SA-df}
-spatial_filter_dist_nonc <- as.data.frame(bind_rows(mode_results_dist, .id = "PwMode_label")) %>%
-  dplyr::select(CTUID, PwMode_label, SA_nonc_im, Sf_dist_SA_nonc)
-```
-
-Pearson correlation between job spatial availability and spatial filter
-by transportation mode:
-
-```{r sf-correlations}
-correlations <- spatial_filter_dist_nonc %>%
-  group_by(PwMode_label) %>%
-  summarise(correlation = cor(SA_nonc_im, Sf_dist_SA_nonc, use = "complete.obs")) 
-
-correlations
-```
-
-Creating a scatter plot figure:
-
-```{r sf-dist-plot}
-r2_labels <- spatial_filter_dist_nonc %>%
-  group_by(PwMode_label) %>%
-  summarise(r2 = summary(lm(Sf_dist_SA_nonc ~ SA_nonc_im))$r.squared) %>%
-  mutate(label = paste0("R² = ", round(r2, 3)))
-
-spatial_filter_dist_fig_nonc <- ggplot(spatial_filter_dist_nonc, aes(x = SA_nonc_im, y = Sf_dist_SA_nonc)) +
-  geom_point(alpha = 0.4) +
-  geom_smooth(method = "lm", se = FALSE, color = "#4b84db", linewidth = 0.55) +
-  geom_text(data = r2_labels, 
-            aes(x = -Inf, y = Inf, label = label), 
-            hjust = -0.1, vjust = 1.1, inherit.aes = FALSE) +
-  facet_wrap(~ PwMode_label, scales = "free") +
-  theme_minimal() +
-  labs(x = "Job spatial availability (Non-competitive)", y = "Spatial filter based on spatial contiguity") + 
-theme_minimal()
-
-# Saving figure
-ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_SA_nonc.jpg"), 
-       plot = spatial_filter_dist_fig_nonc,
-       width = 16, 
-       height = 9, 
-       units = "cm", 
-       dpi = 300)
-```
-
-```{r sf-dist-figure}
-knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_SA_nonc.jpg"))
-```
-
-Visualizing the spatial filter in form of maps:
-
-```{r sf-contiguity-map}
-spatial_filter_contiguity_spatial_nonc <- grid_expanded %>%
-  filter(!is.na(PwMode_label)) %>% 
-  left_join(spatial_filter_dist_nonc, by = c("CTUID" = "CTUID",
-                                           "PwMode_label" = "PwMode_label")) %>% 
-  left_join(ct_file %>% mutate(CTUID = as.character(CTUID)), by = c("CTUID" = "CTUID")) 
-
-spatial_filter_contiguity_spatial_nonc <- st_as_sf(spatial_filter_contiguity_spatial_nonc)
-
-spatial_filter_contiguity_fig_nonc <- tm_shape(spatial_filter_contiguity_spatial_nonc) + 
-   tm_polygons("Sf_dist_SA_nonc",
-              style = "cont",
-              palette = "Reds",
-              title = " ",
-              border.col = NULL) +  
-   tm_facets(by = "PwMode_label") +       
-   tm_scalebar(position = c("right", "bottom")) +
-   tm_compass(position = c("left", "top"), size = 1.0) + 
-   tm_shape(census_divisions) +
-   tm_borders("black", lwd=0.5)
-
-tmap_save(spatial_filter_contiguity_fig_nonc, 
-          paste0(diretorio_export_figures,"contiguity_spatial_filter_SA_nonc.jpg"), 
-          width = 20, 
-          height = 18, 
-          units = "cm", 
-          dpi = 300)
-```
-
-```{r sf-contiguity-map-fig}
-knitr::include_graphics(paste0(diretorio_export_figures,"/contiguity_spatial_filter_SA_nonc.jpg"))
-```
-
-
 ## Spatial Availability Per Person
 
-```{r sf-all-modes}
+```{r sfpp-all-modes}
 mode_results_dist <- list()
 
 for (mode in modes) {
@@ -848,7 +582,7 @@ for (mode in modes) {
 
 Creating a data frame with all spatial filters and accessibility:
 
-```{r Sf_dist_SA-df}
+```{r Sf_dist_sfpp-df}
 spatial_filter_dist_SA_pp <- as.data.frame(bind_rows(mode_results_dist, .id = "PwMode_label")) %>%
   dplyr::select(CTUID, PwMode_label, SA_pp_im, Sf_dist_SA_pp)
 ```
@@ -856,7 +590,7 @@ spatial_filter_dist_SA_pp <- as.data.frame(bind_rows(mode_results_dist, .id = "P
 Pearson correlation between job spatial availability and spatial filter
 by transportation mode:
 
-```{r sf-correlations}
+```{r sfpp-correlations}
 correlations <- spatial_filter_dist_SA_pp %>%
   group_by(PwMode_label) %>%
   summarise(correlation = cor(SA_pp_im, Sf_dist_SA_pp, use = "complete.obs")) 
@@ -866,7 +600,7 @@ correlations
 
 Creating a scatter plot figure:
 
-```{r sf-dist-plot}
+```{r sfpp-dist-plot}
 r2_labels <- spatial_filter_dist_SA_pp %>%
   group_by(PwMode_label) %>%
   summarise(r2 = summary(lm(Sf_dist_SA_pp ~ SA_pp_im))$r.squared) %>%
@@ -892,13 +626,13 @@ ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_
        dpi = 300)
 ```
 
-```{r sf-dist-figure}
+```{r sfpp-dist-figure, out.width="100%"}
 knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_SA_pp.jpg"))
 ```
 
 Visualizing the spatial filter in form of maps:
 
-```{r sf-contiguity-map}
+```{r sfpp-contiguity-map}
 spatial_filter_contiguity_spatial_SA_pp <- grid_expanded %>%
   filter(!is.na(PwMode_label)) %>% 
   left_join(spatial_filter_dist_SA_pp, by = c("CTUID" = "CTUID",
@@ -917,7 +651,7 @@ spatial_filter_contiguity_fig_SA_pp <- spatial_filter_contiguity_spatial_SA_pp %
    tm_facets(by = "PwMode_label") +       
    tm_scalebar(position = c("right", "bottom")) +
    tm_compass(position = c("left", "top"), size = 1.0) + 
-   tm_shape(census_divisions) +
+   tm_shape(census_subdivisions) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(spatial_filter_contiguity_fig_SA_pp, 
@@ -928,13 +662,13 @@ tmap_save(spatial_filter_contiguity_fig_SA_pp,
           dpi = 300)
 ```
 
-```{r sf-contiguity-map-fig}
+```{r sfpp-contiguity-map-fig, out.width="100%"}
 knitr::include_graphics(paste0(diretorio_export_figures,"/contiguity_spatial_filter_SA_pp.jpg"))
 ```
 
 Creating a scatter plot figure:
 
-```{r sf-dist-plot}
+```{r}
 spatial_filter_dist_SA_pp_3m <- spatial_filter_dist_SA_pp %>% 
     filter(PwMode_label %in% c("Active","Transit","Car-motor"))
 
@@ -963,13 +697,13 @@ ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_
        dpi = 300)
 ```
 
-```{r sf-dist-figure}
+```{r  out.width="100%"}
 knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_SA_pp_3m.jpg"))
 ```
 
 Visualizing the spatial filter in form of maps:
 
-```{r sf-contiguity-map}
+```{r }
 spatial_filter_contiguity_spatial_SA_pp_3m <- grid_expanded %>%
   filter(PwMode_label %in% (spatial_filter_dist_SA_pp_3m$PwMode_label)) %>% 
   left_join(spatial_filter_dist_SA_pp_3m, by = c("CTUID" = "CTUID",
@@ -988,7 +722,7 @@ spatial_filter_contiguity_fig_SA_pp_3m <- spatial_filter_contiguity_spatial_SA_p
    tm_facets(by = "PwMode_label", ncol = 3, free.scales = TRUE) +       
    tm_scalebar(position = c("right", "bottom")) +
    tm_compass(position = c("left", "top"), size = 1.0) + 
-   tm_shape(census_divisions) +
+   tm_shape(census_subdivisions) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(spatial_filter_contiguity_fig_SA_pp_3m, 
@@ -999,14 +733,14 @@ tmap_save(spatial_filter_contiguity_fig_SA_pp_3m,
           dpi = 300)
 ```
 
-```{r sf-contiguity-map-fig}
+```{r , out.width="100%"}
 knitr::include_graphics(paste0(diretorio_export_figures,"/contiguity_spatial_filter_SA_pp_3m.jpg"))
 ```
 
 
 ## Hansen-type  
 
-```{r sf-all-modes}
+```{r ht-all-modes}
 modes <- unique(HT_final$PwMode_label)
 
 mode_results_dist <- list()
@@ -1050,7 +784,7 @@ spatial_filter_dist_HT <- as.data.frame(bind_rows(mode_results_dist, .id = "PwMo
 Pearson correlation between job spatial availability and spatial filter
 by transportation mode:
 
-```{r sf-correlations}
+```{r ht-correlations}
 correlations <- spatial_filter_dist_HT %>%
   group_by(PwMode_label) %>%
   summarise(correlation = cor(HT_im, Sf_dist_HT, use = "complete.obs")) 
@@ -1060,7 +794,7 @@ correlations
 
 Creating a scatter plot figure:
 
-```{r sf-dist-plot}
+```{r ht-dist-plot}
 r2_labels <- spatial_filter_dist_HT %>%
   group_by(PwMode_label) %>%
   summarise(r2 = summary(lm(Sf_dist_HT ~ HT_im))$r.squared) %>%
@@ -1086,13 +820,13 @@ ggsave(file = paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_
        dpi = 300)
 ```
 
-```{r sf-dist-figure}
+```{r ht-dist-figure, out.width="100%"}
 knitr::include_graphics(paste0(diretorio_export_figures,"/spatial_filter_dist_scatterplot_HT.jpg"))
 ```
 
 Visualizing the spatial filter in form of maps:
 
-```{r sf-contiguity-map}
+```{r ht-contiguity-map}
 spatial_filter_contiguity_spatial_HT <- grid_expanded %>%
   filter(!is.na(PwMode_label)) %>% 
   left_join(spatial_filter_dist_HT, by = c("CTUID" = "CTUID",
@@ -1110,7 +844,7 @@ spatial_filter_contiguity_fig <- tm_shape(spatial_filter_contiguity_spatial_HT) 
    tm_facets(by = "PwMode_label") +       
    tm_scalebar(position = c("right", "bottom")) +
    tm_compass(position = c("left", "top"), size = 1.0) + 
-   tm_shape(census_divisions) +
+   tm_shape(census_subdivisions) +
    tm_borders("black", lwd=0.5)
 
 tmap_save(spatial_filter_contiguity_fig, 
@@ -1121,7 +855,7 @@ tmap_save(spatial_filter_contiguity_fig,
           dpi = 300)
 ```
 
-```{r sf-contiguity-map-fig}
+```{r ht-contiguity-map-fig, out.width="100%"}
 knitr::include_graphics(paste0(diretorio_export_figures,"/contiguity_spatial_filter_HT.jpg"))
 ```
 
@@ -1132,7 +866,6 @@ commute duration, and impedance values):
 
 ```{r}
 spatial_filter <- spatial_filter_dist %>% 
-  left_join(spatial_filter_dist_nonc, by = c("CTUID", "PwMode_label")) %>%
   left_join(spatial_filter_dist_SA_pp, by = c("CTUID", "PwMode_label")) %>%
   left_join(spatial_filter_dist_HT, by = c("CTUID", "PwMode_label"))
 ```

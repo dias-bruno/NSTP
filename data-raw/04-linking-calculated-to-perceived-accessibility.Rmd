@@ -11,23 +11,12 @@ library(dplyr) # A Grammar of Data Manipulation
 library(here) # Enables easy file referencing in project-oriented workflows
 library(tidyr) # Tools for tidying data: reshaping, pivoting, separating, and uniting columns
 library(Hmisc)
-library(ordinal)
 library(survey)
 library(svydiags)
-library(texreg)
-library(robustbase)
-library(quantreg)
-library(boot)
+library(svyEffects)
 library(ggplot2)
 library(sf)
 library(tmap)
-library(purrr)
-library(stringr)
-library(nngeo)
-library(jtools)
-library(marginaleffects)
-library(svyEffects)
-library(estimatr)
 ```
 
 ```{r}
@@ -119,16 +108,6 @@ Population centres:
 
 ```{r}
 population_centres <- st_read(paste0(directory_spatial_files, "population_centre.gpkg"))
-
-population_centres <- population_centres %>% 
-  mutate(pc_class = case_when(PCCLASS == "2" ~ "Small", 
-                               PCCLASS == "3" ~ "Medium", 
-                               PCCLASS == "4" ~ "Large", 
-                               TRUE ~ "Rural"), 
-         pc_type = case_when(PCTYPE == "1" ~ "Core", 
-                               PCTYPE == "2" ~ "Fringe", 
-                               PCTYPE == "3" ~ "Secondary core", 
-                               TRUE ~ "Rural"))
 ```
 
 Setting folders to export files:
@@ -652,7 +631,7 @@ dissemination_areas <- dissemination_areas %>%
 ```{r}
 mjsurvey_study_area_pc <- mjsurvey_study_area %>% 
   sf::st_as_sf(coords = c("h_geography_x", "h_geography_y"), crs = st_crs(census_tracts)) %>% 
-  sf::st_join(population_centres %>% dplyr::select(pc_class, pc_type)) %>% 
+  sf::st_join(population_centres %>% dplyr::select(pc_class, pc_type), largest = TRUE) %>% 
   sf::st_drop_geometry() %>% 
   dplyr::select(c(interview_id, DAUID_ADIDU, pc_type, pc_class)) %>% 
   mutate(pc_class = case_when(is.na(pc_class) ~ "Rural",
