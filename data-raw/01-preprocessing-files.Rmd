@@ -30,7 +30,7 @@ options(htmltools.dir.version = FALSE)
 ```
 
 ```{r}
-library('CommuteCA') # Access data sets from CommuteCA R package
+#library('CommuteCA') # Access data sets from CommuteCA R package
 library('cancensus') # Access census spatial files
 library('geojsonsf') # GeoJSON to Simple Feature Converter
 library('data.table') # fast aggregation of large data 
@@ -70,7 +70,7 @@ In this Rmarkdown, we will perform the preprocessing stages to identify the effe
 
 -   Pereira, R. H. M., Saraiva, M., Herszenhut, D., Braga, C. K. V., & Conway, M. W. (2021). r5r: Rapid Realistic Routing on Multimodal Transport Networks with R5 in R. Findings, 21262. https://doi.org/10.32866/001c.21262.
 
-# Creating folders to save the files 
+# Creating folders to save the spatial files 
 
 First, we will create a folder within the `raw-data` directory
 using the code of our study area. This organization makes it easier
@@ -82,15 +82,6 @@ directory <- paste0(here(), "/data-raw/output/", code_label,"/spatial-files/")
 
 if(!dir.exists(directory)){
   dir.create(directory, recursive = TRUE)}
-```
-
-For the travel time matrix, we will create the following folder:
-
-```{r r5r-core}
-directory_r5r <- paste0(here(), "/data-raw/output/" , code_label, "/", spatial_unit_type , "/travel_times/")
-
-if(!dir.exists(directory_r5r)){
-  dir.create(directory_r5r, recursive = TRUE)}
 ```
 
 # Obtaining data files using the `cancensus` library
@@ -349,6 +340,15 @@ spatial_unit_type <- 'CT'
 ```
 
 Place the GTFS files and the optional raster files `.tif` in the `directory_r5r`:
+
+For the travel time matrix, we will create the following folder:
+
+```{r r5r-core}
+directory_r5r <- paste0(here(), "/data-raw/output/" , code_label, "/", spatial_unit_type , "/travel_times/")
+
+if(!dir.exists(directory_r5r)){
+  dir.create(directory_r5r, recursive = TRUE)}
+```
 
 ```{r}
 directory_r5r

@@ -466,8 +466,8 @@ outcome_descriptions_table  <- tbl_svysummary(respondents_design, include = all_
 #outcome_descriptions_table
 
 outcome_descriptions_table_kable <- outcome_descriptions_table %>% 
-  as_kable_extra(format = "latex", booktabs = TRUE, longtable = TRUE, full_width = TRUE, caption = "\\label{tab:out-description}Weighted summary statistics of the outcome variables.") %>% 
-  kable_styling(font_size = 8) 
+  as_kable_extra(format = "latex", booktabs = TRUE, longtable = FALSE, full_width = TRUE, caption = "\\label{tab:out-description}Weighted summary statistics of the outcome variables.") %>% 
+  kable_styling(font_size = 10) 
 
 outcome_descriptions_table_kable
 ```
@@ -672,7 +672,7 @@ quintile position, categorizing them as: "Most Negative", "Negative",
 "Neutral", "Positive", and "Most Positive". The thresholds used for this
 categorization is presented in Table \ref{tab:outcomes_quintiles}.
 
-```{r outcomes_quintiles}
+```{r outcomes-quintiles}
 quintales <- read.csv(paste0(standards_measures_diretorio,"outcomes_quantile.csv")) %>% 
   mutate(Outcome = case_when(variable == "FewJobs" ~ "Few jobs available", 
                              variable == "TravelTooLong" ~ "Travel too long to reach work", 
@@ -842,7 +842,7 @@ to the nearest major road or employment subcenter [@delmelle2021;
 @jin2018], share of no-vehicle households , transit accessibility and
 car unavailability [@johnson2017], distance to rivers [@duarte2023;
 @luz2022], and population density [@bastiaanssen2021;
-@bastiaanssen2026].
+@bastiaanssen2025].
 
 However, two challenges arise in the search for relevant instruments: i)
 the likelihood that the instruments and error terms are correlated
@@ -1497,7 +1497,7 @@ satisfied.
 This outcome categorization caused, in general, the control variables to
 lose part of their predictive power when compared to linear regression
 models created using the previous continuous forms. As shown in Table
-\ref{ref:linear_models}, in general, the accessibility variables
+\ref{tab:linear_models}, in general, the accessibility variables
 presented a similar behaviour when compared to the categorical models;
 However, the control variables presented a better performance in
 explaining the outcomes in the linear regressions, such as in the case
@@ -1661,7 +1661,7 @@ impedance_functions <- read.csv(paste0(here(), "/manuscript/tables/impedance_fun
     across(c(est_1,est_2), ~ round(., digits = 2)), 
   across(c(AIC), ~ round(., digits = 0)), 
            est_2 = case_when(
-    distribution == "exp" ~ NA, 
+    distribution == "Exponential" ~ NA, 
     TRUE ~ est_2)) %>% 
   dplyr::select(pcd_label, PCD, PwMode,distribution, est_1, est_2, AIC) %>%
   kable(format = "latex",

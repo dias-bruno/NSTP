@@ -3,7 +3,10 @@
 .RData
 .Ruserdata
 /data-raw/MJ-Survey/
+/data-raw/backups/
 /data-raw/output/
 .httr-oauth
 .DS_Store
 .quarto
+/manuscript/manuscript_cache/
+/manuscript/manuscript_files/

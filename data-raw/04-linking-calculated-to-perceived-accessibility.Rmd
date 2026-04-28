@@ -1,5 +1,5 @@
 ---
-title: "Calculating the accessibility and spatial availability of jobs (Census Tract level)"
+title: "Linking calculated accessibility to perceived employment outcomes"
 author: "Bruno Santos & Antonio Paez"
 date: "`r Sys.Date()`"
 output:
@@ -27,7 +27,7 @@ rm(list = ls())
 library(tufte)
 library(knitr)
 options(htmltools.dir.version = FALSE)
-knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = '100%', tidy = TRUE, tidy.opts = list(width.cutoff = 100))
 ```
 
 ```{r load-packages}
@@ -42,20 +42,41 @@ library(ggplot2) # plotting
 library(sf) # spatial data handling
 library(tmap) # thematic maps
 library(estimatr) # test iv robustness 
+library(jtools) # correlations in complex surveys
+library(purrr)
+library(stringr)
 ```
 
-# Introduction 
+# Introduction
 
-After calculating accessibility and spatial filters, this Rmarkdown processes survey data from the National Survey on Transport Poverty, from the Mobilizing Justice Partnership, links it to the derived accessibility measures and estimates their causal effects on perceived employment outcomes. It uses a Two-Stage Residual Inclusion (2SRI) approach where spatial filters  serve as instruments for endogenous calculated accessibility variables. We estimate both linear and ordinal models, and the results are used to derive accessibility thresholds for equity‑deserving populations.
+After calculating accessibility and spatial filters, this Rmarkdown
+processes survey data from the National Survey on Transport Poverty,
+managed by the Mobilizing Justice Partnership, and links it to
+calculated accessibility measures to estimate their causal effects on
+perceived employment outcomes. It uses a Two-Stage Residual Inclusion
+(2SRI) approach where spatial filters serve as instruments for
+endogenous calculated accessibility variables. We estimate both linear
+and ordinal models, and the results are used to derive accessibility
+thresholds for equity‑deserving populations.
 
 # Suggested Readings
 
--   Bastiaanssen, Jeroen, Daniel Johnson, and Karen Lucas. "The relationship between individual employment probabilities and accessibility to matching jobs: A study of the Netherlands." Transportation Research Part A: Policy and Practice 193 (2025): 104398.
-- Terza, Joseph V., Anirban Basu, and Paul J. Rathouz. "Two-stage residual inclusion estimation: addressing endogeneity in health econometric modeling." Journal of health economics 27.3 (2008): 531-543.
+-   Bastiaanssen, Jeroen, Daniel Johnson, and Karen Lucas. "The
+    relationship between individual employment probabilities and
+    accessibility to matching jobs: A study of the Netherlands."
+    Transportation Research Part A: Policy and Practice 193 (2025):
+    104398. 
+-   Terza, Joseph V., Anirban Basu, and Paul J. Rathouz. "Two-stage
+    residual inclusion estimation: addressing endogeneity in health
+    econometric modeling." Journal of health economics 27.3 (2008):
+    531-543.
+-   Lumley, Thomas. Complex surveys: a guide to analysis using R. John
+    Wiley & Sons, 2011.
 
-# Reading Data and Preprocessing 
+# Reading Data and Preprocessing
 
-Reading the National Survey on Transport Poverty (NSTP). Reading the main file:
+Reading the National Survey on Transport Poverty (NSTP). Reading the
+main file:
 
 ```{r}
 files_address <- paste0(here(),"/data-raw/MJ-Survey/ns_data_re.csv")
@@ -63,14 +84,14 @@ mjsurvey <- read.csv(files_address, header = TRUE)
 mjsurvey_backup <- mjsurvey
 ```
 
-Reading the household‑level data: 
+Reading the household‑level data:
 
 ```{r}
 files_address <- paste0(here(),"/data-raw/MJ-Survey/Household_Members_Data_2025-04-16.csv")
 mjsurvey_household <- read.csv(files_address, header = TRUE)
 ```
 
-Reading a file with spatial keys to connect the different spatial units: 
+Reading a file with spatial keys to connect the different spatial units:
 
 ```{r}
 files_address <- paste0(here(),"/data-raw/input/census_spatial_keys.csv")
@@ -103,7 +124,8 @@ Accessibilities <- read.csv(paste0(measures_folder, "spatial_filters.csv"),
     TRUE ~ PwMode_label ))
 ```
 
-Read the spatial geometries (dissemination areas, census tracts, census subdivisions, and population centres): 
+Read the spatial geometries (dissemination areas, census tracts, census
+subdivisions, and population centres):
 
 ```{r}
 directory_spatial_files <- paste0(study_area_folder,"/spatial-files/") # Update this address if necessary
@@ -148,7 +170,7 @@ census_divisions <- census_divisions %>%
                                PCD == "3524" ~ "Halton", 
                                PCD == "3525" ~ "Hamilton"))
 ```
- 
+
 Setting folders to export results and figures:
 
 ```{r directory-export}
@@ -168,14 +190,23 @@ if(!dir.exists(diretorio_export_images)){
 
 # Pre‑processing Survey Responses
 
-Four key outcomes are derived from survey questions measured on a 0 to 100 scale. For each, we create a Likert version weighted quintiles (fexp_final as weights):
+Four key outcomes are derived from survey questions measured on a 0 to
+100 scale. For each, we create a Likert version weighted quintiles
+(fexp_final as weights):
 
-- DeclineEmployment: _"Declining employment opportunities because of transport situation"_ (higher = worse; from _pe_agreeWithDeclineEmploymentOpportunitiesDueToTransport_)
-- FewJobs: _"Too few jobs in my ideal commuting time"_ (higher = worse; from _pe_tooFewJobsInMyIdealCommutingTime_)
-- TravelTooLong: "Travel to work too long" (higher = worse; from _pe_tooLongToTravelToWork_)
-- EasyToGo: "Easily reach work" (higher = better; _pe_easilyReachWork_)
+-   DeclineEmployment: *"Declining employment opportunities because of
+    transport situation"* (higher = worse; from
+    *pe_agreeWithDeclineEmploymentOpportunitiesDueToTransport*)
+-   FewJobs: *"Too few jobs in my ideal commuting time"* (higher =
+    worse; from *pe_tooFewJobsInMyIdealCommutingTime*)
+-   TravelTooLong: "Travel to work too long" (higher = worse; from
+    *pe_tooLongToTravelToWork*)
+-   EasyToGo: "Easily reach work" (higher = better;
+    *pe_easilyReachWork*)
 
-Also extract transit‑related perceptions (satisfaction, wait time, reliability, etc.) and forced car ownership to perform some tests (some of these variables were not used for the models). 
+Also extract transit‑related perceptions (satisfaction, wait time,
+reliability, etc.) and forced car ownership to perform some tests (some
+of these variables were not used for the models).
 
 ```{r}
 pcd_codes <- c("3518", # Durham
@@ -360,7 +391,11 @@ LS_ForcedCar <- mjsurvey_study_area %>%
   filter(ForcedCar >= 0)
 ```
 
-We derive the labour force status from _p_mainOccupation_, selecting as employed those who answered to be working full‑time or part‑time, gig workers, and self‑employed. People who answered to be retired and unable to work are excluded from labour force:
+We derive the labour force status from *p_mainOccupation*, selecting as
+employed those who answered to be working full‑time or part‑time, gig
+workers, and self‑employed. People who answered to be retired and unable
+to work are excluded from labour force:
+
 ```{r}
 # Labour force (employed = 1)
 occ_char <- as.character(mjsurvey_study_area$p_mainOccupation)
@@ -401,7 +436,11 @@ outcomes_std <- mjsurvey_study_area %>% dplyr::select(interview_id, X_activePers
   left_join(labour_force, by = "X_activePersonId")
 ```
 
-Obtain demographic, socioeconomic, and transport‑related controls variables: income categories, education, driver license, transit pass, indigenous/racialized status, gender, age, household size, car/bike ownership, etc. Also create mode groups (Car‑motor, Transit, Active) and binary indicators.
+Obtain demographic, socioeconomic, and transport‑related controls
+variables: income categories, education, driver license, transit pass,
+indigenous/racialized status, gender, age, household size, car/bike
+ownership, etc. Also create mode groups (Car‑motor, Transit, Active) and
+binary indicators.
 
 ```{r}
 control_var <- mjsurvey_study_area %>% 
@@ -639,7 +678,7 @@ control_var <- mjsurvey_study_area %>%
             s_genderIdentity, pe_preferredMode, pe_doesFrequentModeMatchPreferred, pe_mostFrequentMode))
 ```
 
-Number of children under 10: 
+Number of children under 10:
 
 ```{r}
 child_number <- mjsurvey_household %>% 
@@ -652,7 +691,9 @@ control_var <- control_var %>%
   left_join(child_number, by = "interview_id")
 ```
 
-Reshape accessibility table from long to wide table (each mode and spatial filter become separate columns so we can join them to the individual level data):
+Reshape accessibility table from long to wide table (each mode and
+spatial filter become separate columns so we can join them to the
+individual level data):
 
 ```{r}
 accessibilities_wide <- Accessibilities %>%
@@ -665,7 +706,7 @@ accessibilities_wide <- Accessibilities %>%
               names_sep = "_")
 ```
 
-Calculate the population density based on the DAs: 
+Calculate the population density based on the DAs:
 
 ```{r}
 dissemination_areas <- dissemination_areas %>% 
@@ -673,7 +714,8 @@ dissemination_areas <- dissemination_areas %>%
   mutate(DAUID = as.numeric(DAUID))
 ```
 
-Creating the population centre varible ("Rural", "Small", "Medium", or "Large"):
+Creating the population centre varible ("Rural", "Small", "Medium", or
+"Large"):
 
 ```{r}
 mjsurvey_study_area_pc <- mjsurvey_study_area %>% 
@@ -688,7 +730,8 @@ mjsurvey_study_area_pc <- mjsurvey_study_area %>%
                               TRUE ~ pc_type), 
          pc_type = factor(pc_type, levels = c("Rural", "Secondary core", "Fringe", "Core"))) 
 ```
-Combine all geographic and accessibility variables: 
+
+Combine all geographic and accessibility variables:
 
 ```{r}
 keys <- keys %>% 
@@ -705,7 +748,7 @@ geo_vars <- mjsurvey_study_area %>%
   left_join(mjsurvey_study_area_pc, by = "interview_id")
 ```
 
-Join all controls and outcomes: 
+Join all controls and outcomes:
 
 ```{r}
 respondents <- geo_vars %>% 
@@ -719,7 +762,8 @@ respondents <- geo_vars %>%
          !is.na(hh_income))
 ```
 
-Save the respondent data with all controls and outcomes for reproducibility: 
+Save the respondent data with all controls and outcomes for
+reproducibility:
 
 ```{r}
 write.csv(respondents, paste0(diretorio_export, "respondents_processed.csv"), row.names=FALSE)
@@ -727,9 +771,16 @@ write.csv(respondents, paste0(diretorio_export, "respondents_processed.csv"), ro
 
 # Regressions: first stage
 
-In this study we assume that the calculated accessibility is potentially endogenous to perceived employment outcomes. We use the Two-stage residual inclusion (2SRI) to address this potential endogeneity. First, we regress the accessibility indicators based on the spatial filters (instrumental variables) and the control variables. Then, we add the residuals of these first stage regressions to the estimation of the outcome, using the original accessibility indicators and controls. 
+In this study we assume that the calculated accessibility is potentially
+endogenous to perceived employment outcomes. We use the Two-stage
+residual inclusion (2SRI) to address this potential endogeneity. First,
+we regress the accessibility indicators based on the spatial filters
+(instrumental variables) and the control variables. Then, we add the
+residuals of these first stage regressions to the estimation of the
+outcome, using the original accessibility indicators and controls.
 
-We use `svydesign` with weights `fexp_final` (no clustering) to create our survey design: 
+We use `svydesign` with weights `fexp_final` (no clustering) to create
+our survey design:
 
 ```{r}
 design_respondents <- svydesign(
@@ -849,7 +900,7 @@ wald_active <- regTermTest(stage1_active_SA_pp, ~ Sf_dist_SA_pp_Active)
 wald_active
 ```
 
-Generate predicted values and residuals from first stage: 
+Generate predicted values and residuals from first stage:
 
 ```{r}
 respondents <- respondents %>%
@@ -863,9 +914,15 @@ respondents <- respondents %>%
 
 # Regressions: second stage - linear
 
-Although the main objective of this study is to identify the effect of accessibility on perceived employment outcomes in their categorized (Likert) form, we also estimate linear regressions based on the continuum outcomes to compare with them to the categorical models. The linear models use the predicted accessibility from the first stage (`SA_pp_ * _IV`) as regressors, in a classic 2SLS (two-stage least squares) approach. The same set of control variables is included.
+Although the main objective of this study is to identify the effect of
+accessibility on perceived employment outcomes in their categorized
+(Likert) form, we also estimate linear regressions based on the
+continuum outcomes to compare with them to the categorical models. The
+linear models use the predicted accessibility from the first stage
+(`SA_pp_ * _IV`) as regressors, in a classic 2SLS (two-stage least
+squares) approach. The same set of control variables is included.
 
-Define a reusable formula: 
+Define a reusable formula:
 
 ```{r}
 ########################
@@ -929,7 +986,9 @@ r_squared <- 1 - (model_deviance / null_deviance)
 r_squared
 ```
 
-For each outcome, we fit the model, then iteratively remove outliers with absolute studentised residuals > 2 (using `svystdres`) to improve robustness. This is repeated up to 10 times.
+For each outcome, we fit the model, then iteratively remove outliers
+with absolute studentised residuals \> 2 (using `svystdres`) to improve
+robustness. This is repeated up to 10 times.
 
 ```{r}
 formula_current <- FewJobs_formula_3mode_lm_SA
@@ -985,7 +1044,10 @@ while (iter < max_iter) {
 cat("Total outliers removed:", outliers_removed, "\n")
 ```
 
-After cleaning, we compute R2 (1 - deviance/null.deviance) and variance inflation factors (VIF) to check multicollinearity. We also run an instrumental variable diagnostic using iv_robust (from `estimatr`) to assess weak instruments.
+After cleaning, we compute R2 (1 - deviance/null.deviance) and variance
+inflation factors (VIF) to check multicollinearity. We also run an
+instrumental variable diagnostic using iv_robust (from `estimatr`) to
+assess weak instruments.
 
 ```{r}
 null_deviance <- model_current$null.deviance
@@ -1003,7 +1065,7 @@ car::vif(model_current)
 ```
 
 ```{r}
-svydiags::svystdres(model_current, doplot=TRUE)
+#svydiags::svystdres(model_current, doplot=TRUE)
 ```
 
 ```{r}
@@ -1167,7 +1229,7 @@ car::vif(model_current)
 ```
 
 ```{r}
-svydiags::svystdres(model_current, doplot=TRUE)
+#svydiags::svystdres(model_current, doplot=TRUE)
 ```
 
 ```{r}
@@ -1229,7 +1291,9 @@ summary(iv_model_ttl)
 
 ## Easy to Reach
 
-To what extent do you agree with the following? “With the transport options available to me, I can easily participate/reach the following destinations:” Work
+To what extent do you agree with the following? "With the transport
+options available to me, I can easily participate/reach the following
+destinations: Work"
 
 ```{r}
 # Create survey design
@@ -1317,7 +1381,7 @@ car::vif(model_current)
 ```
 
 ```{r}
-svydiags::svystdres(model_current, doplot=TRUE)
+#svydiags::svystdres(model_current, doplot=TRUE)
 ```
 
 ```{r}
@@ -1465,7 +1529,7 @@ car::vif(model_current)
 ```
 
 ```{r}
-svydiags::svystdres(model_current, doplot=TRUE)
+#svydiags::svystdres(model_current, doplot=TRUE)
 ```
 
 ```{r}
@@ -1525,9 +1589,13 @@ pc_class, data = DeclineEmployment_3mode_lm_SA_pp_clean_design$variables,
 summary(iv_model_de)
 ```
 
-# Regressions: second stage - ordinal  
+# Regressions: second stage - ordinal
 
-The perceived outcomes are on ordinal scale (Likert variables) and now we estimate cumulative link models (`svyolr`) using the 2SRI approach, in which we include the first‑stage residuals as additional regressors to correct for endogeneity, so the residuals absorb the endogenous variation.
+The perceived outcomes are on ordinal scale (Likert variables) and now
+we estimate cumulative link models (`svyolr`) using the 2SRI approach,
+in which we include the first‑stage residuals as additional regressors
+to correct for endogeneity, so the residuals absorb the endogenous
+variation.
 
 The ordinal formula is:
 
@@ -1583,7 +1651,9 @@ fexp_final, education_level, TransitAvailable, PCD, employment_status)
 
 ## Few jobs: Likert
 
-Prior to estimation, all continuous predictors (accessibility, population density, residuals) are standardised (mean 0, sd 1) to make coefficients comparable:
+Prior to estimation, all continuous predictors (accessibility,
+population density, residuals) are standardised (mean 0, sd 1) to make
+coefficients comparable:
 
 ```{r}
 complete_data_fj <- respondents_filtered %>% 
@@ -1639,7 +1709,8 @@ Significance of transit accessibility (using `regTermTest`):
 survey::regTermTest(FewJobs_ordinal_3modes, "SA_pp_Transit")
 ```
 
-We also compute the correlation between each spatial filter and the outcome (as a simple bivariate check): 
+We also compute the correlation between each spatial filter and the
+outcome (as a simple bivariate check):
 
 ```{r}
 active_cor <- svycor(~ Sf_dist_SA_pp_Active + FewJobs, design = design_ordinal_norm_fj)$cors[2]
@@ -1694,7 +1765,8 @@ TravelTooLong_ordinal_3modes <- svyolr(TravelTooLong_formula_3mode_ordinal_SA,
 summary(TravelTooLong_ordinal_3modes)
 ```
 
-We also compute the correlation between each spatial filter and the outcome (as a simple bivariate check): 
+We also compute the correlation between each spatial filter and the
+outcome (as a simple bivariate check):
 
 ```{r}
 active_cor <- svycor(~ Sf_dist_SA_pp_Active + TravelTooLong, design = design_ordinal_norm_ttg)$cors[2]
@@ -1823,9 +1895,17 @@ declineemploymentcorr
 
 # Predicting probabilities
 
-Using the estimated models, we simulate how changes in accessibility affect the predicted outcomes for different population profiles: an equity‑deserving group (low income, minority, disability, no car, etc.), an advantaged group, and a most common group. For each group we create a grid of accessibility values while holding all other controls at constant (median or chosen) values.
+Using the estimated models, we simulate how changes in accessibility
+affect the predicted outcomes for different population profiles: an
+equity‑deserving group (low income, minority, disability, no car, etc.),
+an advantaged group, and a most common group. For each group we create a
+grid of accessibility values while holding all other controls at
+constant (median or chosen) values.
 
-We then predict the continuous outcome (linear model) and the probability of each Likert category (ordinal model) using this grid, allowing us to visualize the effect of transit accessibility on perceived job accessibility.
+We then predict the continuous outcome (linear model) and the
+probability of each Likert category (ordinal model) using this grid,
+allowing us to visualize the effect of transit accessibility on
+perceived job accessibility.
 
 ```{r}
 seq_val <- seq(from = 0,
@@ -1833,7 +1913,7 @@ seq_val <- seq(from = 0,
                       by = 0.005)
 ```
 
-Define profiles: 
+Define profiles:
 
 ```{r}
 grid_disadvantaged <- as.data.frame(expand.grid("Mode" = c("Active","Transit","Car"),
@@ -1920,7 +2000,8 @@ grid_control_all_vars_ready <- grid_control_all_vars %>%
            str_c(cols_to_use, ": ", values, collapse = " - ")}))
 ```
 
-We loop over each profile and each mode, compute predictions from the linear and ordinal models, and store the results:
+We loop over each profile and each mode, compute predictions from the
+linear and ordinal models, and store the results:
 
 ```{r}
 predict_subset <- data.frame()
@@ -2180,12 +2261,13 @@ mutate(Likert = factor(Likert, levels = Likert_order))
 
 ## Linear cases
 
-For Linear models, we plot the predicted probability (0 to 100) against transit accessibility, with confidence bands, faceted by equity group.
+For Linear models, we plot the predicted probability (0 to 100) against
+transit accessibility, with confidence bands, faceted by equity group.
 
 ```{r}
 predict_subset_standads_linear <- predict_subset %>% 
   filter(Mode == "Transit", 
-         Case %in% c(priority_group, non_priority_group, majority_group))
+         Case %in% c(priority_group, non_priority_group, majority_group), Model == "Linear")
 
 probabilities_transit_linear <- predict_subset_standads_linear %>%   
   ggplot(aes(x = Value, y = Probability, color = Outcome, fill = Outcome)) +
@@ -2208,17 +2290,17 @@ probabilities_transit_linear <- predict_subset_standads_linear %>%
   coord_cartesian(ylim = c(0, 100), 
                   xlim = c(0, 1.10 * max(respondents$SA_pp_Transit, na.rm = TRUE))) +
   theme_minimal() + 
-  facet_wrap(~Equity, ncol = 2)  +
+  facet_wrap(~Equity, ncol = 3)  +
   scale_color_manual(values = my_colors_linear) +
   scale_fill_manual(values = my_colors_linear) + 
   theme(legend.position = "bottom",         
-    legend.direction = "horiozontal",    
+    legend.direction = "horizontal",    
     legend.title = element_text(size = 10),
     legend.text = element_text(size = 9))
 
 ggsave(file = paste0(diretorio_export_images,"/linear/accessibility-effect-transit.jpg"),
        plot = probabilities_transit_linear,
-       width = 15,
+       width = 20,
        height = 9,
        units = "cm",
        dpi = 300)
@@ -2265,11 +2347,11 @@ knitr::include_graphics(paste0(diretorio_export_images,"/linear/sig/", majority_
 
 ## Ordinal cases
 
-### Few jobs
+Considering "there are too few jobs available for me in my ideal
+commuting time".
 
-"There are too few jobs available for me in my ideal commuting time"
-
-Just Transit:
+Average marginal effects (AME) of transit accessibility on ordinal
+outcome (using `svyAME`).
 
 ```{r}
 fj_ame_transit <- svyAME(FewJobs_ordinal_3modes,
@@ -2316,6 +2398,12 @@ dpi = 300)
 
 knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/average-marginal-effect-transit-accessibility.jpg"))
 ```
+
+Following figures show the probability of reporting "too few jobs" by
+Likert category as transit accessibility increases, comparing the
+population groups. These plots show that the equity‑deserving group
+requires higher accessibility to reach the same positive perception
+level.
 
 ```{r}
 probabilities_transit_linear_fj <- predict_subset_standads_ordinal_fj %>%
@@ -2399,9 +2487,19 @@ knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/", non_priority
 knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/",majority_group,".jpg"))
 ```
 
-# Key Thresholds
+# Key thresholds for transit accessibility:
 
-Identifying key thresholds for transit accessibility:
+Based on the ordinal model for "few jobs accessible", we define three
+thresholds where the combined positive probabilities exceeds of negative
+probabilities:
+
+-   Conservative: first value where Positive + Most Positive + Neutral
+    \> Negative + Most Negative
+-   Progressive: first value where Positive + Most Positive \>
+    Negative + Most Negative
+-   Intermediate: midpoint between conservative and progressive
+
+These thresholds are calculated separately for each equity group:
 
 ```{r}
 ##################################
@@ -2445,6 +2543,10 @@ filter(!Equity == non_priority_group_name)
 
 standards_df
 ```
+
+We adopt the thresholds based on equity‑deserving group to represent
+equity-standards, as the minimum transit accessibility needed to shift
+perceptions.
 
 ## Plots
 
@@ -2673,7 +2775,17 @@ knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-tr
 
 ## FGT
 
-Identifying priority areas based on their transit accessibility gap:
+We treat accessibility below a threshold as a deficit/gap. For each CT,
+we compute:
+
+-   FGT‑0 (headcount ratio): proportion of weighted population below the
+    threshold.
+-   FGT‑1 (accessibility gap): average relative shortfall.
+-   FGT‑2 (severity): squared gap.
+
+The FGT measures are calculated for each equity-standard and used to
+prioritize CTs. CTs are classified into priority levels (Very‑high,
+High, Moderate, Low) based on the AFI.
 
 ```{r}
 intermediate_threshold <- standards_df %>%
@@ -2959,9 +3071,11 @@ ggplot2::ggsave(plot = FGT01_plots_general,
 knitr::include_graphics(paste0(diretorio_export_images,"/FGT01_plots_general.jpg"))
 ```
 
+## Maps
 
-## Maps 
-Plotting priority areas for each standard:
+To finalize our analysis, we create maps for each standard
+(conservative, intermediate, and progressive), showing CTs categorized
+by priority level:
 
 ```{r}
 priority_geo_areas <- priority_geo_areas %>%
@@ -3293,6 +3407,9 @@ knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities
 
 # Saving model files
 
+All models, predictions, FGT measures, threshold values, and processed
+data are saved as `.rds` or `.csv` in the export directory:
+
 ## Models
 
 ```{r}
@@ -3497,7 +3614,6 @@ summary_pcd_standards <-  summary_pcd_priority_areas %>%
   sf::st_drop_geometry()
 ```
 
-
 ```{r}
 census_tracts %>%
   filter(PCD == 3518) %>% 
@@ -3548,7 +3664,6 @@ summary_pcsd_standards <- summary_pcsd_priority_areas %>%
   sf::st_drop_geometry()
 ```
 
-
 ```{r}
 census_tracts %>%
   filter(PCSD == 3518005) %>% 
@@ -3574,7 +3689,7 @@ write.csv(summary_pcsd_priority_areas, paste0(diretorio_export, "summary_pcsd_pr
 write.csv(summary_pcsd_standards, paste0(diretorio_export, "summary_pcsd_standards.csv"), row.names=FALSE)
 ```
 
-- Another way to categorize the outcome
+-   Another way to categorize the outcome
 
 ```{r}
 outcomes <- c("FewJobs", "TravelTooLong", "EasyToGo", "DeclineEmployment")
@@ -3594,55 +3709,52 @@ outcomes_quantile_df <- outcomes_quantile_df %>%
 
 outcomes_quantile_df
 ```
- 
+
 ```{r}
-complete_data_fj_pretty <- complete_data_fj %>% 
-  mutate(FewJobs_Likert_Pretty = 
-           cut(FewJobs,
-               breaks = c(0,20,40,60,80,100), 
-               labels = c("Most Positive", "Positive", "Neutral", "Negative", "Most Negative"),
-               include.lowest = TRUE), 
-         FewJobs_Likert_Pretty = factor(FewJobs_Likert_Pretty, 
-                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
-             ordered = TRUE))
-
-vars_to_scale <- c("SA_pp_Active", "SA_pp_Transit", "SA_pp_Car_motor",
-  "Pop_density", 
-  "SA_pp_Active_Res_IV", "SA_pp_Transit_Res_IV", "SA_pp_Car_Res_IV")
-
-complete_data_scaled_fj_pretty <- complete_data_fj_pretty %>%
-  mutate(across(all_of(vars_to_scale), 
-                function(x) {
-                  scaled <- scale(x)
-                  return(as.numeric(scaled))
-                }))
+# complete_data_fj_pretty <- complete_data_fj %>% 
+#   mutate(FewJobs_Likert_Pretty = 
+#            cut(FewJobs,
+#                breaks = c(0,20,40,60,80,100), 
+#                labels = c("Most Positive", "Positive", "Neutral", "Negative", "Most Negative"),
+#                include.lowest = TRUE), 
+#          FewJobs_Likert_Pretty = factor(FewJobs_Likert_Pretty, 
+#                                               levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+#              ordered = TRUE))
+# 
+# vars_to_scale <- c("SA_pp_Active", "SA_pp_Transit", "SA_pp_Car_motor",
+#   "Pop_density", 
+#   "SA_pp_Active_Res_IV", "SA_pp_Transit_Res_IV", "SA_pp_Car_Res_IV")
+# 
+# complete_data_scaled_fj_pretty <- complete_data_fj_pretty %>%
+#   mutate(across(all_of(vars_to_scale), 
+#                 function(x) {
+#                   scaled <- scale(x)
+#                   return(as.numeric(scaled))
+#                 }))
 ```
 
 ```{r}
-design_ordinal_norm_fj_pretty <- svydesign(
-  ids = ~1,
-  weights = ~fexp_normalized,
-  data = complete_data_scaled_fj_pretty)
+# design_ordinal_norm_fj_pretty <- svydesign(
+#   ids = ~1,
+#   weights = ~fexp_normalized,
+#   data = complete_data_scaled_fj_pretty)
 ```
 
 ```{r}
-FewJobs_formula_3mode_ordinal_SA_pretty <- formula(update(ordinal_SA_pp_3mode_formula, FewJobs_Likert_Pretty ~ .))
-
-FewJobs_ordinal_3modes_pretty <- svyolr(FewJobs_formula_3mode_ordinal_SA_pretty,
-                                   design = design_ordinal_norm_fj_pretty)
-
-summary(FewJobs_ordinal_3modes_pretty)
+# FewJobs_formula_3mode_ordinal_SA_pretty <- formula(update(ordinal_SA_pp_3mode_formula, FewJobs_Likert_Pretty ~ .))
+# 
+# FewJobs_ordinal_3modes_pretty <- svyolr(FewJobs_formula_3mode_ordinal_SA_pretty,
+#                                    design = design_ordinal_norm_fj_pretty)
+# 
+# summary(FewJobs_ordinal_3modes_pretty)
 ```
 
 ```{r}
-survey::regTermTest(FewJobs_ordinal_3modes_pretty, "SA_pp_Transit")
+#survey::regTermTest(FewJobs_ordinal_3modes_pretty, "SA_pp_Transit")
 ```
 
 ```{r}
-saveRDS(FewJobs_ordinal_3modes_pretty, paste0(diretorio_export,"few_jobs_ordinal_pretty.rds"))
-
-write.csv(outcomes_quantile_df, paste0(diretorio_export, "outcomes_quantile.csv"), row.names=FALSE)
+# saveRDS(FewJobs_ordinal_3modes_pretty, paste0(diretorio_export,"few_jobs_ordinal_pretty.rds"))
+# 
+# write.csv(outcomes_quantile_df, paste0(diretorio_export, "outcomes_quantile.csv"), row.names=FALSE)
 ```
-
-
-
