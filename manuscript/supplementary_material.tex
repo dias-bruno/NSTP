@@ -1,0 +1,636 @@
+\documentclass[preprint, 3p,
+authoryear]{elsarticle} %review=doublespace preprint=single 5p=2 column
+%%% Begin My package additions %%%%%%%%%%%%%%%%%%%
+
+\usepackage[hyphens]{url}
+
+  \journal{An awesome journal} % Sets Journal name
+
+\usepackage{graphicx}
+%%%%%%%%%%%%%%%% end my additions to header
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+% TODO: Currently lineno needs to be loaded after amsmath because of conflict
+% https://github.com/latex-lineno/lineno/issues/5
+\usepackage{lineno} % add
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \usepackage{fontspec}
+  \ifxetex
+    \usepackage{xltxtra,xunicode}
+  \fi
+  \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
+  \newcommand{\euro}{€}
+\fi
+% use microtype if available
+\IfFileExists{microtype.sty}{\usepackage{microtype}}{}
+\usepackage[]{natbib}
+\bibliographystyle{elsarticle-harv}
+
+\ifxetex
+  \usepackage[setpagesize=false, % page size defined by xetex
+              unicode=false, % unicode breaks when used with xetex
+              xetex]{hyperref}
+\else
+  \usepackage[unicode=true]{hyperref}
+\fi
+\hypersetup{breaklinks=true,
+            bookmarks=true,
+            pdfauthor={},
+            pdftitle={Exploring equity standards for transport policy: A case study of job accessibility in the Greater Toronto and Hamilton Area, Canada},
+            colorlinks=false,
+            urlcolor=blue,
+            linkcolor=magenta,
+            pdfborder={0 0 0}}
+
+\setcounter{secnumdepth}{5}
+% Pandoc toggle for numbering sections (defaults to be off)
+
+
+% tightlist command for lists without linebreak
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+
+
+
+\usepackage{pdflscape}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+
+
+
+\begin{document}
+
+
+\begin{frontmatter}
+
+  \title{Exploring equity standards for transport policy: A case study
+of job accessibility in the Greater Toronto and Hamilton Area, Canada}
+    \author[Some Institute of Technology]{Bob Security%
+  \corref{cor1}%
+  \fnref{1}}
+   \ead{bob@example.com} 
+    \author[Another University]{Cat Memes%
+  %
+  }
+   \ead{cat@example.com} 
+    \author[Some Institute of Technology]{Derek Zoolander%
+  %
+  }
+   \ead{derek@example.com} 
+      \affiliation[Some Institute of Technology]{
+    organization={Big Wig University},addressline={1 main
+street},city={Gotham},postcode={123456},state={State},country={United
+States},}
+    \affiliation[Another University]{
+    organization={Department},addressline={A street
+29},city={Manchester,},postcode={2054 NX},country={The Netherlands},}
+    \cortext[cor1]{Corresponding author}
+    \fntext[1]{This is the first author footnote.}
+  
+  \begin{abstract}
+  
+  \end{abstract}
+  
+ \end{frontmatter}
+
+\section{Supplementary material}\label{supplementary-material}
+
+Table \ref{tab:pcsd_summary} presents the total number of people living
+in each priority level for policy intervention, by equity standard type
+and census subdivision. Priority areas for policy intervention are
+determined with reference to the transit accessibility shortfall (which
+can be conservative, intermediate, or progressive) and to the
+Accessibility Fairness Index.
+
+\begingroup\fontsize{10}{12}\selectfont
+
+\begin{longtable}[t]{>{\raggedright\arraybackslash}p{5cm}llrrrr}
+\caption{\label{tab:unnamed-chunk-1}\label{tab:pcsd_summary}People living in priority areas for policy-intervention by equity standard and census subdivision.}\\
+\toprule
+\multicolumn{3}{c}{ } & \multicolumn{2}{c}{Population} & \multicolumn{2}{c}{Census Tract} \\
+\cmidrule(l{3pt}r{3pt}){4-5} \cmidrule(l{3pt}r{3pt}){6-7}
+\textbf{Subdivision} & \textbf{Equity standard} & \textbf{Priority class} & \textbf{Total} & \textbf{(\%)} & \textbf{Total} & \textbf{(\%)}\\
+\midrule
+\endfirsthead
+\caption[]{\label{tab:pcsd_summary}People living in priority areas for policy-intervention by equity standard and census subdivision. \textit{(continued)}}\\
+\toprule
+\multicolumn{3}{c}{ } & \multicolumn{2}{c}{Population} & \multicolumn{2}{c}{Census Tract} \\
+\cmidrule(l{3pt}r{3pt}){4-5} \cmidrule(l{3pt}r{3pt}){6-7}
+\textbf{Subdivision} & \textbf{Equity standard} & \textbf{Priority class} & \textbf{Total} & \textbf{(\%)} & \textbf{Total} & \textbf{(\%)}\\
+\midrule
+\endhead
+
+\endfoot
+\bottomrule
+\endlastfoot
+ &  & Very-high priority & 33955 & 26.81 & 4 & 14.29\\
+\nopagebreak
+ &  & High priority & 41403 & 32.69 & 8 & 28.57\\
+\nopagebreak
+ &  & Moderate priority & 39462 & 31.15 & 9 & 32.14\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Conservative} & Low priority & 11846 & 9.35 & 7 & 25.00\\
+\nopagebreak
+ &  & Very-high priority & 53400 & 42.16 & 7 & 25.00\\
+\nopagebreak
+ &  & High priority & 53500 & 42.24 & 11 & 39.29\\
+\nopagebreak
+ &  & Moderate priority & 10624 & 8.39 & 4 & 14.29\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Intermediate} & Low priority & 9142 & 7.22 & 6 & 21.43\\
+\nopagebreak
+ &  & Very-high priority & 77869 & 61.48 & 11 & 39.29\\
+\nopagebreak
+ &  & High priority & 29031 & 22.92 & 7 & 25.00\\
+\nopagebreak
+ &  & Moderate priority & 10624 & 8.39 & 4 & 14.29\\
+\nopagebreak
+\multirow{-12}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Ajax} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 9142 & 7.22 & 6 & 21.43\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 49696 & 80.08 & 6 & 66.67\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Conservative} & High priority & 12361 & 19.92 & 3 & 33.33\\
+\nopagebreak
+ &  & Very-high priority & 49696 & 80.08 & 6 & 66.67\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Intermediate} & High priority & 12361 & 19.92 & 3 & 33.33\\
+\nopagebreak
+ &  & Very-high priority & 49696 & 80.08 & 6 & 66.67\\
+\nopagebreak
+\multirow{-6}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Aurora} & \multirow{-2}{*}{\raggedright\arraybackslash Progressive} & High priority & 12361 & 19.92 & 3 & 33.33\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 217253 & 33.09 & 29 & 23.77\\
+\nopagebreak
+ &  & High priority & 223284 & 34.01 & 41 & 33.61\\
+\nopagebreak
+ &  & Moderate priority & 143894 & 21.92 & 35 & 28.69\\
+\nopagebreak
+ &  & Low priority & 50774 & 7.73 & 13 & 10.66\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Conservative} & No deficit & 21275 & 3.24 & 4 & 3.28\\
+\nopagebreak
+ &  & Very-high priority & 348251 & 53.05 & 50 & 40.98\\
+\nopagebreak
+ &  & High priority & 208428 & 31.75 & 44 & 36.07\\
+\nopagebreak
+ &  & Moderate priority & 88734 & 13.52 & 25 & 20.49\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Intermediate} & Low priority & 11067 & 1.69 & 3 & 2.46\\
+\nopagebreak
+ &  & Very-high priority & 380289 & 57.93 & 55 & 45.08\\
+\nopagebreak
+ &  & High priority & 186484 & 28.41 & 40 & 32.79\\
+\nopagebreak
+ &  & Moderate priority & 83110 & 12.66 & 24 & 19.67\\
+\nopagebreak
+\multirow{-13}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Brampton} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 6597 & 1.00 & 3 & 2.46\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 4014 & 2.15 & 1 & 2.13\\
+\nopagebreak
+ &  & High priority & 48317 & 25.85 & 10 & 21.28\\
+\nopagebreak
+ &  & Moderate priority & 98680 & 52.78 & 23 & 48.94\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Conservative} & Low priority & 35937 & 19.22 & 13 & 27.66\\
+\nopagebreak
+ &  & Very-high priority & 28304 & 15.14 & 5 & 10.64\\
+\nopagebreak
+ &  & High priority & 96536 & 51.64 & 21 & 44.68\\
+\nopagebreak
+ &  & Moderate priority & 54437 & 29.12 & 17 & 36.17\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Intermediate} & Low priority & 7671 & 4.10 & 4 & 8.51\\
+\nopagebreak
+ &  & Very-high priority & 31051 & 16.61 & 5 & 10.64\\
+\nopagebreak
+ &  & High priority & 90968 & 48.66 & 20 & 42.55\\
+\nopagebreak
+ &  & Moderate priority & 52166 & 27.90 & 16 & 34.04\\
+\nopagebreak
+\multirow{-12}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Burlington} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 12763 & 6.83 & 6 & 12.77\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 73549 & 96.04 & 12 & 92.31\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Conservative} & High priority & 3032 & 3.96 & 1 & 7.69\\
+\nopagebreak
+ &  & Very-high priority & 73549 & 96.04 & 12 & 92.31\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Intermediate} & High priority & 3032 & 3.96 & 1 & 7.69\\
+\nopagebreak
+ &  & Very-high priority & 69529 & 90.79 & 11 & 84.62\\
+\nopagebreak
+\multirow{-6}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Caledon} & \multirow{-2}{*}{\raggedright\arraybackslash Progressive} & High priority & 7052 & 9.21 & 2 & 15.38\\
+\cmidrule{1-7}\pagebreak[0]
+ & Conservative & Low priority & 231 & 100.00 & 1 & 100.00\\
+\nopagebreak
+ & Intermediate & Low priority & 231 & 100.00 & 1 & 100.00\\
+\nopagebreak
+\multirow{-3}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Chippewas of Georgina Island First Nation} & Progressive & Low priority & 231 & 100.00 & 1 & 100.00\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 70116 & 69.13 & 12 & 50.00\\
+\nopagebreak
+ &  & High priority & 24311 & 23.97 & 7 & 29.17\\
+\nopagebreak
+ &  & Moderate priority & 4695 & 4.63 & 2 & 8.33\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Conservative} & Low priority & 2305 & 2.27 & 3 & 12.50\\
+\nopagebreak
+ &  & Very-high priority & 70116 & 69.13 & 12 & 50.00\\
+\nopagebreak
+ &  & High priority & 24311 & 23.97 & 7 & 29.17\\
+\nopagebreak
+ &  & Moderate priority & 4695 & 4.63 & 2 & 8.33\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Intermediate} & Low priority & 2305 & 2.27 & 3 & 12.50\\
+\nopagebreak
+ &  & Very-high priority & 66113 & 65.18 & 11 & 45.83\\
+\nopagebreak
+ &  & High priority & 25710 & 25.35 & 7 & 29.17\\
+\nopagebreak
+ &  & Moderate priority & 7299 & 7.20 & 3 & 12.50\\
+\nopagebreak
+\multirow{-12}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Clarington} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 2305 & 2.27 & 3 & 12.50\\
+\cmidrule{1-7}\pagebreak[0]
+ & Conservative & Very-high priority & 34637 & 100.00 & 4 & 100.00\\
+\nopagebreak
+ & Intermediate & Very-high priority & 34637 & 100.00 & 4 & 100.00\\
+\nopagebreak
+ &  & Very-high priority & 30639 & 88.46 & 3 & 75.00\\
+\nopagebreak
+\multirow{-4}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash East Gwillimbury} & \multirow{-2}{*}{\raggedright\arraybackslash Progressive} & High priority & 3998 & 11.54 & 1 & 25.00\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 35426 & 74.36 & 5 & 55.56\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Conservative} & High priority & 12216 & 25.64 & 4 & 44.44\\
+\nopagebreak
+ &  & Very-high priority & 35426 & 74.36 & 5 & 55.56\\
+\nopagebreak
+ &  & High priority & 9850 & 20.68 & 3 & 33.33\\
+\nopagebreak
+ & \multirow{-3}{*}{\raggedright\arraybackslash Intermediate} & Moderate priority & 2366 & 4.97 & 1 & 11.11\\
+\nopagebreak
+ &  & Very-high priority & 35426 & 74.36 & 5 & 55.56\\
+\nopagebreak
+ &  & High priority & 9850 & 20.68 & 3 & 33.33\\
+\nopagebreak
+\multirow{-8}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Georgina} & \multirow{-3}{*}{\raggedright\arraybackslash Progressive} & Moderate priority & 2366 & 4.97 & 1 & 11.11\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 44671 & 70.96 & 8 & 61.54\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Conservative} & High priority & 18280 & 29.04 & 5 & 38.46\\
+\nopagebreak
+ &  & Very-high priority & 44671 & 70.96 & 8 & 61.54\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Intermediate} & High priority & 18280 & 29.04 & 5 & 38.46\\
+\nopagebreak
+ &  & Very-high priority & 44671 & 70.96 & 8 & 61.54\\
+\nopagebreak
+\multirow{-6}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Halton Hills} & \multirow{-2}{*}{\raggedright\arraybackslash Progressive} & High priority & 18280 & 29.04 & 5 & 38.46\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 184991 & 32.49 & 32 & 21.48\\
+\nopagebreak
+ &  & High priority & 192625 & 33.84 & 46 & 30.87\\
+\nopagebreak
+ &  & Moderate priority & 156112 & 27.42 & 52 & 34.90\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Conservative} & Low priority & 35572 & 6.25 & 19 & 12.75\\
+\nopagebreak
+ &  & Very-high priority & 239008 & 41.98 & 42 & 28.19\\
+\nopagebreak
+ &  & High priority & 189813 & 33.34 & 49 & 32.89\\
+\nopagebreak
+ &  & Moderate priority & 119986 & 21.08 & 44 & 29.53\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Intermediate} & Low priority & 20493 & 3.60 & 14 & 9.40\\
+\nopagebreak
+ &  & Very-high priority & 229549 & 40.32 & 39 & 26.17\\
+\nopagebreak
+ &  & High priority & 166562 & 29.26 & 42 & 28.19\\
+\nopagebreak
+ &  & Moderate priority & 138348 & 24.30 & 47 & 31.54\\
+\nopagebreak
+\multirow{-12}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Hamilton} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 34841 & 6.12 & 21 & 14.09\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 23830 & 87.18 & 3 & 75.00\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Conservative} & High priority & 3503 & 12.82 & 1 & 25.00\\
+\nopagebreak
+ &  & Very-high priority & 23830 & 87.18 & 3 & 75.00\\
+\nopagebreak
+ & \multirow{-2}{*}{\raggedright\arraybackslash Intermediate} & High priority & 3503 & 12.82 & 1 & 25.00\\
+\nopagebreak
+ &  & Very-high priority & 23830 & 87.18 & 3 & 75.00\\
+\nopagebreak
+\multirow{-6}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash King} & \multirow{-2}{*}{\raggedright\arraybackslash Progressive} & High priority & 3503 & 12.82 & 1 & 25.00\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 142066 & 41.97 & 16 & 26.23\\
+\nopagebreak
+ &  & High priority & 32377 & 9.56 & 7 & 11.48\\
+\nopagebreak
+ &  & Moderate priority & 34511 & 10.20 & 7 & 11.48\\
+\nopagebreak
+ &  & Low priority & 51731 & 15.28 & 13 & 21.31\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Conservative} & No deficit & 77818 & 22.99 & 18 & 29.51\\
+\nopagebreak
+ &  & Very-high priority & 169165 & 49.97 & 20 & 32.79\\
+\nopagebreak
+ &  & High priority & 48247 & 14.25 & 10 & 16.39\\
+\nopagebreak
+ &  & Moderate priority & 56550 & 16.71 & 14 & 22.95\\
+\nopagebreak
+ &  & Low priority & 54822 & 16.20 & 15 & 24.59\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Intermediate} & No deficit & 9719 & 2.87 & 2 & 3.28\\
+\nopagebreak
+ &  & Very-high priority & 180147 & 53.22 & 22 & 36.07\\
+\nopagebreak
+ &  & High priority & 53080 & 15.68 & 10 & 16.39\\
+\nopagebreak
+ &  & Moderate priority & 69638 & 20.57 & 18 & 29.51\\
+\nopagebreak
+\multirow{-14}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Markham} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 35638 & 10.53 & 11 & 18.03\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 70794 & 53.24 & 12 & 44.44\\
+\nopagebreak
+ &  & High priority & 57490 & 43.23 & 13 & 48.15\\
+\nopagebreak
+ & \multirow{-3}{*}{\raggedright\arraybackslash Conservative} & Moderate priority & 4695 & 3.53 & 2 & 7.41\\
+\nopagebreak
+ &  & Very-high priority & 96956 & 72.91 & 17 & 62.96\\
+\nopagebreak
+ &  & High priority & 32147 & 24.17 & 8 & 29.63\\
+\nopagebreak
+ &  & Moderate priority & 2419 & 1.82 & 1 & 3.70\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Intermediate} & Low priority & 1457 & 1.10 & 1 & 3.70\\
+\nopagebreak
+ &  & Very-high priority & 92863 & 69.83 & 16 & 59.26\\
+\nopagebreak
+ &  & High priority & 33002 & 24.82 & 8 & 29.63\\
+\nopagebreak
+ &  & Moderate priority & 5657 & 4.25 & 2 & 7.41\\
+\nopagebreak
+\multirow{-11}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Milton} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 1457 & 1.10 & 1 & 3.70\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 50876 & 7.09 & 9 & 6.12\\
+\nopagebreak
+ &  & High priority & 147555 & 20.55 & 28 & 19.05\\
+\nopagebreak
+ &  & Moderate priority & 164253 & 22.88 & 33 & 22.45\\
+\nopagebreak
+ &  & Low priority & 189326 & 26.37 & 43 & 29.25\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Conservative} & No deficit & 165951 & 23.11 & 34 & 23.13\\
+\nopagebreak
+ &  & Very-high priority & 133811 & 18.64 & 22 & 14.97\\
+\nopagebreak
+ &  & High priority & 282473 & 39.34 & 53 & 36.05\\
+\nopagebreak
+ &  & Moderate priority & 237360 & 33.06 & 54 & 36.73\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Intermediate} & Low priority & 64317 & 8.96 & 18 & 12.24\\
+\nopagebreak
+ &  & Very-high priority & 203977 & 28.41 & 32 & 21.77\\
+\nopagebreak
+ &  & High priority & 280560 & 39.08 & 55 & 37.41\\
+\nopagebreak
+ &  & Moderate priority & 192896 & 26.87 & 47 & 31.97\\
+\nopagebreak
+\multirow{-13}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Mississauga} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 40528 & 5.64 & 13 & 8.84\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 74332 & 84.52 & 12 & 75.00\\
+\nopagebreak
+ &  & High priority & 11373 & 12.93 & 3 & 18.75\\
+\nopagebreak
+ & \multirow{-3}{*}{\raggedright\arraybackslash Conservative} & Moderate priority & 2237 & 2.54 & 1 & 6.25\\
+\nopagebreak
+ &  & Very-high priority & 79356 & 90.24 & 13 & 81.25\\
+\nopagebreak
+ &  & High priority & 6349 & 7.22 & 2 & 12.50\\
+\nopagebreak
+ & \multirow{-3}{*}{\raggedright\arraybackslash Intermediate} & Moderate priority & 2237 & 2.54 & 1 & 6.25\\
+\nopagebreak
+ &  & Very-high priority & 79356 & 90.24 & 13 & 81.25\\
+\nopagebreak
+\multirow{-8}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Newmarket} & \multirow{-2}{*}{\raggedright\arraybackslash Progressive} & Moderate priority & 8586 & 9.76 & 3 & 18.75\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 71533 & 33.47 & 9 & 21.43\\
+\nopagebreak
+ &  & High priority & 58958 & 27.59 & 12 & 28.57\\
+\nopagebreak
+ &  & Moderate priority & 44583 & 20.86 & 12 & 28.57\\
+\nopagebreak
+ &  & Low priority & 21995 & 10.29 & 6 & 14.29\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Conservative} & No deficit & 16639 & 7.79 & 3 & 7.14\\
+\nopagebreak
+ &  & Very-high priority & 95120 & 44.51 & 13 & 30.95\\
+\nopagebreak
+ &  & High priority & 65352 & 30.58 & 15 & 35.71\\
+\nopagebreak
+ &  & Moderate priority & 45268 & 21.18 & 11 & 26.19\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Intermediate} & Low priority & 7968 & 3.73 & 3 & 7.14\\
+\nopagebreak
+ &  & Very-high priority & 96846 & 45.32 & 13 & 30.95\\
+\nopagebreak
+ &  & High priority & 82492 & 38.60 & 18 & 42.86\\
+\nopagebreak
+ &  & Moderate priority & 28876 & 13.51 & 8 & 19.05\\
+\nopagebreak
+\multirow{-13}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Oakville} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 5494 & 2.57 & 3 & 7.14\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 73280 & 41.78 & 11 & 28.95\\
+\nopagebreak
+ &  & High priority & 53689 & 30.61 & 12 & 31.58\\
+\nopagebreak
+ &  & Moderate priority & 46619 & 26.58 & 14 & 36.84\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Conservative} & Low priority & 1795 & 1.02 & 1 & 2.63\\
+\nopagebreak
+ &  & Very-high priority & 84093 & 47.95 & 13 & 34.21\\
+\nopagebreak
+ &  & High priority & 69283 & 39.50 & 17 & 44.74\\
+\nopagebreak
+ &  & Moderate priority & 20212 & 11.52 & 7 & 18.42\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Intermediate} & Low priority & 1795 & 1.02 & 1 & 2.63\\
+\nopagebreak
+ &  & Very-high priority & 94581 & 53.93 & 15 & 39.47\\
+\nopagebreak
+ &  & High priority & 44986 & 25.65 & 11 & 28.95\\
+\nopagebreak
+ &  & Moderate priority & 34021 & 19.40 & 11 & 28.95\\
+\nopagebreak
+\multirow{-12}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Oshawa} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 1795 & 1.02 & 1 & 2.63\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 47358 & 47.75 & 7 & 36.84\\
+\nopagebreak
+ &  & High priority & 25053 & 25.26 & 6 & 31.58\\
+\nopagebreak
+ &  & Moderate priority & 8644 & 8.71 & 2 & 10.53\\
+\nopagebreak
+ &  & Low priority & 13271 & 13.38 & 3 & 15.79\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Conservative} & No deficit & 4860 & 4.90 & 1 & 5.26\\
+\nopagebreak
+ &  & Very-high priority & 57654 & 58.13 & 9 & 47.37\\
+\nopagebreak
+ &  & High priority & 23911 & 24.11 & 5 & 26.32\\
+\nopagebreak
+ & \multirow{-3}{*}{\raggedright\arraybackslash Intermediate} & Moderate priority & 17621 & 17.77 & 5 & 26.32\\
+\nopagebreak
+ &  & Very-high priority & 62585 & 63.10 & 10 & 52.63\\
+\nopagebreak
+ &  & High priority & 18980 & 19.14 & 4 & 21.05\\
+\nopagebreak
+\multirow{-11}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Pickering} & \multirow{-3}{*}{\raggedright\arraybackslash Progressive} & Moderate priority & 17621 & 17.77 & 5 & 26.32\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 76891 & 38.06 & 9 & 27.27\\
+\nopagebreak
+ &  & High priority & 17577 & 8.70 & 3 & 9.09\\
+\nopagebreak
+ &  & Moderate priority & 38987 & 19.30 & 6 & 18.18\\
+\nopagebreak
+ &  & Low priority & 37097 & 18.36 & 9 & 27.27\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Conservative} & No deficit & 31470 & 15.58 & 6 & 18.18\\
+\nopagebreak
+ &  & Very-high priority & 112729 & 55.80 & 14 & 42.42\\
+\nopagebreak
+ &  & High priority & 29383 & 14.54 & 5 & 15.15\\
+\nopagebreak
+ &  & Moderate priority & 44599 & 22.08 & 10 & 30.30\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Intermediate} & Low priority & 15311 & 7.58 & 4 & 12.12\\
+\nopagebreak
+ &  & Very-high priority & 132108 & 65.39 & 17 & 51.52\\
+\nopagebreak
+ &  & High priority & 29180 & 14.44 & 5 & 15.15\\
+\nopagebreak
+ &  & Moderate priority & 34686 & 17.17 & 9 & 27.27\\
+\nopagebreak
+\multirow{-13}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Richmond Hill} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 6048 & 2.99 & 2 & 6.06\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 29100 & 1.04 & 5 & 0.86\\
+\nopagebreak
+ &  & High priority & 99642 & 3.57 & 18 & 3.09\\
+\nopagebreak
+ &  & Moderate priority & 139501 & 4.99 & 27 & 4.63\\
+\nopagebreak
+ &  & Low priority & 467891 & 16.75 & 102 & 17.50\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Conservative} & No deficit & 2057959 & 73.65 & 431 & 73.93\\
+\nopagebreak
+ &  & Very-high priority & 134759 & 4.82 & 20 & 3.43\\
+\nopagebreak
+ &  & High priority & 337150 & 12.07 & 59 & 10.12\\
+\nopagebreak
+ &  & Moderate priority & 637881 & 22.83 & 121 & 20.75\\
+\nopagebreak
+ &  & Low priority & 1074987 & 38.47 & 253 & 43.40\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Intermediate} & No deficit & 609316 & 21.81 & 130 & 22.30\\
+\nopagebreak
+ &  & Very-high priority & 221768 & 7.94 & 32 & 5.49\\
+\nopagebreak
+ &  & High priority & 663650 & 23.75 & 108 & 18.52\\
+\nopagebreak
+ &  & Moderate priority & 807907 & 28.91 & 155 & 26.59\\
+\nopagebreak
+ &  & Low priority & 1095029 & 39.19 & 287 & 49.23\\
+\nopagebreak
+\multirow{-15}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Toronto} & \multirow{-5}{*}{\raggedright\arraybackslash Progressive} & No deficit & 5739 & 0.21 & 1 & 0.17\\
+\cmidrule{1-7}\pagebreak[0]
+ & Conservative & Very-high priority & 21556 & 100.00 & 4 & 100.00\\
+\nopagebreak
+ & Intermediate & Very-high priority & 21556 & 100.00 & 4 & 100.00\\
+\nopagebreak
+ &  & Very-high priority & 17528 & 81.31 & 3 & 75.00\\
+\nopagebreak
+\multirow{-4}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Uxbridge} & \multirow{-2}{*}{\raggedright\arraybackslash Progressive} & High priority & 4028 & 18.69 & 1 & 25.00\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 144670 & 44.78 & 17 & 31.48\\
+\nopagebreak
+ &  & High priority & 29157 & 9.02 & 6 & 11.11\\
+\nopagebreak
+ &  & Moderate priority & 23837 & 7.38 & 5 & 9.26\\
+\nopagebreak
+ &  & Low priority & 23930 & 7.41 & 7 & 12.96\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Conservative} & No deficit & 101509 & 31.42 & 19 & 35.19\\
+\nopagebreak
+ &  & Very-high priority & 168654 & 52.20 & 21 & 38.89\\
+\nopagebreak
+ &  & High priority & 38634 & 11.96 & 7 & 12.96\\
+\nopagebreak
+ &  & Moderate priority & 51109 & 15.82 & 11 & 20.37\\
+\nopagebreak
+ &  & Low priority & 44381 & 13.74 & 11 & 20.37\\
+\nopagebreak
+ & \multirow{-5}{*}{\raggedright\arraybackslash Intermediate} & No deficit & 20325 & 6.29 & 4 & 7.41\\
+\nopagebreak
+ &  & Very-high priority & 178915 & 55.37 & 22 & 40.74\\
+\nopagebreak
+ &  & High priority & 51859 & 16.05 & 10 & 18.52\\
+\nopagebreak
+ &  & Moderate priority & 56645 & 17.53 & 12 & 22.22\\
+\nopagebreak
+\multirow{-14}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Vaughan} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 35684 & 11.04 & 10 & 18.52\\
+\cmidrule{1-7}\pagebreak[0]
+ &  & Very-high priority & 52649 & 38.01 & 8 & 26.67\\
+\nopagebreak
+ &  & High priority & 41495 & 29.96 & 8 & 26.67\\
+\nopagebreak
+ &  & Moderate priority & 39135 & 28.26 & 12 & 40.00\\
+\nopagebreak
+ & \multirow{-4}{*}{\raggedright\arraybackslash Conservative} & Low priority & 5222 & 3.77 & 2 & 6.67\\
+\nopagebreak
+ &  & Very-high priority & 64036 & 46.24 & 10 & 33.33\\
+\nopagebreak
+ &  & High priority & 51701 & 37.33 & 11 & 36.67\\
+\nopagebreak
+ & \multirow{-3}{*}{\raggedright\arraybackslash Intermediate} & Moderate priority & 22764 & 16.44 & 9 & 30.00\\
+\nopagebreak
+ &  & Very-high priority & 75070 & 54.20 & 12 & 40.00\\
+\nopagebreak
+ &  & High priority & 40667 & 29.36 & 9 & 30.00\\
+\nopagebreak
+ &  & Moderate priority & 17167 & 12.39 & 6 & 20.00\\
+\nopagebreak
+\multirow{-11}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Whitby} & \multirow{-4}{*}{\raggedright\arraybackslash Progressive} & Low priority & 5597 & 4.04 & 3 & 10.00\\
+\cmidrule{1-7}\pagebreak[0]
+ & Conservative & Very-high priority & 49864 & 100.00 & 7 & 100.00\\
+\nopagebreak
+ & Intermediate & Very-high priority & 49864 & 100.00 & 7 & 100.00\\
+\nopagebreak
+\multirow{-3}{5cm}[1\dimexpr\aboverulesep+\belowrulesep+\cmidrulewidth]{\raggedright\arraybackslash Whitchurch-Stouffville} & Progressive & Very-high priority & 49864 & 100.00 & 7 & 100.00\\*
+\end{longtable}
+\endgroup{}
+
+\bibliography{mybibfile.bib}
+
+
+\end{document}

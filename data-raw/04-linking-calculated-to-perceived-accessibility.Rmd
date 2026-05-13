@@ -389,14 +389,7 @@ LS_ForcedCar <- mjsurvey_study_area %>%
   filter(!pe_agreeWithFeelForcedToOwnCar %in% c("na","")) %>% 
   mutate(ForcedCar = as.numeric(pe_agreeWithFeelForcedToOwnCar)) %>% 
   filter(ForcedCar >= 0)
-```
 
-We derive the labour force status from *p_mainOccupation*, selecting as
-employed those who answered to be working full‑time or part‑time, gig
-workers, and self‑employed. People who answered to be retired and unable
-to work are excluded from labour force:
-
-```{r}
 # Labour force (employed = 1)
 occ_char <- as.character(mjsurvey_study_area$p_mainOccupation)
 
@@ -411,16 +404,21 @@ any(trimws(x) %in% c("retired", "unableToWork"))})
 
 labour_force <- labour_force[!exclusion_cases, ]
 
-labour_force$employment_status <- sapply(strsplit(labour_force$p_mainOccupation, ","), function(x) {
+labour_force$labour_force <- sapply(strsplit(labour_force$p_mainOccupation, ","), function(x) {
 if (any(trimws(x) %in% c("fullTimeWorker", "partTimeWorker", "gigWorker", "selfEmploymentWorker"))) 1 else 0})
 
 labour_force <- labour_force %>%
-  dplyr::select(c(X_activePersonId, p_mainOccupation, employment_status))
+  dplyr::select(c(X_activePersonId, p_mainOccupation, labour_force))
 ```
 
 Combine all outcomes into one data frame:
 
 ```{r}
+checking <- mjsurvey_study_area %>% dplyr::select(interview_id, X_activePersonId, fexp_final) %>% 
+  left_join(LS_DeclineEmployment %>% dplyr::select(-fexp_final) , by = "X_activePersonId") %>% 
+  left_join(LS_FewJobs %>% dplyr::select(-fexp_final) , by = "X_activePersonId")
+
+
 outcomes_std <- mjsurvey_study_area %>% dplyr::select(interview_id, X_activePersonId, fexp_final) %>% 
   left_join(LS_DeclineEmployment %>% dplyr::select(-fexp_final) , by = "X_activePersonId") %>% 
   left_join(LS_FewJobs %>% dplyr::select(-fexp_final) , by = "X_activePersonId") %>% 
@@ -1449,7 +1447,7 @@ design_DeclineEmployment <- svydesign(
   ids = ~1,  # No clustering
   weights = ~fexp_final,
   data = respondents %>% 
-  filter(!is.na(DeclineEmployment), !is.na(employment_status)))
+  filter(!is.na(DeclineEmployment)))
 ```
 
 ```{r}
@@ -1646,7 +1644,7 @@ FewJobs, FewJobs_Likert,
 TravelTooLong, TravelTooLong_Likert,
 EasyToGo, EasyToGo_Likert,
 DeclineEmployment, DeclineEmployment_Likert,
-fexp_final, education_level, TransitAvailable, PCD, employment_status)
+fexp_final, education_level, TransitAvailable, PCD, labour_force)
 ```
 
 ## Few jobs: Likert
@@ -1841,12 +1839,11 @@ easytogocorr
 
 ```{r}
 complete_data_de <- respondents_filtered %>% 
-  filter(!is.na(DeclineEmployment), !is.na(employment_status)) %>%
+  filter(!is.na(DeclineEmployment), !is.na(labour_force)) %>%
   mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE), 
          SA_pp_Active_unscaled = SA_pp_Active,
          SA_pp_Car_motor_unscaled = SA_pp_Car_motor,
          SA_pp_Transit_unscaled = SA_pp_Transit)
-
 
 complete_data_scaled_de <- complete_data_de %>%
   mutate(across(all_of(vars_to_scale), 
@@ -1909,7 +1906,8 @@ perceived job accessibility.
 
 ```{r}
 seq_val <- seq(from = 0,
-                      to = round(1.10 * max(respondents$SA_pp_Transit, na.rm = TRUE),1),
+                      # to = round(1.10 * max(respondents$SA_pp_Transit, na.rm = TRUE),1),
+                      to = 5,
                       by = 0.005)
 ```
 
@@ -1927,8 +1925,8 @@ grid_disadvantaged <- as.data.frame(expand.grid("Mode" = c("Active","Transit","C
                     "hh_size" = 3, 
                     "Age" = 35,
                     "Match_mode" = "No",
-                    "Transit_user" = "Yes",
-                    "Active_user" = "No",
+                    "Transit_user" = c("Yes","No"),
+                    "Active_user" = c("Yes","No"),
                     "pc_class" = "Small",
                     "TransitPass" = "Yes",
                     "TransitAvailable" = "Yes",
@@ -1942,15 +1940,15 @@ grid_non_disadvantaged <- as.data.frame(expand.grid("Mode" = c("Active","Transit
                     "BikeNumber" = 1,
                     "hh_income4" = "More than $120,000",
                     "Temporary_or_refugee" = "No",
-                    "hh_size" = 2, 
-                    "Age" = 50,
+                    "hh_size" = 3, 
+                    "Age" = 45,
                     "Match_mode" = "Yes",
-                    "Transit_user" = "No",
-                    "Active_user" = "No",
+                    "Transit_user" = c("Yes","No"),
+                    "Active_user" = c("Yes","No"),
                     "pc_class" = "Large",
                     "TransitPass" = "No",
                     "TransitAvailable" = "Yes",
-"Value" = seq_val))
+                    "Value" = seq_val))
 
 grid_majority <- as.data.frame(expand.grid("Mode" = c("Active","Transit","Car"),
                     "LongTermConditions" = "No",
@@ -1963,8 +1961,8 @@ grid_majority <- as.data.frame(expand.grid("Mode" = c("Active","Transit","Car"),
                     "hh_size" = 3, 
                     "Age" = 40,
                     "Match_mode" = "Yes",
-                    "Transit_user" = "No",
-                    "Active_user" = "No",
+                    "Transit_user" = c("Yes","No"),
+                    "Active_user" = c("Yes","No"),
                     "pc_class" = "Large",
                     "TransitPass" = "No",
                     "TransitAvailable" = "Yes",
@@ -1985,8 +1983,17 @@ controls_all_vars <- data.frame(SA_pp_Active_IV = Hmisc::wtd.quantile(respondent
 
 grid_control_all_vars <- cbind(grid_all_vars, controls_all_vars)
 
-cols_to_use <- c("LongTermConditions", "Woman_or_genderdiverse", "Indigenous_or_racialized", 
-                 "CarNumber", "BikeNumber", "hh_income4", "hh_size", "Temporary_or_refugee", "Age", "Match_mode")
+cols_to_use <- c("LongTermConditions", "Woman_or_genderdiverse", "Indigenous_or_racialized", "CarNumber", "BikeNumber",
+                    "hh_income4",
+                    "hh_size" , 
+                    "Temporary_or_refugee",
+                    "Age",
+                    "Match_mode",
+                    "Transit_user",
+                    "Active_user",
+                    "pc_class" ,
+                    "TransitPass",
+                    "TransitAvailable")
 
 grid_control_all_vars_ready <- grid_control_all_vars %>%
   mutate(SA_pp_Active_IV = if_else(Mode == "Active", Value, SA_pp_Active_IV),
@@ -2007,9 +2014,11 @@ linear and ordinal models, and store the results:
 predict_subset <- data.frame()
 for(mode in unique(grid_control_all_vars_ready$Mode)){
 for(grupo in unique(grid_control_all_vars_ready$Case)){
+
 df <- grid_control_all_vars_ready %>%
 filter(Case == grupo,
 Mode == mode)
+
 # # Travel Too Long
 pred_ttl <- predict(TravelTooLong_3mode_lm_SA_pp_clean,
 newdata = df,
@@ -2019,9 +2028,12 @@ se.fit = TRUE)
 pred_ttl <- as.data.frame(pred_ttl) %>%
 rename(Probability = response) %>%
 mutate(Outcome = "Travel too long",
+Active_user = unique(df$Active_user),
+Transit_user = unique(df$Transit_user),
 Case = grupo,
 Mode = mode)
 pred_ttl$Value <- seq_val
+
 # # Easy to reach
 pred_etr <- predict(EasyToGo_3mode_lm_SA_pp_clean,
 newdata = df,
@@ -2030,6 +2042,8 @@ se.fit = TRUE)
 pred_etr <- as.data.frame(pred_etr) %>%
 rename(Probability = response) %>%
 mutate(Outcome = "Easy to reach",
+Active_user = unique(df$Active_user),
+Transit_user = unique(df$Transit_user),
 Case = grupo,
 Mode = mode)
 pred_etr$Value <- seq_val
@@ -2041,6 +2055,8 @@ se.fit = TRUE)
 pred_de <- as.data.frame(pred_de) %>%
 rename(Probability = response) %>%
 mutate(Outcome = "Declined employment",
+Active_user = unique(df$Active_user),
+Transit_user = unique(df$Transit_user),
 Case = grupo,
 Mode = mode)
 pred_de$Value <- seq_val
@@ -2052,6 +2068,8 @@ se.fit = TRUE)
 pred_fj <- as.data.frame(pred_fj) %>%
 rename(Probability = response) %>%
 mutate(Outcome = "Few jobs accessible",
+Active_user = unique(df$Active_user),
+Transit_user = unique(df$Transit_user),
 Case = grupo,
 Mode = mode)
 pred_fj$Value <- seq_val
@@ -2073,6 +2091,8 @@ pred_fj_ord <- pred_fj_ord %>%
 pivot_longer(cols = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
 names_to = "Likert", values_to = "Probability") %>%
 mutate(Outcome = "Few jobs accessible - Ordinal",
+Active_user = unique(df$Active_user),
+Transit_user = unique(df$Transit_user),
 Case = grupo,
 Mode = mode)
 # Ordinal: Easy to Reach
@@ -2090,6 +2110,8 @@ pred_etr_ord <- pred_etr_ord %>%
 pivot_longer(cols = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
 names_to = "Likert", values_to = "Probability") %>%
 mutate(Outcome = "Easy to reach - Ordinal",
+Active_user = unique(df$Active_user),
+Transit_user = unique(df$Transit_user),
 Case = grupo,
 Mode = mode)
 # Ordinal: Declined Employment
@@ -2107,6 +2129,8 @@ pred_de_ord <- pred_de_ord %>%
 pivot_longer(cols = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
 names_to = "Likert", values_to = "Probability") %>%
 mutate(Outcome = "Declined employment - Ordinal",
+Active_user = unique(df$Active_user),
+Transit_user = unique(df$Transit_user),
 Case = grupo,
 Mode = mode)
 # Ordinal: Travel Too Long
@@ -2124,6 +2148,8 @@ pred_ttg_ord <- pred_ttg_ord %>%
 pivot_longer(cols = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
 names_to = "Likert", values_to = "Probability") %>%
 mutate(Outcome = "Travel too long - Ordinal",
+Active_user = unique(df$Active_user),
+Transit_user = unique(df$Transit_user),
 Case = grupo,
 Mode = mode)
 predict_subset <- predict_subset %>%
@@ -2154,67 +2180,22 @@ TRUE ~ "Linear"))
 # Visualizing probabilities
 
 ```{r}
-## Most disadvantaged case
-LongTermConditions_dis <- unique(grid_disadvantaged$LongTermConditions)
-Woman_or_genderdiverse_dis <- unique(grid_disadvantaged$Woman_or_genderdiverse)
-Indigenous_or_racialized_dis <- unique(grid_disadvantaged$Indigenous_or_racialized)
-CarNumber_dis <- unique(grid_disadvantaged$CarNumber)
-BikeNumber_dis <- unique(grid_disadvantaged$BikeNumber)
-hh_income4_dis <- unique(grid_disadvantaged$hh_income4)
-hh_size_dis <- unique(grid_disadvantaged$hh_size)
-Temporary_or_refugee_dis <- unique(grid_disadvantaged$Temporary_or_refugee)
-Age_dis <- unique(grid_disadvantaged$Age)
-Match_mode_dis <- unique(grid_disadvantaged$Match_mode)
-
-priority_group <- paste0("LongTermConditions: ", LongTermConditions_dis ," - Woman_or_genderdiverse: ", Woman_or_genderdiverse_dis ," - Indigenous_or_racialized: ", Indigenous_or_racialized_dis ," - CarNumber: ", CarNumber_dis ," - BikeNumber: ", BikeNumber_dis ," - hh_income4: ", hh_income4_dis ," - hh_size: ",  hh_size_dis," - Temporary_or_refugee: ", Temporary_or_refugee_dis ," - Age: ", Age_dis," - Match_mode: ", Match_mode_dis)
-
-priority_group
-```
-
-```{r}
-## Most non-disadvantaged case
-LongTermConditions_ndis <- unique(grid_non_disadvantaged$LongTermConditions)
-Woman_or_genderdiverse_ndis <- unique(grid_non_disadvantaged$Woman_or_genderdiverse)
-Indigenous_or_racialized_ndis <- unique(grid_non_disadvantaged$Indigenous_or_racialized)
-CarNumber_ndis <- unique(grid_non_disadvantaged$CarNumber)
-BikeNumber_ndis <- unique(grid_non_disadvantaged$BikeNumber)
-hh_income4_ndis <- unique(grid_non_disadvantaged$hh_income4)
-hh_size_ndis <- unique(grid_non_disadvantaged$hh_size)
-Temporary_or_refugee_ndis <- unique(grid_non_disadvantaged$Temporary_or_refugee)
-Age_ndis <- unique(grid_non_disadvantaged$Age)
-Match_mode_ndis <- unique(grid_non_disadvantaged$Match_mode)
-
-non_priority_group <- paste0("LongTermConditions: ", LongTermConditions_ndis ," - Woman_or_genderdiverse: ", Woman_or_genderdiverse_ndis ," - Indigenous_or_racialized: ", Indigenous_or_racialized_ndis ," - CarNumber: ", CarNumber_ndis ," - BikeNumber: ", BikeNumber_ndis ," - hh_income4: ", hh_income4_ndis ," - hh_size: ",  hh_size_ndis," - Temporary_or_refugee: ", Temporary_or_refugee_ndis ," - Age: ", Age_ndis," - Match_mode: ", Match_mode_ndis)
-
-non_priority_group
-```
-
-```{r}
-## Majority pop
-LongTermConditions_maj <- unique(grid_majority$LongTermConditions)  
-Woman_or_genderdiverse_maj <- unique(grid_majority$Woman_or_genderdiverse)
-Indigenous_or_racialized_maj <- unique(grid_majority$Indigenous_or_racialized)
-CarNumber_maj <- unique(grid_majority$CarNumber)
-BikeNumber_maj <- unique(grid_majority$BikeNumber)
-hh_income4_maj <- unique(grid_majority$hh_income4)
-hh_size_maj <- unique(grid_majority$hh_size)
-Temporary_or_refugee_maj <- unique(grid_majority$Temporary_or_refugee)
-Age_maj <- unique(grid_majority$Age)
-Match_mode_maj <- unique(grid_majority$Match_mode)
-
-majority_group <- paste0("LongTermConditions: ", LongTermConditions_maj ," - Woman_or_genderdiverse: ", Woman_or_genderdiverse_maj ," - Indigenous_or_racialized: ", Indigenous_or_racialized_maj ," - CarNumber: ", CarNumber_maj ," - BikeNumber: ", BikeNumber_maj ," - hh_income4: ", hh_income4_maj ," - hh_size: ",  hh_size_maj," - Temporary_or_refugee: ", Temporary_or_refugee_maj ," - Age: ", Age_maj," - Match_mode: ", Match_mode_maj) 
-
-majority_group
-```
-
-```{r}
-accessibility_lines <- data.frame(Statistic = c("Median", "Maximum"),
+# Transit
+accessibility_lines_transit <- data.frame(Statistic = c("Median", "Maximum"),
   Value = c(Hmisc::wtd.quantile(respondents$SA_pp_Transit, weights = respondents$fexp_final, probs = 0.5), 
             max(respondents$SA_pp_Transit, na.rm = TRUE)))
 
-median_sa <- Hmisc::wtd.quantile(respondents$SA_pp_Transit, weights = respondents$fexp_final, probs = 0.5)
-max_sa <- max(respondents$SA_pp_Transit, na.rm = TRUE)
-mean_sa <- Hmisc::wtd.mean(respondents$SA_pp_Transit, weights = respondents$fexp_final)
+median_sa_transit <- Hmisc::wtd.quantile(respondents$SA_pp_Transit, weights = respondents$fexp_final, probs = 0.5)
+max_sa_transit <- max(respondents$SA_pp_Transit, na.rm = TRUE)
+mean_sa_transit <- Hmisc::wtd.mean(respondents$SA_pp_Transit, weights = respondents$fexp_final)
+
+# Active
+accessibility_lines_active <- data.frame(Statistic = c("Median", "Maximum"),
+  Value = c(Hmisc::wtd.quantile(respondents$SA_pp_Active, weights = respondents$fexp_final, probs = 0.5), 
+            max(respondents$SA_pp_Active, na.rm = TRUE)))
+
+median_sa_active <- Hmisc::wtd.quantile(respondents$SA_pp_Active, weights = respondents$fexp_final, probs = 0.5)
+max_sa_active <- max(respondents$SA_pp_Active, na.rm = TRUE)
 ```
 
 ```{r}
@@ -2239,113 +2220,114 @@ majority_group_name <- "Most common population"
 ```
 
 ```{r}
+## Most disadvantaged case
+LongTermConditions_dis <- unique(grid_disadvantaged$LongTermConditions)
+Woman_or_genderdiverse_dis <- unique(grid_disadvantaged$Woman_or_genderdiverse)
+Indigenous_or_racialized_dis <- unique(grid_disadvantaged$Indigenous_or_racialized)
+CarNumber_dis <- unique(grid_disadvantaged$CarNumber)
+BikeNumber_dis <- unique(grid_disadvantaged$BikeNumber)
+hh_income4_dis <- unique(grid_disadvantaged$hh_income4)
+hh_size_dis <- unique(grid_disadvantaged$hh_size)
+Temporary_or_refugee_dis <- unique(grid_disadvantaged$Temporary_or_refugee)
+Age_dis <- unique(grid_disadvantaged$Age)
+Match_mode_dis <- unique(grid_disadvantaged$Match_mode)
+pc_class_dis <- unique(grid_disadvantaged$pc_class)
+TransitPass_dis <- unique(grid_disadvantaged$TransitPass)
+TransitAvailable_dis <- unique(grid_disadvantaged$TransitAvailable)
+  
+priority_group_transit <- paste0("LongTermConditions: ", LongTermConditions_dis ," - Woman_or_genderdiverse: ", Woman_or_genderdiverse_dis ," - Indigenous_or_racialized: ", Indigenous_or_racialized_dis ," - CarNumber: ", CarNumber_dis ," - BikeNumber: ", BikeNumber_dis ," - hh_income4: ", hh_income4_dis ," - hh_size: ",  hh_size_dis," - Temporary_or_refugee: ", Temporary_or_refugee_dis ," - Age: ", Age_dis," - Match_mode: ", Match_mode_dis, " - Transit_user: Yes - Active_user: No - pc_class: ", pc_class_dis, " - TransitPass: ",TransitPass_dis," - TransitAvailable: ", TransitAvailable_dis)
+
+priority_group_transit
+
+priority_group_active <- paste0("LongTermConditions: ", LongTermConditions_dis ," - Woman_or_genderdiverse: ", Woman_or_genderdiverse_dis ," - Indigenous_or_racialized: ", Indigenous_or_racialized_dis ," - CarNumber: ", CarNumber_dis ," - BikeNumber: ", BikeNumber_dis ," - hh_income4: ", hh_income4_dis ," - hh_size: ",  hh_size_dis," - Temporary_or_refugee: ", Temporary_or_refugee_dis ," - Age: ", Age_dis," - Match_mode: ", Match_mode_dis, " - Transit_user: No - Active_user: Yes - pc_class: ", pc_class_dis, " - TransitPass: ",TransitPass_dis," - TransitAvailable: ", TransitAvailable_dis)
+
+priority_group_active
+```
+
+```{r}
+## Most non-disadvantaged case
+LongTermConditions_ndis <- unique(grid_non_disadvantaged$LongTermConditions)
+Woman_or_genderdiverse_ndis <- unique(grid_non_disadvantaged$Woman_or_genderdiverse)
+Indigenous_or_racialized_ndis <- unique(grid_non_disadvantaged$Indigenous_or_racialized)
+CarNumber_ndis <- unique(grid_non_disadvantaged$CarNumber)
+BikeNumber_ndis <- unique(grid_non_disadvantaged$BikeNumber)
+hh_income4_ndis <- unique(grid_non_disadvantaged$hh_income4)
+hh_size_ndis <- unique(grid_non_disadvantaged$hh_size)
+Temporary_or_refugee_ndis <- unique(grid_non_disadvantaged$Temporary_or_refugee)
+Age_ndis <- unique(grid_non_disadvantaged$Age)
+Match_mode_ndis <- unique(grid_non_disadvantaged$Match_mode)
+pc_class_ndis <- unique(grid_non_disadvantaged$pc_class)
+TransitPass_ndis <- unique(grid_non_disadvantaged$TransitPass)
+TransitAvailable_ndis <- unique(grid_non_disadvantaged$TransitAvailable)
+  
+non_priority_group_transit <- paste0("LongTermConditions: ", LongTermConditions_ndis ," - Woman_or_genderdiverse: ", Woman_or_genderdiverse_ndis ," - Indigenous_or_racialized: ", Indigenous_or_racialized_ndis ," - CarNumber: ", CarNumber_ndis ," - BikeNumber: ", BikeNumber_ndis ," - hh_income4: ", hh_income4_ndis ," - hh_size: ",  hh_size_ndis," - Temporary_or_refugee: ", Temporary_or_refugee_ndis ," - Age: ", Age_ndis," - Match_mode: ", Match_mode_ndis, " - Transit_user: Yes - Active_user: No - pc_class: ", pc_class_ndis, " - TransitPass: ",  TransitPass_ndis," - TransitAvailable: ", TransitAvailable_ndis)
+
+non_priority_group_transit
+
+non_priority_group_active <- paste0("LongTermConditions: ", LongTermConditions_ndis ," - Woman_or_genderdiverse: ", Woman_or_genderdiverse_ndis ," - Indigenous_or_racialized: ", Indigenous_or_racialized_ndis ," - CarNumber: ", CarNumber_ndis ," - BikeNumber: ", BikeNumber_ndis ," - hh_income4: ", hh_income4_ndis ," - hh_size: ",  hh_size_ndis," - Temporary_or_refugee: ", Temporary_or_refugee_ndis ," - Age: ", Age_ndis," - Match_mode: ", Match_mode_ndis, " - Transit_user: No - Active_user: Yes - pc_class: ", pc_class_ndis, " - TransitPass: ",  TransitPass_ndis," - TransitAvailable: ", TransitAvailable_ndis)
+
+non_priority_group_active
+```
+
+```{r}
+## Majority pop
+LongTermConditions_maj <- unique(grid_majority$LongTermConditions)  
+Woman_or_genderdiverse_maj <- unique(grid_majority$Woman_or_genderdiverse)
+Indigenous_or_racialized_maj <- unique(grid_majority$Indigenous_or_racialized)
+CarNumber_maj <- unique(grid_majority$CarNumber)
+BikeNumber_maj <- unique(grid_majority$BikeNumber)
+hh_income4_maj <- unique(grid_majority$hh_income4)
+hh_size_maj <- unique(grid_majority$hh_size)
+Temporary_or_refugee_maj <- unique(grid_majority$Temporary_or_refugee)
+Age_maj <- unique(grid_majority$Age)
+Match_mode_maj <- unique(grid_majority$Match_mode)
+pc_class_maj <- unique(grid_majority$pc_class)
+TransitPass_maj <- unique(grid_majority$TransitPass)
+TransitAvailable_maj <- unique(grid_majority$TransitAvailable)
+  
+majority_group_transit <- paste0("LongTermConditions: ", LongTermConditions_maj ," - Woman_or_genderdiverse: ", Woman_or_genderdiverse_maj ," - Indigenous_or_racialized: ", Indigenous_or_racialized_maj ," - CarNumber: ", CarNumber_maj ," - BikeNumber: ", BikeNumber_maj ," - hh_income4: ", hh_income4_maj ," - hh_size: ",  hh_size_maj," - Temporary_or_refugee: ", Temporary_or_refugee_maj ," - Age: ", Age_maj," - Match_mode: ", Match_mode_maj, " - Transit_user: Yes - Active_user: No - pc_class: ", pc_class_maj, " - TransitPass: ",  TransitPass_maj," - TransitAvailable: ", TransitAvailable_maj)
+
+majority_group_transit
+
+majority_group_active <- paste0("LongTermConditions: ", LongTermConditions_maj ," - Woman_or_genderdiverse: ", Woman_or_genderdiverse_maj ," - Indigenous_or_racialized: ", Indigenous_or_racialized_maj ," - CarNumber: ", CarNumber_maj ," - BikeNumber: ", BikeNumber_maj ," - hh_income4: ", hh_income4_maj ," - hh_size: ",  hh_size_maj," - Temporary_or_refugee: ", Temporary_or_refugee_maj ," - Age: ", Age_maj," - Match_mode: ", Match_mode_maj, " - Transit_user: No - Active_user: Yes - pc_class: ", pc_class_maj, " - TransitPass: ",  TransitPass_maj," - TransitAvailable: ", TransitAvailable_maj)
+
+majority_group_active
+```
+
+
+```{r}
 predict_subset <- predict_subset %>%
-  mutate(Equity = case_when(Case == priority_group ~
+  mutate(Equity = case_when(Case %in% c(priority_group_transit, priority_group_active) ~
                               priority_group_name,
-Case == non_priority_group ~ non_priority_group_name,
-Case == majority_group ~ majority_group_name),
-Equity = factor(Equity, levels = c(priority_group_name, majority_group_name, non_priority_group_name)))
+Case %in% c(non_priority_group_active, non_priority_group_transit) ~ non_priority_group_name,
+Case %in% c(majority_group_active, majority_group_transit) ~ majority_group_name),
+Equity = factor(Equity, levels = c(priority_group_name, majority_group_name, non_priority_group_name))) %>% 
+  filter(!is.na(Equity))
 
-predict_subset_linear <- predict_subset %>%
-filter(Model == "Linear", Outcome == "Few jobs accessible")
-
-predict_subset_ordinal <- predict_subset %>%
-filter(Model == "Ordinal", Outcome == "Few jobs accessible - Ordinal") %>%
+predict_subset_ordinal_fj <- predict_subset %>%
+filter(Model == "Ordinal", Outcome == "Few jobs accessible - Ordinal", 
+       Active_user == "No", Transit_user == "Yes") %>%
 mutate(Probability = Probability * 100)
 
-predict_subset_standads_ordinal_fj <- predict_subset_ordinal %>%
+predict_subset_active_mode <- predict_subset %>%
+filter(Model == "Ordinal", 
+       #Outcome == "Declined employment - Ordinal",
+       Outcome %in% c("Declined employment - Ordinal", "Few jobs accessible - Ordinal"),
+       Active_user == "Yes", Transit_user == "No") %>%
+mutate(Probability = Probability * 100)
+
+predict_subset_standads_transit <- predict_subset_ordinal_fj %>%
 filter(Mode == "Transit",
-Case %in% c(priority_group, non_priority_group, majority_group)) %>%
+Case %in% c(priority_group_transit, non_priority_group_transit, majority_group_transit)) %>%
+mutate(Likert = factor(Likert, levels = Likert_order))
+
+predict_subset_standads_active <- predict_subset_active_mode %>%
+filter(Mode == "Active",
+Case %in% c(priority_group_active, non_priority_group_active, majority_group_active)) %>%
 mutate(Likert = factor(Likert, levels = Likert_order))
 ```
 
-## Linear cases
-
-For Linear models, we plot the predicted probability (0 to 100) against
-transit accessibility, with confidence bands, faceted by equity group.
-
-```{r}
-predict_subset_standads_linear <- predict_subset %>% 
-  filter(Mode == "Transit", 
-         Case %in% c(priority_group, non_priority_group, majority_group), Model == "Linear")
-
-probabilities_transit_linear <- predict_subset_standads_linear %>%   
-  ggplot(aes(x = Value, y = Probability, color = Outcome, fill = Outcome)) +
-  geom_line(linewidth = 0.75, alpha = 0.9) +
-  geom_ribbon(aes(ymin = Probability - SE, ymax = Probability + SE), 
-              alpha = 0.10, linetype = 0) +  
-  geom_vline(data = accessibility_lines,
-             aes(xintercept = Value),
-             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
-  annotate("text", x = median_sa, y = 97, 
-           label = paste0("Median: ", round(median_sa,2)), 
-           angle = 90, 
-           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
-  annotate("text", x = max_sa, y = 97, 
-           label = paste0("Max: ", round(max_sa,2)), 
-           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
-  labs(x = "Number of jobs reached by public transit per person",
-    y = "Predicted probability",
-    title = NULL) +
-  coord_cartesian(ylim = c(0, 100), 
-                  xlim = c(0, 1.10 * max(respondents$SA_pp_Transit, na.rm = TRUE))) +
-  theme_minimal() + 
-  facet_wrap(~Equity, ncol = 3)  +
-  scale_color_manual(values = my_colors_linear) +
-  scale_fill_manual(values = my_colors_linear) + 
-  theme(legend.position = "bottom",         
-    legend.direction = "horizontal",    
-    legend.title = element_text(size = 10),
-    legend.text = element_text(size = 9))
-
-ggsave(file = paste0(diretorio_export_images,"/linear/accessibility-effect-transit.jpg"),
-       plot = probabilities_transit_linear,
-       width = 20,
-       height = 9,
-       units = "cm",
-       dpi = 300)
-
-knitr::include_graphics(paste0(diretorio_export_images,"/linear/accessibility-effect-transit.jpg"))
-```
-
-```{r}
-for(caso in unique(predict_subset_linear$Case)){
-  probabilities_sig <- predict_subset_linear %>% 
-  filter(Case == caso) %>% 
-  mutate(Outcome = factor(Outcome, levels = outcome_order_linear)) %>%
-  ggplot(aes(x = Value, y = Probability, color = Outcome, fill = Outcome)) +
-  geom_line(linewidth = 0.75) +
-  geom_ribbon(aes(ymin = Probability - SE, ymax = Probability + SE), 
-              alpha = 0.15, linetype = 0) +  
-  labs(x = "Number of jobs reached",
-    y = "Predicted probability",
-    title = str_wrap(caso, width = 70)) +
-  coord_cartesian(ylim = c(0, 100)) +
-  theme_minimal() + 
-  facet_wrap(~ Mode, ncol = 3)  +
-  scale_color_manual(values = my_colors_linear) +
-  scale_fill_manual(values = my_colors_linear) + 
-  theme(#legend.position = "bottom",         
-    legend.direction = "vertical",    
-    legend.title = element_text(size = 10),
-    legend.text = element_text(size = 9))
-
-ggsave(file =  paste0(diretorio_export_images, "linear/sig/", caso,".jpg"),
-       plot = probabilities_sig,
-       width = 18,
-       height = 7,
-       units = "cm",
-       dpi = 300)
-}
-```
-
-```{r}
-knitr::include_graphics(paste0(diretorio_export_images,"/linear/sig/", priority_group,".jpg"))
-knitr::include_graphics(paste0(diretorio_export_images,"/linear/sig/", non_priority_group,".jpg"))
-knitr::include_graphics(paste0(diretorio_export_images,"/linear/sig/", majority_group,".jpg"))
-```
-
-## Ordinal cases
+## Transit mode
 
 Considering "there are too few jobs available for me in my ideal
 commuting time".
@@ -2406,25 +2388,28 @@ requires higher accessibility to reach the same positive perception
 level.
 
 ```{r}
-probabilities_transit_linear_fj <- predict_subset_standads_ordinal_fj %>%
+ymax <- round(predict_subset_standads_transit%>%filter(Value < 1.10 * max_sa_transit) %>% pull("Probability") %>% max() * 1.05)
+
+probabilities_transit_linear_fj <- predict_subset_standads_transit %>%
 ggplot(aes(x = Value, y = Probability, color = Likert)) +
 geom_line(linewidth = 0.75, alpha = 0.9) +
-geom_vline(data = accessibility_lines,
+geom_vline(data = accessibility_lines_transit,
 aes(xintercept = Value),
 linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
-annotate("text", x = median_sa, y = Inf,
-label = paste0("Median: ", round(median_sa,2)),
+annotate("text", x = median_sa_transit, y = Inf,
+label = paste0("Median: ", round(median_sa_transit,2)),
 angle = 90,
 hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
-annotate("text", x = max_sa, y = Inf,
-label = paste0("Max: ", round(max_sa,2)),
+annotate("text", x = max_sa_transit, y = Inf,
+label = paste0("Max: ", round(max_sa_transit,2)),
 angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333") +
 labs(x = "Number of jobs reached by public transit per person",
 y = "Predicted probability",
 color = "Perception group",
 title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 70)) +
-# coord_cartesian(ylim = c(0, 100),
-#                 xlim = c(0, 1.10 * max_sa )) +
+coord_cartesian(
+   ylim = c(0, ymax),
+   xlim = c(0, 1.10 * max_sa_transit )) +
 theme_minimal() +
 facet_wrap(~Equity, ncol = 3)  +
 scale_color_manual(values = my_colors_likert) +
@@ -2453,8 +2438,8 @@ knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/accessibility-e
 ```
 
 ```{r}
-for(caso in unique(predict_subset_ordinal$Case)){
-probabilities_fj <- predict_subset_ordinal %>%
+for(caso in unique(predict_subset_ordinal_fj$Case)){
+probabilities_fj <- predict_subset_ordinal_fj %>%
 filter(Case == caso) %>%
 mutate(Likert = factor(Likert, levels = Likert_order)) %>%
 ggplot(aes(x = Value, y = Probability, color = Likert)) +
@@ -2463,7 +2448,9 @@ labs(x = "Number of jobs reached",
 y = "Predicted probability",
 color = "Few jobs available",
 title = str_wrap(caso, width = 80)) +
-#coord_cartesian(ylim = c(0, 100)) +
+coord_cartesian(
+  #ylim = c(0, 100),
+  xlim = c(0, 1.10 * max_sa_transit )) +
 theme_minimal() +
 facet_wrap(~ Mode, ncol = 3)  +
 scale_color_manual(values = my_colors_likert) +
@@ -2472,6 +2459,7 @@ theme(#legend.position = "bottom",
 legend.direction = "vertical",
 legend.title = element_text(size = 10),
 legend.text = element_text(size = 9))
+
 ggsave(file = paste0(diretorio_export_images, "/ordinal/", caso,".jpg"),
 plot = probabilities_fj,
 width = 20,
@@ -2481,15 +2469,81 @@ dpi = 300)
 }
 ```
 
+
+## Active mode
+
+Considering "I have had to decline employment opportunities because of my transport situation".
+
+Following figures show the probability of reporting "decline jobs" by
+Likert category as active accessibility increases, comparing the
+population groups. These plots show that the equity‑deserving group
+requires higher accessibility to reach the same positive perception
+level.
+
 ```{r}
-knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/", priority_group,".jpg"))
-knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/", non_priority_group,".jpg"))
-knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/",majority_group,".jpg"))
+ymax_active <- round(predict_subset_standads_active%>%filter(Value < 1.10 * max_sa_active) %>% pull("Probability") %>% max() * 1.05)
+
+probabilities_active_de <- predict_subset_standads_active %>%
+  mutate(Outcome_label = case_when(
+  Outcome == "Declined employment - Ordinal" ~ 
+    str_wrap("I have had to decline employment opportunities because of my transport situation", width = 35),
+  Outcome == "Few jobs accessible - Ordinal" ~ 
+    str_wrap("There are too few jobs available for me in my ideal commuting time", width = 35)
+)) %>%  
+ggplot(aes(x = Value, y = Probability, color = Likert)) +
+geom_line(linewidth = 0.75, alpha = 0.9) +
+geom_vline(data = accessibility_lines_active,
+aes(xintercept = Value),
+linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+annotate("text", x = median_sa_active, y = Inf,
+label = paste0("Median: ", round(median_sa_active,2)),
+angle = 90,
+hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+annotate("text", x = max_sa_active, y = Inf,
+label = paste0("Max: ", round(max_sa_active,2)),
+angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333") +
+labs(x = "Number of jobs reached by active mode per person",
+y = "Predicted probability",
+color = "Perception group",
+title = NULL) +
+# coord_cartesian(
+#    ylim = c(0, ymax_active),
+#    xlim = c(0, 1.10 * max_sa_active)) +
+theme_minimal() +
+#facet_wrap(~Outcome+Equity, ncol = 3)  +
+facet_grid(Outcome_label ~ Equity,
+           switch = "y",  
+           labeller = labeller(Outcome_label = label_wrap_gen(width = 35))) +
+scale_y_continuous(position = "right") +   
+scale_color_manual(values = my_colors_likert) +
+scale_fill_manual(values = my_colors_likert) +
+theme(legend.position = "bottom",
+legend.direction = "horizontal",
+legend.title = element_text(size = 10),
+legend.text = element_text(size = 9),
+plot.title = element_text(face = "italic"),
+strip.text = element_text(face = "bold"))
+
+ggsave(file = paste0(diretorio_export_images,"/ordinal/accessibility-effect-active-de.jpg"),
+plot = probabilities_active_de,
+width = 18,
+height = 15,
+units = "cm",
+dpi = 300)
+
+ggsave(file = paste0(here(),"/manuscript/figures/accessibility-effect-transit-de.jpg"),
+plot = probabilities_active_de,
+width = 18,
+height = 15,
+units = "cm",
+dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/accessibility-effect-active-de.jpg"))
 ```
 
-# Key thresholds for transit accessibility:
+# Key thresholds
 
-Based on the ordinal model for "few jobs accessible", we define three
+Based on the ordinal model for "few jobs accessible" and "decline employments", we define three
 thresholds where the combined positive probabilities exceeds of negative
 probabilities:
 
@@ -2499,19 +2553,20 @@ probabilities:
     Negative + Most Negative
 -   Intermediate: midpoint between conservative and progressive
 
-These thresholds are calculated separately for each equity group:
+These thresholds are calculated separately for each equity group. First for the transit mode (using only the few jobs model):
 
 ```{r}
 ##################################
 ##################################
 
-outcome <- "Few jobs accessible - Ordinal" 
+# For transit 
+
 "There are too few jobs available for me in my ideal commuting time"
 
 ##################################
 ##################################
 
-standard_fj <- predict_subset_standads_ordinal_fj %>%
+standard_fj <- predict_subset_standads_transit %>%
 dplyr::select(Value, Probability, Likert, Equity) %>%
 pivot_wider(names_from = Likert, values_from = Probability)
 
@@ -2544,26 +2599,74 @@ filter(!Equity == non_priority_group_name)
 standards_df
 ```
 
-We adopt the thresholds based on equity‑deserving group to represent
-equity-standards, as the minimum transit accessibility needed to shift
-perceptions.
+And for the active mode (both models):
+
+```{r}
+##################################
+##################################
+ 
+# For Active 
+
+##################################
+##################################
+
+standard_active <- predict_subset_standads_active %>%
+dplyr::select(Value, Probability, Likert, Equity, Outcome) %>%
+pivot_wider(names_from = Likert, values_from = Probability)
+
+conservative_threshold_active <-  standard_active %>%
+group_by(Equity, Outcome) %>%
+arrange(Value, .by_group = TRUE) %>%
+filter(`Positive` + `Most Positive` + Neutral > Negative + `Most Negative`) %>%
+slice_head(n = 1) %>%
+ungroup() %>%
+dplyr::select(Equity, Outcome, Value) %>%
+rename(Conservative = Value)
+
+progressive_threshold_active <-  standard_active %>%
+group_by(Equity, Outcome) %>%
+arrange(Value, .by_group = TRUE) %>%
+filter(`Positive` + `Most Positive` > Negative + `Most Negative`) %>%
+slice_head(n = 1) %>%
+ungroup() %>%
+dplyr::select(Equity, Outcome, Value) %>%
+rename(Progressive = Value)
+
+standards_df_active <- conservative_threshold_active %>%
+left_join(progressive_threshold_active, by = c("Equity","Outcome")) %>%
+mutate(Intermediate = round((Progressive - Conservative)/2 + Conservative, 2))
+
+standards_df_long_active <- standards_df_active %>%
+pivot_longer(cols = c(Conservative, Progressive, Intermediate), values_to = "Value", names_to = "Type") %>%
+filter(!Equity == non_priority_group_name) %>%
+  mutate(Outcome_label = case_when(
+  Outcome == "Declined employment - Ordinal" ~ 
+    "I have had to decline employment opportunities because of my transport situation",
+  Outcome == "Few jobs accessible - Ordinal" ~ 
+    "There are too few jobs available for me in my ideal commuting time")
+)
+
+standards_df_active
+```
+
+We adopt the thresholds based on equity‑deserving group and for transit mode to represent equity-standards, as the minimum transit accessibility needed to shift perceptions.
 
 ## Plots
 
 ```{r}
-probabilities_ordinal_dis_thresholds_area <- predict_subset_standads_ordinal_fj %>%
+probabilities_ordinal_dis_thresholds_area <- predict_subset_standads_transit %>%
 filter(Equity == priority_group_name) %>%
 ggplot(aes(x = Value, y = Probability,  fill = Likert, color = Likert)) +
 geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
-geom_vline(data = accessibility_lines,
+geom_vline(data = accessibility_lines_transit,
 aes(xintercept = Value),
 linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
-annotate("text", x = median_sa, y = 100,
-label = paste0("Median: ", round(median_sa, 2)),
+annotate("text", x = median_sa_transit, y = 100,
+label = paste0("Median: ", round(median_sa_transit, 2)),
 angle = 90,
 hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
-annotate("text", x = max_sa, y = 100,
-label = paste0("Max: ", round(max_sa, 2)),
+annotate("text", x = max_sa_transit, y = 100,
+label = paste0("Max: ", round(max_sa_transit, 2)),
 angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
 geom_vline(data = standards_df_long %>%
 filter(Equity == priority_group_name),
@@ -2583,7 +2686,7 @@ y = paste0("Probability: ", priority_group_name),
 color = "Perception Group", fill = "Perception Group",
 title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 65)) +
 coord_cartesian(#ylim = c(0, 100),
-xlim = c(0, 1.10 * max_sa )) +
+xlim = c(0, 1.10 * max_sa_transit )) +
 theme_minimal() +
 #facet_wrap(~Outcome, ncol = 2)  +
 scale_color_manual(values = my_colors_likert) +
@@ -2605,19 +2708,19 @@ knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-tr
 ```
 
 ```{r}
-probabilities_ordinal_ndis_thresholds_area <- predict_subset_standads_ordinal_fj %>%
+probabilities_ordinal_ndis_thresholds_area <- predict_subset_standads_transit %>%
 filter(Equity == non_priority_group_name) %>%
 ggplot(aes(x = Value, y = Probability,  fill = Likert, color = Likert)) +
 geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
-geom_vline(data = accessibility_lines,
+geom_vline(data = accessibility_lines_transit,
 aes(xintercept = Value),
 linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
-annotate("text", x = median_sa, y = 100,
-label = paste0("Median: ", round(median_sa, 2)),
+annotate("text", x = median_sa_transit, y = 100,
+label = paste0("Median: ", round(median_sa_transit, 2)),
 angle = 90,
 hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
-annotate("text", x = max_sa, y = 100,
-label = paste0("Max: ", round(max_sa, 2)),
+annotate("text", x = max_sa_transit, y = 100,
+label = paste0("Max: ", round(max_sa_transit, 2)),
 angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
 geom_vline(data = standards_df_long %>%
 filter(Equity == non_priority_group_name),
@@ -2637,7 +2740,7 @@ y = paste0("Probability: ", non_priority_group_name),
 color = "Perception Group", fill = "Perception Group",
 title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 65)) +
 coord_cartesian(#ylim = c(0, 100),
-xlim = c(0, 1.10 * max_sa )) +
+xlim = c(0, 1.10 * max_sa_transit )) +
 theme_minimal() +
 #facet_wrap(~Outcome, ncol = 2)  +
 scale_color_manual(values = my_colors_likert) +
@@ -2659,19 +2762,19 @@ knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-tr
 ```
 
 ```{r}
-probabilities_ordinal_maj_thresholds_area <- predict_subset_standads_ordinal_fj %>%
+probabilities_ordinal_maj_thresholds_area <- predict_subset_standads_transit %>%
 filter(Equity == majority_group_name) %>%
 ggplot(aes(x = Value, y = Probability,  fill = Likert, color = Likert)) +
 geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
-geom_vline(data = accessibility_lines,
+geom_vline(data = accessibility_lines_transit,
 aes(xintercept = Value),
 linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
-annotate("text", x = median_sa, y = 100,
-label = paste0("Median: ", round(median_sa, 2)),
+annotate("text", x = median_sa_transit, y = 100,
+label = paste0("Median: ", round(median_sa_transit, 2)),
 angle = 90,
 hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
-annotate("text", x = max_sa, y = 100,
-label = paste0("Max: ", round(max_sa, 2)),
+annotate("text", x = max_sa_transit, y = 100,
+label = paste0("Max: ", round(max_sa_transit, 2)),
 angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
 geom_vline(data = standards_df_long %>%
 filter(Equity == majority_group_name),
@@ -2691,7 +2794,7 @@ y = paste0("Probability: ", majority_group_name),
 color = "Perception Group", fill = "Perception Group",
 title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 65)) +
 coord_cartesian(#ylim = c(0, 100),
-xlim = c(0, 1.10 * max_sa )) +
+xlim = c(0, 1.10 * max_sa_transit )) +
 theme_minimal() +
 #facet_wrap(~Outcome, ncol = 2)  +
 scale_color_manual(values = my_colors_likert) +
@@ -2712,22 +2815,22 @@ dpi = 300)
 knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-maj-standards_area.jpg"))
 ```
 
-Area plots:
+All pops:
 
 ```{r}
-probabilities_ordinal_thresholds_area <- predict_subset_standads_ordinal_fj %>% 
+probabilities_ordinal_thresholds_area <- predict_subset_standads_transit %>% 
    ggplot(aes(x = Value, y = Probability, fill = Likert, color = Likert)) +
 geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
    
-   geom_vline(data = accessibility_lines,
+   geom_vline(data = accessibility_lines_transit,
               aes(xintercept = Value),
               linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
    
-   annotate("text", x = median_sa, y = 100, 
-            label = paste0("Median: ", round(median_sa, 2)), 
+   annotate("text", x = median_sa_transit, y = 100, 
+            label = paste0("Median: ", round(median_sa_transit, 2)), 
             angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
-   annotate("text", x = max_sa, y = 100, 
-            label = paste0("Max: ", round(max_sa, 2)), 
+   annotate("text", x = max_sa_transit, y = 100, 
+            label = paste0("Max: ", round(max_sa_transit, 2)), 
             angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
    
    geom_vline(data = standards_df_long,
@@ -2746,7 +2849,7 @@ geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
         y = "Probability",
         color = "Perception Group", fill = "Perception Group", 
         title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 65)) +
-   coord_cartesian(xlim = c(0, 1.10 * max_sa)) +
+   coord_cartesian(xlim = c(0, 1.10 * max_sa_transit)) +
    theme_minimal() + 
    facet_wrap(~Equity, ncol = 3) +
    scale_color_manual(values = my_colors_likert) +
@@ -2772,6 +2875,70 @@ ggsave(file = paste0(here(),"/manuscript/figures/accessibility-threshold.jpg"),
 
 knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-transit-ordinals-standards_area.jpg"))
 ```
+For active thresholds: 
+
+```{r}
+probabilities_ordinal_thresholds_area_active <- predict_subset_standads_active %>%
+  mutate(Outcome_label = case_when(
+  Outcome == "Declined employment - Ordinal" ~ 
+   "I have had to decline employment opportunities because of my transport situation",
+  Outcome == "Few jobs accessible - Ordinal" ~ 
+    "There are too few jobs available for me in my ideal commuting time")) %>% 
+  ggplot(aes(x = Value, y = Probability, fill = Likert, color = Likert)) +
+  geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
+  geom_vline(data = accessibility_lines_active,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  annotate("text", x = median_sa_active, y = 100, 
+           label = paste0("Median: ", round(median_sa_active, 2)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  annotate("text", x = max_sa_active, y = 100, 
+           label = paste0("Max: ", round(max_sa_active, 2)), 
+           angle = 90, hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") +
+  geom_vline(data = standards_df_long_active,
+             aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") +
+  geom_text(data = standards_df_long_active,
+            aes(x = Value, y = 60, 
+                label = paste0(Type, ": ", round(Value, 2))),
+            inherit.aes = FALSE,
+            angle = 90, hjust = 1, vjust = -0.1, size = 3,
+            color = "#333333", fontface = "bold") + 
+  labs(x = "Number of jobs reached by active mode per user",
+       y = "Probability",
+       color = "Perception Group", fill = "Perception Group", 
+       title = NULL) +  
+  theme_minimal() + 
+  scale_y_continuous(position = "right") +  
+facet_grid(Outcome_label ~ Equity,
+             switch = "y",   
+             labeller = labeller(Outcome_label = label_wrap_gen(width = 35))) +
+  scale_color_manual(values = my_colors_likert) +
+  scale_fill_manual(values = my_colors_likert) + 
+  theme(legend.direction = "horizontal", 
+        legend.position = "bottom",     
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 9),
+        plot.title = element_text(face = "italic"),
+        strip.text = element_text(face = "italic"))
+
+ggsave(file = paste0(diretorio_export_images,"/accessibility-effect-active-ordinals-standards_area.jpg"),
+        plot = probabilities_ordinal_thresholds_area_active,
+        width = 20,
+        height = 15,
+        units = "cm",
+        dpi = 300)
+
+ggsave(file = paste0(here(),"/manuscript/figures/accessibility-active-threshold.jpg"),
+        plot = probabilities_ordinal_thresholds_area_active,
+        width = 20,
+        height = 15,
+        units = "cm",
+        dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/accessibility-effect-active-ordinals-standards_area.jpg"))
+```
+
 
 ## FGT
 
@@ -3405,6 +3572,7 @@ tmap_save(priority_plot_3525,
 knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_3525.jpg"))
 ```
 
+
 # Saving model files
 
 All models, predictions, FGT measures, threshold values, and processed
@@ -3560,26 +3728,26 @@ write.csv(standards_df, paste0(here(), "/manuscript/tables/accessibility_thresho
 respondents_design_paper <- svydesign(ids = ~1,  # No clustering
 weights = ~fexp_final,
 data = respondents %>%
-filter(!is.na(FewJobs_Likert) | !is.na(DeclineEmployment_Likert) | !is.na(TravelTooLong_Likert) | !is.na(EasyToGo_Likert)))
+filter(!is.na(FewJobs_Likert) | (!is.na(DeclineEmployment_Likert) & !is.na(labour_force))))
 
 saveRDS(respondents_design_paper, paste0(diretorio_export,"respondents_design_paper.rds"))
 ```
 
 ```{r}
 disadvantaged_pop_controls <- grid_disadvantaged %>% 
-  dplyr::select("LongTermConditions", "Woman_or_genderdiverse", "Indigenous_or_racialized", "CarNumber", "BikeNumber", "hh_income4",  "Temporary_or_refugee",  "hh_size", "Age",  "Match_mode", "Transit_user", "Active_user", "pc_class","TransitPass", "TransitAvailable") %>% 
+  dplyr::select("LongTermConditions", "Woman_or_genderdiverse", "Indigenous_or_racialized", "CarNumber", "BikeNumber", "hh_income4",  "Temporary_or_refugee",  "hh_size", "Age",  "Match_mode", "pc_class","TransitPass", "TransitAvailable") %>% 
  distinct(.keep_all = TRUE) %>% 
  mutate(across(everything(), as.character)) %>% 
  pivot_longer(cols = names(.), values_to = priority_group_name, names_to = "Controls")
 
 non_disadvantaged_pop_controls <- grid_non_disadvantaged %>% 
-  dplyr::select("LongTermConditions", "Woman_or_genderdiverse", "Indigenous_or_racialized", "CarNumber", "BikeNumber", "hh_income4",  "Temporary_or_refugee",  "hh_size", "Age",  "Match_mode", "Transit_user", "Active_user", "pc_class","TransitPass", "TransitAvailable") %>% 
+  dplyr::select("LongTermConditions", "Woman_or_genderdiverse", "Indigenous_or_racialized", "CarNumber", "BikeNumber", "hh_income4",  "Temporary_or_refugee",  "hh_size", "Age",  "Match_mode", "pc_class","TransitPass", "TransitAvailable") %>% 
  distinct(.keep_all = TRUE) %>% 
  mutate(across(everything(), as.character)) %>% 
  pivot_longer(cols = names(.), values_to = non_priority_group_name, names_to = "Controls")
 
 majority_pop_controls <- grid_majority %>% 
-  dplyr::select("LongTermConditions", "Woman_or_genderdiverse", "Indigenous_or_racialized", "CarNumber", "BikeNumber", "hh_income4",  "Temporary_or_refugee",  "hh_size", "Age",  "Match_mode", "Transit_user", "Active_user", "pc_class","TransitPass", "TransitAvailable") %>% 
+  dplyr::select("LongTermConditions", "Woman_or_genderdiverse", "Indigenous_or_racialized", "CarNumber", "BikeNumber", "hh_income4",  "Temporary_or_refugee",  "hh_size", "Age",  "Match_mode", "pc_class","TransitPass", "TransitAvailable") %>% 
  distinct(.keep_all = TRUE) %>% 
  mutate(across(everything(), as.character)) %>% 
  pivot_longer(cols = names(.), values_to = majority_group_name, names_to = "Controls")
