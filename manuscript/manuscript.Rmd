@@ -155,7 +155,7 @@ goal of transport policy should be to improve accessibility
 planning approaches that have prioritized mobility patterns that
 stimulate private automobile use and higher speeds as solutions to
 congestion and long commuting times. Mobility-centered policies often
-focus on metrics LIKE increasing the number of trips,
+focus on metrics like increasing the number of trips,
 raising average speeds, and reducing congestion, treating mobility as an
 end in itself. However, this approach has proved problematic as movement becomes
 the measure of success, while leading to numerous other issues. In reality people
@@ -201,7 +201,7 @@ accessibility and people's perceptions of employment reachability.
 Our research advances the literature on the equitable distribution of 
 transportation benefits by demonstrating a model-based approach to identify 
 calculated accessibility standards based on their relationship with perceived 
-accessibility -- more specifically, with perceptions about the ease to reach 
+accessibility - more specifically, with perceptions about the ease to reach 
 employment opportunities. This research is made possible by the release of 
 Canada's first National Survey of Transport Poverty (NSTP) [@tiznado-aitken]. The proposed
 standards are derived at the neighbourhood level, while perceptions reflect the 
@@ -216,13 +216,10 @@ job accessibility levels can help assess and highlight areas at higher risk of
 transport poverty, particularly those with a higher concentration of 
 equity-deserving populations.
 
-<!-- Before was like this: Our research advances the current understanding of the literature on the equitable distribution of transportation benefits by proposing a method that identifies calculated accessibility thresholds based on their relationship with perceived accessibility. Identifying minimum job accessibility levels in practice would facilitate the implementation of normative criteria that can guarantee standards to prevent equity-deserving groups from being at risk of transport poverty. Furthermore, accessibility thresholds can provide policymakers with an understanding of how much accessibility is needed to meet the fundamental needs of the population, increasing the potential for government adoption and enhancing the comprehensibility and relevance of standards for community members and those experiencing unequal mobility. -->
-
 In addition, to facilitate collaboration and further analysis and to ensure the 
 transparency and replicability of our study, we developed this paper using 
 literate programming, with the data analysis code accessible through our GitHub 
-page (*include after review*), in alignment with best practices in spatial data
-science [@páez2021; @arribas-bel2021].
+page (https://github.com/dias-bruno/NSTP/), in alignment with best practices in spatial data science [@páez2021; @arribas-bel2021].
 
 # Theoretical Background
 
@@ -362,7 +359,7 @@ Fairness Index (AFI) [@martens2016].
 
 ## Study Area and Data Sources
 
-The study area for this research is metropolitan region of the Greater
+The study area for this research is the metropolitan region of the Greater
 Toronto Area and the Hamilton Area (GTHA), in Ontario, Canada. More
 specifically, the study area refers to the Census Divisions of the
 regional municipalities of Hamilton, Halton, Peel, Toronto, York, and the Durham
@@ -712,9 +709,9 @@ vars <- c("SA_pp_Active","SA_pp_Transit", "SA_pp_Car_motor",
           "Indigenous_or_racialized", "Temporary_or_refugee",  
           "Woman_or_genderdiverse", "Age", "hh_size", "hh_income4", "Pop_density", "pc_class", "TransitAvailable", "TransitPass")
 
-label_list <- list(SA_pp_Active = "Active transportation job accessibility per user",
-              SA_pp_Transit = "Transit job accessibility per user",
-              SA_pp_Car_motor = "Motorized job accessibility per user",
+label_list <- list(SA_pp_Active = "Active job accessibility per active traveller",
+              SA_pp_Transit = "Transit job accessibility per transit user",
+              SA_pp_Car_motor = "Motorized job accessibility per motorized user",
               SA_pp_Active_IV = "Predicted active accessibility per user",
               SA_pp_Transit_IV = "Predicted transit accessibility per user",
               SA_pp_Car_IV = "Predicted motorized accessibility per user", 
@@ -848,7 +845,7 @@ predict our endogenous variables.
 
 Since our dependent variables are not linear, the popular technique of
 replacing endogenous variables by their first-stage predictors
-(two-stage least square estimation) is not appropriate -- the
+(two-stage least square estimation) is not appropriate - the
 so-called "forbidden regression" in econometrics
 [@wooldridge2010;@cunningham2021causal; @huntington-klein2021].
 Therefore, we applied the two-stage residual inclusion (2SRI) approach
@@ -1011,11 +1008,18 @@ regressions (without the IV approach) could also have been appropriate. Despite
 that, we decided to continue our analysis using the models that account for 
 potential endogeneity.
 
-```{r cache = TRUE}
+```{r}
+vars_model <- c("SA_pp_Active","SA_pp_Active:Active_user", "SA_pp_Transit", "SA_pp_Transit:Transit_user", "SA_pp_Car_motor", 
+          "CarNumber", "BikeNumber", 
+          "Match_mode", "TransitPass", "TransitAvailable", "Indigenous_or_racialized",
+"Temporary_or_refugee",  "LongTermConditions", 
+          "Woman_or_genderdiverse", "Age", "hh_size", "hh_income4", "Pop_density", "pc_class", "SA_pp_Active_Res_IV", "SA_pp_Transit_Res_IV", "SA_pp_Car_Res_IV")
+
 single_row_models <- c("Match_mode", "Indigenous_or_racialized", "Temporary_or_refugee", "LongTermConditions", "Woman_or_genderdiverse", "TransitAvailable", "TransitPass", "SA_pp_Active:Active_user", "SA_pp_Transit:Transit_user")
 
 fj_model_table <- few_jobs_model %>% 
   tbl_regression(exponentiate = TRUE,
+                 include = vars_model, 
                  show_single_row = single_row_models, 
                  label = label_list, 
                  intercept = FALSE) %>% 
@@ -1030,6 +1034,7 @@ fj_model_table <- few_jobs_model %>%
  
 de_model_table <- decline_employment_model %>% 
   tbl_regression(exponentiate = TRUE,
+                 include = vars_model, 
                  show_single_row = single_row_models, 
                  label = label_list, 
                  intercept = FALSE) %>% 
@@ -1071,9 +1076,9 @@ by 25%, indicating that fewer respondents agree that there are too few
 jobs accessible within their ideal commuting time. Active accessibility plays an
 overall significant effect for non-active travellers, reducing the odds
 of being in a more positive perception category by 14%. For active travellers, 
-on the other hand,  the interaction effect more than offsets this to result in a 
+on the other hand, the interaction effect more than offsets this to result in a 
 net positive effect. The same occurs in the model related to declining employment,
-whereby active accessibility is negative for non-active travelers, but positive for
+whereby active accessibility is negative for non-active travellers, but positive for
 active travellers. We believe that the general negative effect of active
 accessibility for non-active commuters can be explained in terms of job
 competition, since increasing the number of jobs accessible for a mode
@@ -1089,79 +1094,79 @@ resulting in a higher rate of jobs per person - reflecting low competition for
 jobs accessible by walking and cycling rather than higher active job availability. 
 
 ```{r cache = TRUE}
-de_ame_active_user <- svyAME(decline_employment_model,
-              varname = "SA_pp_Active",
-              diffchange = "range",
-              byvar = "Active_user",
-              seed = 51)
-
-fj_ame_active_user <- svyAME(few_jobs_model,
-              varname = "SA_pp_Active",
-              diffchange = "range",
-              byvar = "Active_user",
-              seed = 51)
-
-de_ame_active_user_df <- de_ame_active_user$preds %>% 
-  mutate(Model = "Decline employments")
-
-SA_pp_Active_scaled_de <- scale(decline_employment_model$survey.design$variables$SA_pp_Active_unscaled)
-
-mu_de <- attr(SA_pp_Active_scaled_de, "scaled:center")
-sigma_de <- attr(SA_pp_Active_scaled_de, "scaled:scale")
-
-de_ame_active_user_df <- de_ame_active_user_df %>%
-  mutate(SA_pp_Active_unscaled = SA_pp_Active * sigma_de + mu_de)
-
-fj_ame_active_user_df <- fj_ame_active_user$preds %>% 
-  mutate(Model = "Few jobs")
-
-SA_pp_Active_scaled_fj <- scale(few_jobs_model$survey.design$variables$SA_pp_Active_unscaled)
-
-mu_fj <- attr(SA_pp_Active_scaled_fj, "scaled:center")
-sigma_fj <- attr(SA_pp_Active_scaled_fj, "scaled:scale")
-
-fj_ame_active_user_df <- fj_ame_active_user_df %>%
-  mutate(SA_pp_Active_unscaled = SA_pp_Active * sigma_fj + mu_fj)
-
-ame_active_user_df <- rbind(fj_ame_active_user_df, de_ame_active_user_df) %>%
-  arrange(Model, Active_user, SA_pp_Active_unscaled)
-
-ame_active_user <- ggplot(ame_active_user_df) +
-  aes(x = SA_pp_Active_unscaled, 
-      y = predicted, 
-      ymin = conf.low, 
-      ymax = conf.high, 
-      color = Active_user, 
-      fill = Active_user,
-      group = interaction(Model, Active_user)) +  
-  geom_line(aes(linetype = Model)) +
-  geom_ribbon(colour = "transparent", alpha = 0.1) +
-  scale_y_continuous(labels = scales::percent) + 
-  labs(x = "Jobs accessible by active travel modes per active commuter",
-       y = "Predicted probability",
-       color = "Active commuter", fill = "Active commuter") + 
-  theme_minimal() +
-  facet_wrap(~y, ncol = 3) +
-  theme(legend.position = "bottom",
-        legend.direction = "horizontal",
-        legend.title = element_text(size = 10),
-        legend.text = element_text(size = 9),
-        plot.title = element_text(face = "italic"))
-
-ggsave(file = paste0(figures_diretorio,"marginal-effect-active-de-fj.jpg"),
- plot = ame_active_user,
- width = 17,
- height = 10,
- units = "cm",
- dpi = 600)
+# de_ame_active_user <- svyAME(decline_employment_model,
+#               varname = "SA_pp_Active",
+#               diffchange = "range",
+#               byvar = "Active_user",
+#               seed = 51)
+# 
+# fj_ame_active_user <- svyAME(few_jobs_model,
+#               varname = "SA_pp_Active",
+#               diffchange = "range",
+#               byvar = "Active_user",
+#               seed = 51)
+# 
+# de_ame_active_user_df <- de_ame_active_user$preds %>% 
+#   mutate(Model = "Decline employments")
+# 
+# SA_pp_Active_scaled_de <- scale(decline_employment_model$survey.design$variables$SA_pp_Active_unscaled)
+# 
+# mu_de <- attr(SA_pp_Active_scaled_de, "scaled:center")
+# sigma_de <- attr(SA_pp_Active_scaled_de, "scaled:scale")
+# 
+# de_ame_active_user_df <- de_ame_active_user_df %>%
+#   mutate(SA_pp_Active_unscaled = SA_pp_Active * sigma_de + mu_de)
+# 
+# fj_ame_active_user_df <- fj_ame_active_user$preds %>% 
+#   mutate(Model = "Few jobs")
+# 
+# SA_pp_Active_scaled_fj <- scale(few_jobs_model$survey.design$variables$SA_pp_Active_unscaled)
+# 
+# mu_fj <- attr(SA_pp_Active_scaled_fj, "scaled:center")
+# sigma_fj <- attr(SA_pp_Active_scaled_fj, "scaled:scale")
+# 
+# fj_ame_active_user_df <- fj_ame_active_user_df %>%
+#   mutate(SA_pp_Active_unscaled = SA_pp_Active * sigma_fj + mu_fj)
+# 
+# ame_active_user_df <- rbind(fj_ame_active_user_df, de_ame_active_user_df) %>%
+#   arrange(Model, Active_user, SA_pp_Active_unscaled)
+# 
+# ame_active_user <- ggplot(ame_active_user_df) +
+#   aes(x = SA_pp_Active_unscaled, 
+#       y = predicted, 
+#       ymin = conf.low, 
+#       ymax = conf.high, 
+#       color = Active_user, 
+#       fill = Active_user,
+#       group = interaction(Model, Active_user)) +  
+#   geom_line(aes(linetype = Model)) +
+#   geom_ribbon(colour = "transparent", alpha = 0.1) +
+#   scale_y_continuous(labels = scales::percent) + 
+#   labs(x = "Jobs accessible by active travel modes per active commuter",
+#        y = "Predicted probability",
+#        color = "Active commuter", fill = "Active commuter") + 
+#   theme_minimal() +
+#   facet_wrap(~y, ncol = 3) +
+#   theme(legend.position = "bottom",
+#         legend.direction = "horizontal",
+#         legend.title = element_text(size = 10),
+#         legend.text = element_text(size = 9),
+#         plot.title = element_text(face = "italic"))
+# 
+# ggsave(file = paste0(figures_diretorio,"marginal-effect-active-de-fj.jpg"),
+#  plot = ame_active_user,
+#  width = 17,
+#  height = 10,
+#  units = "cm",
+#  dpi = 600)
 ```
 
 ```{r active-marginal-effects, echo=FALSE, out.width="100%", fig.cap=paste0("Average marginal effects for active accessibility between active and non-active commuters.")}
 
-knitr::include_graphics(paste0(figures_diretorio,"marginal-effect-active-de-fj.jpg"))
+#knitr::include_graphics(paste0(figures_diretorio,"marginal-effect-active-de-fj.jpg"))
 ```
 
-Table \ref{tab:controls_pop} presents the control variable values applied for each individual profile, while Figure \ref{fig:accessibility-effect} displays the specific effect of
+Table \ref{tab:controls_pop} presents the control variable values applied for each individual profile, while Figure \ref{fig:transit-accessibility-thresholds} displays the specific effect of
 increasing transit accessibility across the selected individual profiles for the "few jobs available" model. For all of them, we observe a decrease in negative perceptions as
 calculated transit accessibility increases. For the equity-deserving
 individual profile, the "Most negative" perception has high probability at low
@@ -1193,7 +1198,7 @@ pop_controls_labelled <- label_list_df %>%
   kable(format = "latex", 
         booktabs = TRUE, 
         longtable = FALSE,
-        caption = "\\label{tab:controls_pop}Individual profiles to estimate probabilities.", align = NULL,
+        caption = "\\label{tab:controls_pop}Individual profiles to estimate probabilities.", align = c("l","c","c","c"),
     col.names = c("Variable","Equity-deserving","Most common population","Advantaged group")) %>%
     kable_styling(full_width = TRUE, font_size = 10) %>% 
   row_spec(c(4,8,10,11,13), bold = TRUE) %>% add_footnote("Bold variables are statistically significant (p-value < 0.05) for at least one of the models.", notation = "none", escape = FALSE)
@@ -1206,7 +1211,7 @@ pop_controls_labelled
 
 ```{r accessibility-effect, echo=FALSE, out.width="100%", fig.cap=paste0("Job accessibility effect for the selected population groups, considering public transit as transportation mode.")}
 
-knitr::include_graphics(paste0(figures_diretorio,"/accessibility-effect-transit-fj.jpg"))
+#knitr::include_graphics(paste0(figures_diretorio,"/accessibility-effect-transit-fj.jpg"))
 ```
 
 
@@ -1249,7 +1254,7 @@ means that the current transit accessibility levels would be sufficient and no i
 
 ```{r transit-accessibility-thresholds, echo=FALSE, out.width="100%", fig.cap=paste0("Public transit accessibility thresholds based on selected individual profiles.")}
 
-knitr::include_graphics(paste0(figures_diretorio,"accessibility-threshold.jpg"))
+knitr::include_graphics(paste0(figures_diretorio,"accessibility-threshold-v2.jpg"))
 ```
 
 For the most common profile, the conservative standard (the minimum
@@ -1267,7 +1272,7 @@ the median accessibility level. The progressive standard is equal to
 level of accessibility in the study area, and the intermediate threshold
 is 0.26. 
 
-Evaluating the thresholds for active accessibility, we again find that even a minimal level of accessible jobs per active commuter is already enough to result in positive perceptions for the most advantaged profile in both models, meaning that the current active accessibility levels would be sufficient and no individuals would fall below the minimum accessibility threshold. For the most common profile, the identified conservative threshold is also minimal; and the progressive thresholds are approximately 1.6 and 3.4 jobs per active user, resulting in higher probabilities of positive perceptions for the models of declining employment and few jobs available, respectively. 
+Evaluating the thresholds for active accessibility, we again find that even a minimal level of accessible jobs per active commuter is already enough to result in positive perceptions for the most advantaged profile in both models, meaning that the current active accessibility levels would be sufficient and no individuals would fall below the minimum accessibility threshold. For the most common profile, the identified conservative threshold is also minimal; and the progressive thresholds are approximately 1.09 and 2.19 jobs per active user, resulting in higher probabilities of positive perceptions for the models of declining employment and few jobs available, respectively. 
 
 However, for the model related to declining employment opportunities due to transportation conditions, we were not able to identify a threshold that resulted in a higher likelihood of positive perceptions for the equity-deserving profile, even after estimating probabilities at more than double the maximum observed active accessibility level (2.03 jobs per active user). For the model regarding the perception that there are too few jobs available within an ideal commuting time, we identified 0.9 as the conservative threshold (22 times the observed median level) and a progressive threshold close to 5 jobs per active user (almost 2.5 times the maximum observed level and 123 times the median). These high thresholds are explained by the relatively small net positive effect of active accessibility, while the other explanatory variables exerted a greater influence on the estimated probabilities of belonging to a more positive perception group. Based on both models, the high active accessibility thresholds help illustrate the limitations of potential policies focused solely on increasing active accessibility to promote positive perceptions: an approach that intervene only in the spatial dimension of accessibility, without considering the capacities and travel preferences of the population, would likely result in limited impact on residents' perceptions regarding employment reachability and related outcomes.
 
@@ -1482,15 +1487,13 @@ standard.
 
 # Funding sources {.unnumbered}
 
-This research was funded through project *project name provided after
-review)*, supported by the Social Sciences and Humanities Research
-Council of Canada.
+This research was funded through the Mobilizing Justice Partnership, supported by the Social Sciences and Humanities Research Council of Canada, and through funding from the Canadian Research Data Centre Network via the Emerging Scholars Award.
 
 # Data availability {.unnumbered}
 
-we created this paper using literate programming in which the R markdown
+We created this paper using literate programming in which the R markdown
 code to fully reproduce this article is available on our GitHub
-repository *(include after the review)*.
+repository (https://github.com/dias-bruno/NSTP/).
 
 # Declaration of competing interest {.unnumbered}
 
