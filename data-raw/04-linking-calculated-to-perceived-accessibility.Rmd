@@ -2549,7 +2549,11 @@ probabilities:
     Negative + Most Negative
 -   Intermediate: midpoint between conservative and progressive
 
-These thresholds are calculated separately for each equity group. First for the transit mode (using only the few jobs model):
+These thresholds are calculated separately for each equity group.
+
+We decided to continue only with these two models, because the other two outcomes were asked to different samples  (only for people with a job; while these two remaining outcomes were asked for people in labour force).
+
+First for the transit mode (using only the few jobs model):
 
 ```{r}
 ##################################
