@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.28)  13 MAY 2026 16:21
+This is pdfTeX, Version 3.141592653-2.6-1.40.29 (TeX Live 2026) (preloaded format=pdflatex 2026.4.28)  25 MAY 2026 14:27
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -604,121 +604,105 @@ Package hyperref Info: Link coloring OFF on input line 82.
 \@outlinefile=\write4
 \openout4 = `supplementary_material.out'.
 
-LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 115.
+LaTeX Font Info:    Trying to load font information for OT1+lmr on input line 140.
 (/home/dossanb/.TinyTeX/texmf-dist/tex/latex/lm/ot1lmr.fd
 File: ot1lmr.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-LaTeX Font Info:    Trying to load font information for OML+lmm on input line 115.
+LaTeX Font Info:    Trying to load font information for OML+lmm on input line 140.
 (/home/dossanb/.TinyTeX/texmf-dist/tex/latex/lm/omllmm.fd
 File: omllmm.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line 115.
+LaTeX Font Info:    Trying to load font information for OMS+lmsy on input line 140.
 (/home/dossanb/.TinyTeX/texmf-dist/tex/latex/lm/omslmsy.fd
 File: omslmsy.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-LaTeX Font Info:    Trying to load font information for OMX+lmex on input line 115.
+LaTeX Font Info:    Trying to load font information for OMX+lmex on input line 140.
 (/home/dossanb/.TinyTeX/texmf-dist/tex/latex/lm/omxlmex.fd
 File: omxlmex.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <10> on input line 115.
+(Font)              <10> on input line 140.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <7> on input line 115.
+(Font)              <7> on input line 140.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <5> on input line 115.
-LaTeX Font Info:    Trying to load font information for U+msa on input line 115.
+(Font)              <5> on input line 140.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 140.
 (/home/dossanb/.TinyTeX/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 115.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 140.
 (/home/dossanb/.TinyTeX/texmf-dist/tex/latex/amsfonts/umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <8> on input line 115.
+(Font)              <8> on input line 140.
 LaTeX Font Info:    External font `lmex10' loaded for size
-(Font)              <6> on input line 115.
-LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 115.
+(Font)              <6> on input line 140.
+LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 140.
 (/home/dossanb/.TinyTeX/texmf-dist/tex/latex/lm/t1lmtt.fd
 File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
-Overfull \hbox (34.93039pt too wide) in alignment at lines 128--135
+Overfull \hbox (34.93039pt too wide) in alignment at lines 153--160
  [] [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (34.93039pt too wide) in alignment at lines 135--142
+Overfull \hbox (34.93039pt too wide) in alignment at lines 160--167
  [] [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (34.93039pt too wide) in alignment at lines 142--144
+Overfull \hbox (34.93039pt too wide) in alignment at lines 167--169
  [] [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (34.93039pt too wide) in alignment at lines 144--146
+Overfull \hbox (34.93039pt too wide) in alignment at lines 169--171
  [] [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (34.93039pt too wide) in alignment at lines 146--546
+Overfull \hbox (34.93039pt too wide) in alignment at lines 171--571
  [] [] [] [] [] [] [] 
  []
 
 
-Overfull \hbox (34.93039pt too wide) in alignment at lines 546--630
- [] [] [] [] [] [] [] 
- []
-
-
-ignored: Infinite glue shrinkage found in box being split
 Overfull \hbox (2.22221pt too wide) has occurred while \output is active
 [] 
  []
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\<def>-command' on input line 630.
+(hyperref)                removing `\<def>-command' on input line 571.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\cnotenum' on input line 630.
+(hyperref)                removing `\cnotenum' on input line 571.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\<def>-command' on input line 630.
+(hyperref)                removing `\<def>-command' on input line 571.
 
 
 Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\@corref' on input line 630.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\<let>-command' on input line 630.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\comma' on input line 630.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\<def>-command' on input line 630.
-
-
-Package hyperref Warning: Token not allowed in a PDF string (Unicode):
-(hyperref)                removing `\@fnmark' on input line 630.
+(hyperref)                removing `\@corref' on input line 571.
 
 [1
 
 {/home/dossanb/.TinyTeX/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{/home/dossanb/.TinyTeX/texmf-dist/fonts/enc/dvips/lm/lm-ec.enc}{/home/dossanb/.TinyTeX/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}]
+Overfull \hbox (34.93039pt too wide) in alignment at lines 571--655
+ [] [] [] [] [] [] [] 
+ []
+
+
 ignored: Infinite glue shrinkage found in box being split [2]
 ignored: Infinite glue shrinkage found in box being split [3]
 ignored: Infinite glue shrinkage found in box being split [4]
 ignored: Infinite glue shrinkage found in box being split [5]
 ignored: Infinite glue shrinkage found in box being split [6]
+ignored: Infinite glue shrinkage found in box being split [7]
 No file supplementary_material.bbl.
-[7] (./supplementary_material.aux)
+[8] (./supplementary_material.aux)
  ***********
 LaTeX2e <2025-11-01>
 L3 programming layer <2026-03-20>
@@ -730,18 +714,18 @@ Package rerunfilecheck Info: File `supplementary_material.out' has not changed.
 (rerunfilecheck)             Checksum: E14F6F66490C19F328534522B967BF80;156.
  ) 
 Here is how much of TeX's memory you used:
- 13648 strings out of 469339
- 210384 string characters out of 5466334
- 796128 words of memory out of 5000000
- 42209 multiletter control sequences out of 15000+600000
+ 13647 strings out of 469339
+ 210371 string characters out of 5466334
+ 798273 words of memory out of 5000000
+ 42208 multiletter control sequences out of 15000+600000
  679936 words of font info for 78 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
- 72i,9n,79p,297b,618s stack positions out of 10000i,1000n,20000p,200000b,200000s
-</home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmbx10.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr10.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr12.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr6.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr7.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr8.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmri10.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmri7.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmri8.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy6.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy7.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmtt8.pfb>
-Output written on supplementary_material.pdf (7 pages, 241060 bytes).
+ 72i,9n,79p,297b,611s stack positions out of 10000i,1000n,20000p,200000b,200000s
+</home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmbx10.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr10.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr12.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr7.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmr8.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmri10.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmri7.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmri8.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy6.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmsy7.pfb></home/dossanb/.TinyTeX/texmf-dist/fonts/type1/public/lm/lmtt8.pfb>
+Output written on supplementary_material.pdf (8 pages, 228328 bytes).
 PDF statistics:
- 115 PDF objects out of 1000 (max. 8388607)
- 81 compressed objects within 1 object stream
+ 113 PDF objects out of 1000 (max. 8388607)
+ 80 compressed objects within 1 object stream
  14 named destinations out of 1000 (max. 500000)
  9 words of extra memory for PDF output out of 10000 (max. 10000000)
 
