@@ -1142,7 +1142,7 @@ jobs accessible by walking and cycling rather than higher active job availabilit
 #   geom_line(aes(linetype = Model)) +
 #   geom_ribbon(colour = "transparent", alpha = 0.1) +
 #   scale_y_continuous(labels = scales::percent) + 
-#   labs(x = "Jobs accessible by active travel modes per active commuter",
+#   labs(x = "Jobs accessible by active travel modes per active traveller",
 #        y = "Predicted probability",
 #        color = "Active commuter", fill = "Active commuter") + 
 #   theme_minimal() +

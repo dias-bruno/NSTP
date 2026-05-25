@@ -744,6 +744,7 @@ SA_mode <- SA_ij_mode %>%
 sum(SA_mode$labour_force)
 ```
 
+
 The *SA_im* presents the value of spatial availability for each CT by
 *mode*. The next chunk sum all *SA* values by CT of origin:
 
@@ -808,6 +809,20 @@ SA_pp_wide <- lf_pp_mode %>%
 SA_pp_long <- SA_pp_wide %>% 
   dplyr::select(c(from_id, Walk, Bike, Transit, `Car-motor`, Active, General)) %>% 
   pivot_longer(cols = c(Walk, Bike, Transit, `Car-motor`, Active, General), names_to = "PwMode_label", values_to = "SA_pp")
+```
+
+
+```{r}
+SA_pp_long_summary <- SA_pp_long %>% 
+  mutate(PwMode_label = factor(PwMode_label)) 
+
+
+SA_pp_long_summary %>%
+  dplyr::group_by(PwMode_label) %>%
+  dplyr::summarise(mean_val = mean(SA_pp),      
+    median_val = median(SA_pp),
+    min_val = min(SA_pp),
+    max_val = max(SA_pp))
 ```
 
 # Visualizing accessibility 
@@ -1274,6 +1289,8 @@ knitr::include_graphics(paste0(diretorio_export_figures,"SA_pp_3modes.jpg"))
 ```{r out.width="100%"}
 SA_pp_3modes_v2 <- mode_pp_metrics_ct_sf %>% 
   filter(PwMode_label %in% c("Active", "Transit", "Car-motor")) %>%
+  mutate(PwMode_label = case_when(PwMode_label == "Car-motor" ~ "Motorized",
+                                  TRUE ~ PwMode_label )) %>%
   tm_shape() + 
    tm_polygons("SA_pp_im",
               style = "quantile",
@@ -1296,12 +1313,12 @@ tmap_save(SA_pp_3modes_v2,
           dpi = 300)
 
 # For paper 
-# tmap_save(SA_pp_3modes_v2, 
-#           paste0(paste0(here::here(),"/manuscript/figures/SA_pp_3modes_v2.jpg")), 
-#           width = 14,
-#           height = 10,
-#           units = "cm",
-#           dpi = 300)
+tmap_save(SA_pp_3modes_v2,
+          paste0(paste0(here::here(),"/manuscript/figures/SA_pp_3modes_v2.jpg")),
+          width = 14,
+          height = 10,
+          units = "cm",
+          dpi = 300)
 
 knitr::include_graphics(paste0(diretorio_export_figures,"/SA_pp_3modes_v2.jpg"))
 ```
@@ -1312,8 +1329,14 @@ Computing of the labour force by transportation mode:
 total_pop <- sum(land_use_mode$labour_force)
 total_SA <- sum(mode_metrics_ct$SA_im, na.rm = TRUE)
 
+mode_metrics_ct <- mode_metrics_ct %>%
+  mutate(PwMode_label_active = PwMode_label,
+         PwMode_label_active = case_when(PwMode_label_active %in% c("Bike","Walk") ~ "Active",
+                                         PwMode_label == "Car-motor" ~ "Motorized",
+                                         TRUE ~ PwMode_label_active)) 
+
 modal_SA_percents <- mode_metrics_ct %>% 
-  group_by(PwMode_label) %>%
+  group_by(PwMode_label_active) %>%
   dplyr::summarize(total_labour_fource = sum(labour_force, na.rm = TRUE),
             SA_meam = mean(SA_im, na.rm = TRUE),
             SA_sum = sum(SA_im, na.rm = TRUE),
@@ -1328,13 +1351,22 @@ Visualizing the share of labour force and spatial availability by
 transportation mode:
 
 ```{r out.width="100%"}
+priority_order <- c("Active", 
+                   "Motorized", 
+                   "Transit")
+
+my_colors <- c("#99d594","#fc8d59","#91bfdb")
+
+names(my_colors) <- priority_order
+
 Pop_SA_by_mode_CT <- ggplot(modal_SA_long, 
-      aes(x = perc, y = measure, fill = PwMode_label, label = measure %>% percent(accuracy = 0.1))) +
+      aes(x = perc, y = measure, fill = PwMode_label_active, label = measure %>% percent(accuracy = 0.1))) +
       scale_x_discrete(labels = c(
       "perc_SA" = paste("Spatial Availability\n by Mode\n(Total: ", round(total_SA), ")"),
       "perc_pop" = paste("Population\n by Mode\n(Total: ", format(round(total_pop)), ")") )) +
   geom_col() + 
   geom_text(position = position_stack(vjust=0.5), color="black") +
+  scale_fill_manual(values = my_colors) +
   theme_classic() +
   theme(axis.ticks = element_blank(),
         axis.title = element_blank(),

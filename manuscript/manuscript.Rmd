@@ -1,44 +1,41 @@
 ---
 title: "Exploring equity standards for transport policy: A case study of calculated and perceived accessibility in the Greater Toronto and Hamilton Area, Canada"
 author:
-  - name: Bob Security
-    email: bob@example.com
-    affiliation: Some Institute of Technology
+  - name: Bruno Dias dos Santos
+    email: dossanb@mcmaster.ca
+    affiliation: McMaster University
     correspondingauthor: true
-    footnote: 1
-  - name: Cat Memes
-    email: cat@example.com
-    affiliation: Another University
-  - name: Derek Zoolander
-    email: derek@example.com
-    affiliation: Some Institute of Technology
+  - name: Anastasia Soukhov 
+    email: asoukhov@uwo.ca
+    affiliation: Western University
+  - name: Antonio Páez
+    email: paezha@mcmaster.ca
+    affiliation: McMaster University
 address:
-  - code: Some Institute of Technology
-    organization: Big Wig University
-    addressline: 1 main street
-    city: Gotham
-    state: State
-    postcode: 123456
-    country: United States
-  - code: Another University
-    organization: Department
-    addressline: A street 29
-    postcode: 2054 NX
-    city: Manchester,
-    country: The Netherlands
-footnote:
-  - code: 1
-    text: "This is the first author footnote."
+  - code: McMaster University
+    organization: School of Earth, Environment & Society
+    addressline: 1280 Main Street West
+    city: Hamilton
+    state: Ontario
+    postcode: L8S 4K1
+    country: Canada
+  - code: Western University
+    organization: Department of Geography and Environment
+    addressline:  1151 Richmond Street
+    postcode: N6A 3K7
+    state: Ontario
+    city: London
+    country: Canada
 abstract: |
   The lack of standards for the equitable distribution of accessibility complicates efforts to address transport poverty. This study identifies equity standards by exploring the relationship between calculated and perceived job accessibility for individuals living in the Greater Toronto and Hamilton Area, Canada. We use calculated accessibility indicators for three modes of travel (active transportation, public transit, and motorized modes) along individual-level variables to estimate ordinal models. To control for endogeneity we use spatial filters as instrumental variables. Two variables measure the perceptions of accessibility in the sample: the perception of having too few jobs available within an ideal commuting time and the perception of having to decline jobs because of transportation constraints. The results indicate that higher levels of active and transit accessibility tend to mitigate negative perceptions regarding these situations. Based on the results of these models, we identify accessibility thresholds that reduce the likelihood of negative perceptions for equity-deserving groups. We present three equity standards that we classify as conservative, intermediate, and progressive. We believe that these standards can serve as a data-driven example of how to support transportation planning in achieving more equitable outcomes, as well as for participatory processes to collectively define minimum or sufficient accessibility levels.
     
 keywords: 
   - benchmark
   - justice
-  - justice 
   - effect
   - egalitarian
   - sufficient
+  
 journal: "An awesome journal"
 date: "`r Sys.Date()`"
 linenumbers: false
@@ -973,12 +970,12 @@ infrastructure present higher levels of transit accessibility when
 compared to suburbs and rural areas, which often lack public transit
 services.
 
-Next, the map of the active jobs accessible per active commuter (walkers
+Next, the map of the active jobs accessible per active traveller (walkers
 or cyclists) does not present a clear spatial pattern, with many
 suburban and rural areas presenting higher levels when compared to more
 urbanized areas. This can be explained by either a higher number of jobs
 accessible within typical walking or cycling trip durations, less
-probable; or, probably, because the number of active commuters in these
+probable; or, probably, because the number of active travellers in these
 areas is very low, resulting in a higher rate of jobs per person, in a
 way that higher accessibility values in these areas may reflect low
 competition rather than higher absolute job availability.
@@ -1080,7 +1077,7 @@ on the other hand, the interaction effect more than offsets this to result in a
 net positive effect. The same occurs in the model related to declining employment,
 whereby active accessibility is negative for non-active travellers, but positive for
 active travellers. We believe that the general negative effect of active
-accessibility for non-active commuters can be explained in terms of job
+accessibility for non-active travellers can be explained in terms of job
 competition, since increasing the number of jobs accessible for a mode
 that an individual does not use implies greater competition for jobs
 accessible through other modes, effectively reducing perceived
@@ -1089,7 +1086,7 @@ shown in Figure \ref{fig:multi-sa-pp}, many of the areas with high active
 accessibility are located outside downtown cores, in more suburban areas with a
 low concentration of job opportunities. This further reinforces the assumption 
 that some suburban areas exhibit high active accessibility not because of 
-greater job availability, but due to a very low number of active commuters, 
+greater job availability, but due to a very low number of active travellers, 
 resulting in a higher rate of jobs per person - reflecting low competition for 
 jobs accessible by walking and cycling rather than higher active job availability. 
 
@@ -1106,7 +1103,7 @@ jobs accessible by walking and cycling rather than higher active job availabilit
 #               byvar = "Active_user",
 #               seed = 51)
 # 
-# de_ame_active_user_df <- de_ame_active_user$preds %>% 
+# de_ame_active_user_df <- de_ame_active_user$preds %>%
 #   mutate(Model = "Decline employments")
 # 
 # SA_pp_Active_scaled_de <- scale(decline_employment_model$survey.design$variables$SA_pp_Active_unscaled)
@@ -1117,7 +1114,7 @@ jobs accessible by walking and cycling rather than higher active job availabilit
 # de_ame_active_user_df <- de_ame_active_user_df %>%
 #   mutate(SA_pp_Active_unscaled = SA_pp_Active * sigma_de + mu_de)
 # 
-# fj_ame_active_user_df <- fj_ame_active_user$preds %>% 
+# fj_ame_active_user_df <- fj_ame_active_user$preds %>%
 #   mutate(Model = "Few jobs")
 # 
 # SA_pp_Active_scaled_fj <- scale(few_jobs_model$survey.design$variables$SA_pp_Active_unscaled)
@@ -1132,19 +1129,19 @@ jobs accessible by walking and cycling rather than higher active job availabilit
 #   arrange(Model, Active_user, SA_pp_Active_unscaled)
 # 
 # ame_active_user <- ggplot(ame_active_user_df) +
-#   aes(x = SA_pp_Active_unscaled, 
-#       y = predicted, 
-#       ymin = conf.low, 
-#       ymax = conf.high, 
-#       color = Active_user, 
+#   aes(x = SA_pp_Active_unscaled,
+#       y = predicted,
+#       ymin = conf.low,
+#       ymax = conf.high,
+#       color = Active_user,
 #       fill = Active_user,
-#       group = interaction(Model, Active_user)) +  
+#       group = interaction(Model, Active_user)) +
 #   geom_line(aes(linetype = Model)) +
 #   geom_ribbon(colour = "transparent", alpha = 0.1) +
-#   scale_y_continuous(labels = scales::percent) + 
-#   labs(x = "Jobs accessible by active travel modes per active commuter",
+#   scale_y_continuous(labels = scales::percent) +
+#   labs(x = "Jobs accessible by active travel modes per active traveller",
 #        y = "Predicted probability",
-#        color = "Active commuter", fill = "Active commuter") + 
+#        color = "active traveller", fill = "active traveller") +
 #   theme_minimal() +
 #   facet_wrap(~y, ncol = 3) +
 #   theme(legend.position = "bottom",
@@ -1161,9 +1158,9 @@ jobs accessible by walking and cycling rather than higher active job availabilit
 #  dpi = 600)
 ```
 
-```{r active-marginal-effects, echo=FALSE, out.width="100%", fig.cap=paste0("Average marginal effects for active accessibility between active and non-active commuters.")}
+```{r active-marginal-effects, echo=FALSE, out.width="100%", fig.cap=paste0("Average marginal effects for active accessibility between active and non-active travellers.")}
 
-#knitr::include_graphics(paste0(figures_diretorio,"marginal-effect-active-de-fj.jpg"))
+# knitr::include_graphics(paste0(figures_diretorio,"marginal-effect-active-de-fj.jpg"))
 ```
 
 Table \ref{tab:controls_pop} presents the control variable values applied for each individual profile, while Figure \ref{fig:transit-accessibility-thresholds} displays the specific effect of
@@ -1272,7 +1269,7 @@ the median accessibility level. The progressive standard is equal to
 level of accessibility in the study area, and the intermediate threshold
 is 0.26. 
 
-Evaluating the thresholds for active accessibility, we again find that even a minimal level of accessible jobs per active commuter is already enough to result in positive perceptions for the most advantaged profile in both models, meaning that the current active accessibility levels would be sufficient and no individuals would fall below the minimum accessibility threshold. For the most common profile, the identified conservative threshold is also minimal; and the progressive thresholds are approximately 1.09 and 2.19 jobs per active user, resulting in higher probabilities of positive perceptions for the models of declining employment and few jobs available, respectively. 
+Evaluating the thresholds for active accessibility, we again find that even a minimal level of accessible jobs per active traveller is already enough to result in positive perceptions for the most advantaged profile in both models, meaning that the current active accessibility levels would be sufficient and no individuals would fall below the minimum accessibility threshold. For the most common profile, the identified conservative threshold is also minimal; and the progressive thresholds are approximately 1.09 and 2.19 jobs per active user, resulting in higher probabilities of positive perceptions for the models of declining employment and few jobs available, respectively. 
 
 However, for the model related to declining employment opportunities due to transportation conditions, we were not able to identify a threshold that resulted in a higher likelihood of positive perceptions for the equity-deserving profile, even after estimating probabilities at more than double the maximum observed active accessibility level (2.03 jobs per active user). For the model regarding the perception that there are too few jobs available within an ideal commuting time, we identified 0.9 as the conservative threshold (22 times the observed median level) and a progressive threshold close to 5 jobs per active user (almost 2.5 times the maximum observed level and 123 times the median). These high thresholds are explained by the relatively small net positive effect of active accessibility, while the other explanatory variables exerted a greater influence on the estimated probabilities of belonging to a more positive perception group. Based on both models, the high active accessibility thresholds help illustrate the limitations of potential policies focused solely on increasing active accessibility to promote positive perceptions: an approach that intervene only in the spatial dimension of accessibility, without considering the capacities and travel preferences of the population, would likely result in limited impact on residents' perceptions regarding employment reachability and related outcomes.
 
@@ -1389,7 +1386,7 @@ for me in my ideal commuting time." We decided to use the categorical
 models because they enabled us to identify levels of satisfaction in a
 non-normative way.
 
-Regarding the relationship between perceived and calculated accessibility, only transit accessibility, in one of the models, presented the behaviour hypothesized in which increasing accessibility was associated with more positive perceptions. Although the active accessibility indicator presented a slightly positive net effect for active commuters in both models, this effect was not sufficient to outweigh the influence of the other explanatory variables. As a result, the estimated active thresholds were excessively demanding and unrealistic from a policy perspective. For one model, we were unable to identify thresholds, while for the other, the conservative threshold was 22 times higher than the median accessibility level and the progressive threshold was more than 123 times higher than the median accessibility. These results led us to propose equity standards based solely on the model "there are too few jobs available for me in my ideal commuting time," and for public transit mode. 
+Regarding the relationship between perceived and calculated accessibility, only transit accessibility, in one of the models, presented the behaviour hypothesized in which increasing accessibility was associated with more positive perceptions. Although the active accessibility indicator presented a slightly positive net effect for active travellers in both models, this effect was not sufficient to outweigh the influence of the other explanatory variables. As a result, the estimated active thresholds were excessively demanding and unrealistic from a policy perspective. For one model, we were unable to identify thresholds, while for the other, the conservative threshold was 22 times higher than the median accessibility level and the progressive threshold was more than 123 times higher than the median accessibility. These results led us to propose equity standards based solely on the model "there are too few jobs available for me in my ideal commuting time," and for public transit mode. 
 
 For future research, we suggest exploring additional place-based accessibility measures to further evaluate the relationship between calculated and perceived accessibility. For instance, the raw multimodal spatial availability indicator could be tested. This indicator uses as output the number of jobs accessible by different transport modes, not standardized by the number of people using these modes. We decided to use multimodal spatial availability per person because we believe that competition matters when evaluating perceptions related to employment outcomes, as demonstrated by previous studies [@jin2018; @merlin2017;
 @miller2005]. Another limiting factor that led us to adopt the CT level was that we could not estimate travel times at the DA level for the entire study area due to the memory limitations of our computational resources. Despite that, the initial tests performed with a smaller study area did not show differences in terms of the sign and statistical significance of the accessibility coefficients between regressions - probably because the indicators are standardized.

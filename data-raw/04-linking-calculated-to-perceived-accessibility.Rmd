@@ -2351,30 +2351,56 @@ fj_ame_transit_df <- fj_ame_transit_df %>%
 AME_transit_fj <- ggplot(fj_ame_transit_df) +
   aes(x = SA_pp_Transit_unscaled, y = predicted, ymin = conf.low, ymax = conf.high, colour = y, fill = y) +
   geom_line() +
-  geom_ribbon(colour = "transparent", alpha = 0.05) +
+  geom_ribbon(colour = "transparent", alpha = 0.025) +
   scale_y_continuous(labels = scales::percent) + 
-  labs(x = "Public transit accessibility",
+  labs(x = "Public transit accessibility per transit user",
        y = "Predicted probability",
        color = "Perception group", fill = "Perception group",
        title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 70)) +
 theme_minimal() +
-facet_wrap(~y, ncol = 3)  +
+#facet_wrap(~y, ncol = 3)  +
 scale_color_manual(values = my_colors_likert) +
 scale_fill_manual(values = my_colors_likert) +
-theme(legend.position = "bottom",
-legend.direction = "horizontal",
+theme(legend.position = "right",
+legend.direction = "vertical",
 legend.title = element_text(size = 10),
 legend.text = element_text(size = 9),
 plot.title = element_text(face = "italic"))
 
 ggsave(file = paste0(diretorio_export_images,"/ordinal/average-marginal-effect-transit-accessibility.jpg"),
 plot = AME_transit_fj,
-width = 17,
-height = 12,
+width = 16,
+height = 9,
 units = "cm",
 dpi = 300)
 
 knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/average-marginal-effect-transit-accessibility.jpg"))
+```
+```{r}
+AME_transit_fj_v2 <- ggplot(fj_ame_transit_df) +
+  aes(x = SA_pp_Transit_unscaled, y = predicted, ymin = conf.low, ymax = conf.high, colour = y, fill = y) +
+  geom_line() +
+  geom_ribbon(colour = "transparent", alpha = 0.1) +
+  scale_y_continuous(labels = scales::percent) + 
+  labs(x = "Public transit accessibility per transit user",
+       y = "Predicted probability",
+       color = "Perception group", fill = "Perception group",
+       title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 70)) +
+theme_minimal() +
+facet_wrap(~y, ncol = 5)  +
+scale_color_manual(values = my_colors_likert) +
+scale_fill_manual(values = my_colors_likert) +
+theme(legend.position = "none",
+plot.title = element_text(face = "italic"))
+
+ggsave(file = paste0(diretorio_export_images,"/ordinal/average-marginal-effect-transit-accessibility_v2.jpg"),
+plot = AME_transit_fj_v2,
+width = 16,
+height = 6,
+units = "cm",
+dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/ordinal/average-marginal-effect-transit-accessibility_v2.jpg"))
 ```
 
 Following figures show the probability of reporting "too few jobs" by
@@ -3097,12 +3123,38 @@ inte_classification <- inte_classification %>%
                               TRUE ~ "No deficit")) %>% 
   dplyr::select(CTUID, priority_inte)
 
-
 priority_geo_areas <- priority_geo_areas %>% 
   left_join(cons_classification, by = "CTUID") %>% 
   left_join(prog_classification, by = "CTUID") %>% 
   left_join(inte_classification, by = "CTUID")
 ```
+
+```{r}
+priority_boxplots_df <- priority_geo_areas %>% 
+  dplyr::select(AFI_cons,AFI_prog, AFI_inte) %>% 
+  rename(Conservative = AFI_cons, 
+         Progressive = AFI_prog, 
+         Intermediate = AFI_inte) %>% 
+  pivot_longer(cols = c(Conservative,Progressive, Intermediate), 
+               names_to = "Standard", 
+               values_to = "AFI") %>%
+  filter(AFI > 0)
+
+priority_boxplots_fig <- priority_boxplots_df %>% 
+  ggplot(aes(y = AFI, x = Standard)) +
+  geom_boxplot() + 
+  theme_minimal()
+
+ggsave(file = paste0(diretorio_export_images,"/AFI_boxplot.jpg"),
+        plot = priority_boxplots_fig,
+        width = 12,
+        height = 10,
+        units = "cm",
+        dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/AFI_boxplot.jpg"))
+```
+
 
 Calculating FGT measures:
 
@@ -3303,6 +3355,57 @@ ggplot2::ggsave(plot = FGT01_plots_general,
 
 knitr::include_graphics(paste0(diretorio_export_images,"/FGT01_plots_general.jpg"))
 ```
+```{r}
+plot_fgt_data_mj <- fgt_measures %>% 
+  filter(priority == "General") %>%
+  dplyr::select(-fgt2) %>%
+  mutate(fgt1_diff = round(fgt1*quant,2),
+         fgt0 = round(100*fgt0,2), 
+         fgt1 = round(100*fgt1,2),
+         Threshold_label = paste0(Threshold, ": ", round(quant, 2)), 
+         ) %>% 
+  pivot_longer(cols = c(fgt0, fgt1)) %>%
+  mutate(name = ifelse(name == "fgt0", "FGT-0",
+                ifelse(name == "fgt1", "FGT-1", "FGT-2")), 
+         fgt_label = ifelse(name == "FGT-0",paste0(value,"%"),paste0(value,"% - ",fgt1_diff)))
+
+FGT01_plots_general_mj <- plot_fgt_data_mj %>% 
+  ggplot(aes(y = Threshold_label, x = value)) + 
+  geom_point(size = 2.5, alpha = 0.70, pch = 21, colour = "black", fill = "grey70") + 
+  geom_text(aes(label = fgt_label), 
+            hjust = -0.1, 
+            vjust = -0.6, 
+            size = 2.5
+            ) +  
+  scale_fill_manual(values = my_colors) +
+  coord_cartesian(
+   xlim = c(35, 110)) + 
+  scale_x_continuous(breaks = c(40, 70, 100)) + 
+  facet_wrap(~ name) + 
+  theme_minimal() +
+  xlab(NULL) + 
+  ylab(NULL) + 
+  theme(legend.position = NULL,
+        legend.title = element_blank(),
+        panel.grid.minor = element_blank())
+
+ggplot2::ggsave(plot = FGT01_plots_general_mj, 
+          filename = paste0(diretorio_export_images,"FGT01_plots_general_mj.jpg"), 
+          width = 16, 
+          height= 5, 
+          units = "cm", 
+          dpi = 300)
+
+ggplot2::ggsave(plot = FGT01_plots_general_mj, 
+          filename = paste0(here(),"/manuscript/figures/FGT01_plots_general_mj.jpg"), 
+          width = 16, 
+          height= 5, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/FGT01_plots_general_mj.jpg"))
+  
+```
 
 ## Maps
 
@@ -3408,6 +3511,7 @@ tmap_save(priority_plot,
 
 knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities.jpg"))
 ```
+
 
 ```{r}
 conservative_threshold_plot <- priority_geo_areas_long %>%
