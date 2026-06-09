@@ -1124,32 +1124,40 @@ knitr::include_graphics(paste0(diretorio_export_figures,"total_pop_by_mode_CT.jp
 ```
 
 ```{r out.width="100%"}
-total_pop_by_mode_CT_2 <- tm_shape(mode_metrics_ct_sf) + 
+mode_metrics_active <- mode_metrics_ct_sf %>%
+  mutate(PwMode_label = case_when(PwMode_label %in% c("Bike", "Walk") ~ "Active",
+    TRUE ~ PwMode_label )) %>%
+  group_by(CTUID, PwMode_label) %>%
+  summarise(labour_force = sum(labour_force, na.rm = TRUE), 
+            across(-labour_force, ~ first(.x)), 
+            .groups = "drop") %>% 
+  mutate(Pop_density = round(labour_force/LANDAREA))
+
+total_pop_by_mode_CT_3 <- tm_shape(mode_metrics_active) + 
    tm_polygons("labour_force",
-              style = "quantile",
+              style = "jenks",
               palette = "Reds",
               title = "Labour force",
               border.col = NULL) +  
-   tm_facets(by = "PwMode_label", ncol = 2) +       
+   tm_facets(by = "PwMode_label", ncol = 3) +       
   tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 20, 30))+
    tm_compass(position = c("left", "top"), size = 1.0) + 
    tm_shape(census_subdivisions) +
    tm_borders("black", lwd=0.5)
 
-tmap_save(total_pop_by_mode_CT_2, 
-          paste0(diretorio_export_figures,"total_pop_by_mode_CT_2.jpg"), 
+tmap_save(total_pop_by_mode_CT_3, 
+          paste0(diretorio_export_figures,"total_pop_by_mode_CT_3.jpg"), 
           width = 14, 
           height = 14, 
           units = "cm", 
           dpi = 300)
 
-knitr::include_graphics(paste0(diretorio_export_figures,"total_pop_by_mode_CT_2.jpg"))
+knitr::include_graphics(paste0(diretorio_export_figures,"total_pop_by_mode_CT_3.jpg"))
 ```
 
 ```{r out.width="100%"}
 mode_metrics_ct_sf <- mode_metrics_ct_sf %>% 
   mutate(lf_pp = labour_force/LANDAREA)
-
 
 pop_dens_by_mode_CT_2 <- tm_shape(mode_metrics_ct_sf) + 
    tm_polygons("lf_pp",
@@ -1199,6 +1207,37 @@ knitr::include_graphics(paste0(diretorio_export_figures,"HT_by_mode_CT.jpg"))
 ```
 
 Visualizing the Spatial Availability by transportation mode:
+
+```{r out.width="100%"}
+SA_by_mode_active <- mode_metrics_ct_sf %>%
+  mutate(PwMode_label = case_when(PwMode_label %in% c("Bike", "Walk") ~ "Active",
+    TRUE ~ PwMode_label )) %>%
+  group_by(CTUID, PwMode_label) %>%
+  summarise(SA_im = sum(SA_im, na.rm = TRUE), 
+            across(-SA_im, ~ first(.x)), 
+            .groups = "drop")
+
+SA_by_mode_CT_active <- tm_shape(SA_by_mode_active) + 
+   tm_polygons("SA_im",
+              style = "quantile",
+              palette = "Oranges",
+              title = "Spatial availability",
+              border.col = NULL) + 
+  tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 20, 30))+
+  tm_compass(position = c("left", "top"), size=1.0)  + 
+   tm_facets(by = "PwMode_label", ncol = 3) +       
+   tm_shape(census_subdivisions) +
+   tm_borders("black", lwd=0.5)
+
+tmap_save(SA_by_mode_CT_active, 
+          paste0(diretorio_export_figures,"SA_by_mode_CT_active.jpg"), 
+          width = 14, 
+          height = 14, 
+          units = "cm", 
+          dpi = 300)
+
+knitr::include_graphics(paste0(diretorio_export_figures,"SA_by_mode_CT_active.jpg"))
+```
 
 ```{r out.width="100%"}
 SA_by_mode_CT <- tm_shape(mode_metrics_ct_sf) + 
