@@ -513,10 +513,14 @@ ttm_bike <- travel_time_matrix(r5r_network = r5r_core,
                                departure_datetime = departure_datetime,
                                max_trip_duration = max_trip_duration_bike,
                                max_walk_time = 5, 
-                               max_lts = 3)
+                               #max_lts = 2
+                               max_lts = 3
+                               )
 
 ttm_bike <- ttm_bike %>%
   mutate(mode = "Bike")
+
+#write.csv(ttm_bike, paste0(directory_r5r, "ttm_bike_lts2.csv"), row.names=FALSE)
 
 write.csv(ttm_bike, paste0(directory_r5r, "ttm_bike.csv"), row.names=FALSE)
 ```
@@ -526,7 +530,7 @@ write.csv(ttm_bike, paste0(directory_r5r, "ttm_bike.csv"), row.names=FALSE)
 Combine the travel times for each mode in a unique data frame:
 
 ```{r}
-# ttm_bike <- read.csv(paste0(directory_r5r, "ttm_bike.csv"),
+# ttm_bike <- read.csv(paste0(directory_r5r, "ttm_bike_lts2.csv"),
 #                colClasses = c("character","character", "numeric", "character"))
 # ttm_walk <- read.csv(paste0(directory_r5r, "ttm_walk.csv"),
 #                colClasses = c("character","character", "numeric", "character"))
@@ -578,7 +582,7 @@ sf::st_write(dissemination_areas, paste0(directory, "dissemination_areas.gpkg"),
 ```
 
 ```{r export-ttm}
-write.csv(ttm_spatial_unit, paste0(directory_r5r, "ttm.csv"), row.names=FALSE)
+write.csv(ttm_spatial_unit, paste0(directory_r5r, "ttm_lts2.csv"), row.names=FALSE)
 ```
 
 # References {#references .unnumbered}

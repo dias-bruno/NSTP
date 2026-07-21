@@ -5,6 +5,8 @@
 /data-raw/MJ-Survey/
 /data-raw/backups/
 /data-raw/output/
+/data-raw/NECTAR/nectar-backup/
+/data-raw/NECTAR/output/
 .httr-oauth
 .DS_Store
 .quarto

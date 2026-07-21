@@ -1,0 +1,1816 @@
+---
+title: "Linking calculated accessibility to perceived employment outcomes"
+author: "Bruno Santos & Antonio Paez"
+date: "`r Sys.Date()`"
+output:
+  tufte::tufte_handout:
+    citation_package: natbib
+    latex_engine: xelatex
+  tufte::tufte_html: default
+  tufte::tufte_book:
+    citation_package: natbib
+    latex_engine: xelatex
+bibliography: mybibfile.bib
+link-citations: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r clean-workspace, include=FALSE}
+# cleaning objects from the workspace 
+rm(list = ls())
+```
+
+```{r setup, include=FALSE}
+# layout configuration 
+library(tufte)
+library(knitr)
+options(htmltools.dir.version = FALSE)
+knitr::opts_chunk$set(warning = FALSE, message = FALSE, out.width = '100%', tidy = TRUE, tidy.opts = list(width.cutoff = 100))
+```
+
+```{r load-packages}
+library(dplyr) # data manipulation
+library(here) # file path management
+library(tidyr) # reshaping data
+library(Hmisc) # weighted quantiles
+library(survey) # survey-weighted models
+library(svydiags) # diagnostics for survey models
+library(svyEffects) # average marginal effects
+library(ggplot2) # plotting
+library(sf) # spatial data handling
+library(tmap) # thematic maps
+library(estimatr) # test iv robustness 
+library(jtools) # correlations in complex surveys
+library(purrr)
+library(stringr)
+```
+
+# Introduction
+
+After calculating accessibility and spatial filters, this Rmarkdown
+processes survey data from the National Survey on Transport Poverty,
+managed by the Mobilizing Justice Partnership, and links it to
+calculated accessibility measures to estimate their causal effects on
+perceived employment outcomes. It uses a Two-Stage Residual Inclusion
+(2SRI) approach where spatial filters serve as instruments for
+endogenous calculated accessibility variables. We estimate both linear
+and ordinal models, and the results are used to derive accessibility
+thresholds for equity‑deserving populations.
+
+# Suggested Readings
+
+-   Bastiaanssen, Jeroen, Daniel Johnson, and Karen Lucas. "The
+    relationship between individual employment probabilities and
+    accessibility to matching jobs: A study of the Netherlands."
+    Transportation Research Part A: Policy and Practice 193 (2025):
+    104398. 
+-   Terza, Joseph V., Anirban Basu, and Paul J. Rathouz. "Two-stage
+    residual inclusion estimation: addressing endogeneity in health
+    econometric modeling." Journal of health economics 27.3 (2008):
+    531-543.
+-   Lumley, Thomas. Complex surveys: a guide to analysis using R. John
+    Wiley & Sons, 2011.
+
+# Reading Data and Preprocessing
+
+Reading the National Survey on Transport Poverty (NSTP). Reading the
+main file:
+
+```{r}
+files_address <- paste0(here(),"/data-raw/MJ-Survey/ns_data_re.csv")
+mjsurvey <- read.csv(files_address, header = TRUE)
+mjsurvey_backup <- mjsurvey
+```
+
+Reading the household‑level data:
+
+```{r}
+files_address <- paste0(here(),"/data-raw/MJ-Survey/Household_Members_Data_2025-04-16.csv")
+mjsurvey_household <- read.csv(files_address, header = TRUE)
+```
+
+Reading a file with spatial keys to connect the different spatial units:
+
+```{r}
+files_address <- paste0(here(),"/data-raw/input/census_spatial_keys.csv")
+
+keys <- read.csv(files_address, header = TRUE, 
+               colClasses = c("character", "character","character", "character", "character",
+                              "character","character"))
+```
+
+Defining the folder with the study area measures:
+
+```{r}
+study_area_folder <- paste0(here::here(),"/data-raw/output/GTAH/")
+```
+
+Reading calculated job accessibility and spatial filter variables:
+
+```{r read-accessibility}
+# Folder  
+measures_folder <- paste0(study_area_folder,"/CT/spatial-filter-measures/")
+
+# Read file
+Accessibilities <- read.csv(paste0(measures_folder, "spatial_filters.csv"), 
+               colClasses = c("character", "character", 
+                              "numeric","numeric",
+                              "numeric","numeric", 
+                              "numeric","numeric" )) %>% 
+  mutate(PwMode_label = case_when(
+    PwMode_label == "Car-motor" ~ "Car_motor",
+    TRUE ~ PwMode_label ))
+```
+
+Read the spatial geometries (dissemination areas, census tracts, census
+subdivisions, and population centres):
+
+```{r}
+directory_spatial_files <- paste0(study_area_folder,"/spatial-files/") # Update this address if necessary
+
+# DAs
+dissemination_areas <- st_read(paste0(directory_spatial_files, "dissemination_areas.gpkg"))
+
+# CTs
+census_tracts <- st_read(paste0(directory_spatial_files, "census_tracts.gpkg"))
+census_tracts <- nngeo::st_remove_holes(census_tracts)
+
+# CSD
+census_subdivisions <- st_read(paste0(directory_spatial_files, "census_subdivisions.gpkg"))
+census_subdivisions <- nngeo::st_remove_holes(census_subdivisions)
+
+# CD
+census_divisions <- st_read(paste0(directory_spatial_files, "census_divisions.gpkg"))
+census_divisions <- nngeo::st_remove_holes(census_divisions)
+
+# POPCENTRE
+population_centres <- st_read(paste0(directory_spatial_files, "population_centres.gpkg"))
+```
+
+Add labels for the six regional municipalities (PCD codes):
+
+```{r}
+census_subdivisions <- census_subdivisions %>% 
+  mutate(PCD = substr(CDUID, 0, 4),
+         pcd_label = case_when(PCD == "3518" ~ "Durham", 
+                               PCD == "3519" ~ "York", 
+                               PCD == "3520" ~ "Toronto", 
+                               PCD == "3521" ~ "Peel", 
+                               PCD == "3524" ~ "Halton", 
+                               PCD == "3525" ~ "Hamilton"))
+
+census_divisions <- census_divisions %>% 
+  mutate(PCD = substr(CDUID, 0, 4),
+         pcd_label = case_when(PCD == "3518" ~ "Durham", 
+                               PCD == "3519" ~ "York", 
+                               PCD == "3520" ~ "Toronto", 
+                               PCD == "3521" ~ "Peel", 
+                               PCD == "3524" ~ "Halton", 
+                               PCD == "3525" ~ "Hamilton"))
+```
+
+Setting folders to export results and figures:
+
+```{r directory-export}
+# Measures
+diretorio_export <- paste0(here(), "/data-raw/NECTAR/output/GTAH/CT/nectar-models/employed/")
+if(!dir.exists(diretorio_export)) dir.create(diretorio_export, recursive = TRUE)
+
+# Figures
+diretorio_export_images <- paste0(here(), "/data-raw/NECTAR/output/GTAH/CT/nectar-figures/employed/")
+if(!dir.exists(diretorio_export_images)){
+  dir.create(diretorio_export_images, recursive = TRUE)
+  }
+```
+
+# Pre‑processing Survey Responses
+
+Selecting only the sample within the study area and creating a specific variable to inform whether the respondent is in the labour force:
+
+```{r}
+pcd_codes <- c("3518", # Durham
+          "3519", # York
+          "3520" ,  # Toronto
+          "3521", # Peel
+          "3524", # Halton
+          "3525" # Hamilton
+          ) 
+
+mjsurvey_study_area <- mjsurvey %>% 
+  filter(substr(DAUID_ADIDU, 1, 4) %in% pcd_codes)
+
+# Labour force (employed = 1)
+occ_char <- as.character(mjsurvey_study_area$p_mainOccupation)
+
+has_target <- sapply(strsplit(occ_char, ","), function(x) {
+any(trimws(x) %in% c("fullTimeWorker", "partTimeWorker", "gigWorker",
+"selfEmploymentWorker", "jobSeeker", "unemployed"))})
+
+labour_force <- mjsurvey_study_area[has_target, ]
+
+exclusion_cases <- sapply(strsplit(occ_char, ","), function(x) {
+any(trimws(x) %in% c("retired", "unableToWork"))})
+
+labour_force <- labour_force[!exclusion_cases, ]
+
+labour_force$labour_force <- sapply(strsplit(labour_force$p_mainOccupation, ","), function(x) {
+if (any(trimws(x) %in% c("fullTimeWorker", "partTimeWorker", "gigWorker", "selfEmploymentWorker"))) 1 else 0})
+
+labour_force <- labour_force %>%
+  dplyr::select(c(X_activePersonId, labour_force))
+
+mjsurvey_study_area <- mjsurvey_study_area %>%
+  left_join(labour_force, by = "X_activePersonId")
+```
+
+Four key outcomes are derived from survey questions measured on a 0 to
+100 scale. For each, we create a Likert version weighted quintiles
+(fexp_final as weights):
+
+-   DeclineEmployment: *"Declining employment opportunities because of
+    transport situation"* (higher = worse; from
+    *pe_agreeWithDeclineEmploymentOpportunitiesDueToTransport*)
+-   FewJobs: *"Too few jobs in my ideal commuting time"* (higher =
+    worse; from *pe_tooFewJobsInMyIdealCommutingTime*)
+-   TravelTooLong: "Travel to work too long" (higher = worse; from
+    *pe_tooLongToTravelToWork*)
+-   EasyToGo: "Easily reach work" (higher = better;
+    *pe_easilyReachWork*)
+
+Also extract transit‑related perceptions (satisfaction, wait time, reliability, etc.) and forced car ownership to perform some tests (some of these variables were not used for the models).
+
+```{r}
+# Few job availability with ideal commute 
+LS_FewJobs <- mjsurvey_study_area %>% 
+  dplyr::select(fexp_final, X_activePersonId,pe_tooFewJobsInMyIdealCommutingTime, p_mainOccupation) %>% 
+  filter(!pe_tooFewJobsInMyIdealCommutingTime %in% c("na","")) %>% 
+  mutate(FewJobs = as.numeric(pe_tooFewJobsInMyIdealCommutingTime)) %>% 
+  filter(FewJobs >= 0) %>%
+  mutate(FewJobs_Likert = 
+           cut(FewJobs,
+               breaks = Hmisc::wtd.quantile(FewJobs, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
+               #breaks = c(0,20,40,60,80,100), 
+               labels = c("Most Positive", "Positive", "Neutral", "Negative", "Most Negative"),
+               include.lowest = TRUE), 
+         FewJobs_Likert = factor(FewJobs_Likert, 
+                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+             ordered = TRUE))
+
+# Travel to work too long 
+LS_TravelTooLong <- mjsurvey_study_area %>% 
+  dplyr::select(fexp_final, X_activePersonId,pe_tooLongToTravelToWork) %>% 
+  filter(!pe_tooLongToTravelToWork %in% c("na","")) %>% 
+  mutate(TravelTooLong = as.numeric(pe_tooLongToTravelToWork)) %>% 
+  filter(TravelTooLong >= 0) %>%
+  mutate(TravelTooLong_Likert = 
+           cut(TravelTooLong,
+               breaks = Hmisc::wtd.quantile(TravelTooLong, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
+               #breaks = c(0,20,40,60,80,100), 
+               labels = c("Most Positive", "Positive", "Neutral", "Negative", "Most Negative"),
+               include.lowest = TRUE), 
+         TravelTooLong_Likert = factor(TravelTooLong_Likert, 
+                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+             ordered = TRUE))
+
+# Easy to go work
+LS_EasyToGo <- mjsurvey_study_area %>% 
+  dplyr::select( fexp_final,  X_activePersonId,pe_easilyReachWork, p_fixedWorkplaceOutsideHome, p_mainOccupation) %>% 
+  filter(!pe_easilyReachWork %in% c("na","")) %>% 
+  mutate(EasyToGo = as.numeric(pe_easilyReachWork)) %>% 
+  filter(EasyToGo >= 0) %>%
+  mutate(EasyToGo_Likert = 
+           cut(EasyToGo,
+               breaks = Hmisc::wtd.quantile(EasyToGo, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
+               #breaks = c(0,20,40,60,80,100), 
+               labels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+               include.lowest = TRUE), 
+         EasyToGo_Likert = factor(EasyToGo_Likert, 
+                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+             ordered = TRUE))
+
+# Declining employment opportunities because of transport situation 
+LS_DeclineEmployment <- mjsurvey_study_area %>% 
+  dplyr::select(fexp_final, X_activePersonId,pe_agreeWithDeclineEmploymentOpportunitiesDueToTransport,labour_force) %>% 
+  filter(!pe_agreeWithDeclineEmploymentOpportunitiesDueToTransport %in% c("na",""), !is.na(labour_force)) %>% 
+  mutate(DeclineEmployment = as.numeric(pe_agreeWithDeclineEmploymentOpportunitiesDueToTransport)) %>% 
+  filter(DeclineEmployment >= 0) %>%
+  mutate(DeclineEmployment_Likert = 
+           cut(DeclineEmployment,
+               breaks = Hmisc::wtd.quantile(DeclineEmployment, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
+               #breaks = c(0,20,40,60,80,100), 
+               labels = c("Most Positive", "Positive", "Neutral", "Negative", "Most Negative"),
+               include.lowest = TRUE), 
+         DeclineEmployment_Likert = factor(DeclineEmployment_Likert, 
+                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+             ordered = TRUE))
+
+# Public Transit Variables
+
+## TransportSatisfaction (***)
+LS_TransportSatisfaction <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_transportSatisfaction) %>% 
+  filter(!pe_transportSatisfaction %in% c("na","")) %>% 
+  mutate(TransportSatisfaction = as.numeric(pe_transportSatisfaction)) %>% 
+  filter(TransportSatisfaction >= 0)
+
+## TransitWaitTime (***)
+LS_TransitWaitTime <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_tooLongwaitTimeForTransit) %>% 
+  filter(!pe_tooLongwaitTimeForTransit %in% c("na","")) %>% 
+  mutate(TransitWaitTime = as.numeric(pe_tooLongwaitTimeForTransit)) %>% 
+  filter(TransitWaitTime >= 0)
+
+## TransitReliable (***)
+LS_TransitReliable <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsReliable) %>% 
+  filter(!pe_thinkPublicTransportIsReliable %in% c("na","")) %>% 
+  mutate(TransitReliable = as.numeric(pe_thinkPublicTransportIsReliable)) %>% 
+  filter(TransitReliable >= 0)
+
+## TransitPractical (***)
+LS_TransitPractical <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsPractical) %>% 
+  filter(!pe_thinkPublicTransportIsPractical %in% c("na","")) %>% 
+  mutate(TransitPractical = as.numeric(pe_thinkPublicTransportIsPractical)) %>% 
+  filter(TransitPractical >= 0)
+
+## TransitTimeSave (***)
+LS_TransitTimeSave <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsTimeSaving) %>% 
+  filter(!pe_thinkPublicTransportIsTimeSaving %in% c("na","")) %>% 
+  mutate(TransitTimeSave = as.numeric(pe_thinkPublicTransportIsTimeSaving)) %>% 
+  filter(TransitTimeSave >= 0)
+
+## Forced to have a car
+LS_ForcedCar <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_agreeWithFeelForcedToOwnCar) %>% 
+  filter(!pe_agreeWithFeelForcedToOwnCar %in% c("na","")) %>% 
+  mutate(ForcedCar = as.numeric(pe_agreeWithFeelForcedToOwnCar)) %>% 
+  filter(ForcedCar >= 0)
+
+## Work by Transit (****)
+LS_WorkbyTransit <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,p_averageTimesGoWorkplaceTransit) %>% 
+  filter(!p_averageTimesGoWorkplaceTransit %in% ("")) %>% 
+  mutate(WorkbyTransit = factor(p_averageTimesGoWorkplaceTransit, levels= c("almostNever","lessThan1TimeWeek", "1TimeWeek",
+                                                  "2TimesWeek", "3TimesWeek",
+                                                  "4TimesWeek" , "5TimesWeekOrMore"), ordered = TRUE)) %>% 
+  mutate(WorkbyTransit_count = case_when(
+      p_averageTimesGoWorkplaceTransit == "almostNever" ~ 0,
+      p_averageTimesGoWorkplaceTransit == "lessThan1TimeWeek" ~ 0,
+      p_averageTimesGoWorkplaceTransit == "1TimeWeek" ~ 1,
+      p_averageTimesGoWorkplaceTransit == "2TimesWeek" ~ 2,
+      p_averageTimesGoWorkplaceTransit == "3TimesWeek" ~ 3,
+      p_averageTimesGoWorkplaceTransit == "4TimesWeek" ~ 4,
+      p_averageTimesGoWorkplaceTransit == "5TimesWeekOrMore" ~ 5)) 
+
+
+## TransportSatisfaction (***)
+LS_TransportSatisfaction <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_transportSatisfaction) %>% 
+  filter(!pe_transportSatisfaction %in% c("na","")) %>% 
+  mutate(TransportSatisfaction = as.numeric(pe_transportSatisfaction)) %>% 
+  filter(TransportSatisfaction >= 0)
+
+## TransitWaitTime (***)
+LS_TransitWaitTime <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_tooLongwaitTimeForTransit) %>% 
+  filter(!pe_tooLongwaitTimeForTransit %in% c("na","")) %>% 
+  mutate(TransitWaitTime = as.numeric(pe_tooLongwaitTimeForTransit)) %>% 
+  filter(TransitWaitTime >= 0)
+
+## TransitReliable (***)
+LS_TransitReliable <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsReliable) %>% 
+  filter(!pe_thinkPublicTransportIsReliable %in% c("na","")) %>% 
+  mutate(TransitReliable = as.numeric(pe_thinkPublicTransportIsReliable)) %>% 
+  filter(TransitReliable >= 0)
+
+## TransitPractical (***)
+LS_TransitPractical <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsPractical) %>% 
+  filter(!pe_thinkPublicTransportIsPractical %in% c("na","")) %>% 
+  mutate(TransitPractical = as.numeric(pe_thinkPublicTransportIsPractical)) %>% 
+  filter(TransitPractical >= 0)
+
+## TransitTimeSave (***)
+LS_TransitTimeSave <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_thinkPublicTransportIsTimeSaving) %>% 
+  filter(!pe_thinkPublicTransportIsTimeSaving %in% c("na","")) %>% 
+  mutate(TransitTimeSave = as.numeric(pe_thinkPublicTransportIsTimeSaving)) %>% 
+  filter(TransitTimeSave >= 0)
+
+## Forced to have a car
+LS_ForcedCar <- mjsurvey_study_area %>% 
+  dplyr::select(X_activePersonId,pe_agreeWithFeelForcedToOwnCar) %>% 
+  filter(!pe_agreeWithFeelForcedToOwnCar %in% c("na","")) %>% 
+  mutate(ForcedCar = as.numeric(pe_agreeWithFeelForcedToOwnCar)) %>% 
+  filter(ForcedCar >= 0)
+```
+
+Combine all outcomes into one data frame:
+
+```{r}
+outcomes_std <- mjsurvey_study_area %>% dplyr::select(interview_id, X_activePersonId, fexp_final) %>% 
+  left_join(LS_DeclineEmployment %>% dplyr::select(-fexp_final) , by = "X_activePersonId") %>% 
+  left_join(LS_FewJobs %>% dplyr::select(-fexp_final) , by = "X_activePersonId") %>% 
+  left_join(LS_TravelTooLong %>% dplyr::select(-fexp_final), by = "X_activePersonId") %>% 
+  left_join(LS_EasyToGo %>% dplyr::select(-fexp_final), by = "X_activePersonId") %>%
+  left_join(LS_WorkbyTransit, by = "X_activePersonId") %>%
+  left_join(LS_TransportSatisfaction, by = "X_activePersonId") %>%
+  left_join(LS_TransitWaitTime, by = "X_activePersonId") %>%
+  left_join(LS_TransitReliable, by = "X_activePersonId") %>%
+  left_join(LS_TransitPractical, by = "X_activePersonId") %>%
+  left_join(LS_TransitTimeSave, by = "X_activePersonId") %>%
+  left_join(LS_ForcedCar, by = "X_activePersonId")
+```
+
+Obtain demographic, socioeconomic, and transport‑related controls
+variables: income categories, education, driver license, transit pass,
+indigenous/racialized status, gender, age, household size, car/bike
+ownership, etc. Also create mode groups (Car‑motor, Transit, Active) and
+binary indicators.
+
+```{r}
+control_var <- mjsurvey_study_area %>% 
+  dplyr::select(interview_id, 
+                X_activePersonId,
+                fexp_final, 
+                DAUID_ADIDU,
+                t_householdCarNumber,
+                t_householdBikeNumber,
+                t_driverLicense,
+                h_houseOwnership,
+                t_monthlyOrAnnualTransitPass,
+                t_transitIsAvailable,
+                t_useParatransitServices, 
+                s_genderIdentity, # 
+                s_sexualOrientation, 
+                s_highestEducationLevel, # 
+                s_bornInCanada, 
+                s_firstNationsMetisOrInuit, 
+                s_ethnicity, # 
+                s_canadianStatus, # 
+                s_longTermConditionsDifficultySeeing, 
+                s_longTermConditionsDifficultyHearing, 
+                s_longTermConditionsDifficultyWalking, 
+                s_longTermConditionsDifficultyLearning,           
+                s_emotionalPsychologicalMentalConditions, 
+                pe_preferredMode, pe_doesFrequentModeMatchPreferred, pe_mostFrequentMode,
+                s_age,
+                hh_size, 
+                hh_householdIncome) %>% 
+  mutate(hh_income = case_when(hh_householdIncome == "000000_009999" ~ "Less than $30,000", 
+                               hh_householdIncome == "010000_019999" ~ "Less than $30,000", 
+                               hh_householdIncome == "020000_029999" ~ "Less than $30,000", 
+                               hh_householdIncome == "030000_039999" ~ "$30,000 to $60,000",
+                               
+                               hh_householdIncome == "040000_049999" ~ "$30,000 to $60,000", 
+                               hh_householdIncome == "050000_059999" ~ "$30,000 to $60,000", 
+                               hh_householdIncome == "060000_069999" ~ "$60,000 to $90,000", 
+                               hh_householdIncome == "070000_079999" ~ "$60,000 to $90,000", 
+                               
+                               hh_householdIncome == "080000_089999" ~ "$60,000 to $90,000", 
+                               hh_householdIncome == "090000_119999" ~ "$90,000 to $120,000", 
+                               
+                               hh_householdIncome == "120000_149999" ~ "$120,000 to $150,000", 
+                               hh_householdIncome == "150000_179999" ~ "$150,000 to $180,000", 
+                               hh_householdIncome == "180000_209999" ~ "$180,000 to $210,000", 
+                               hh_householdIncome == "210000_999999" ~ "More than $210,000", 
+    ),
+    hh_income = factor(hh_income, levels = c("Less than $30,000",
+                                             "$30,000 to $60,000", 
+                                             "$60,000 to $90,000", 
+                                             "$90,000 to $120,000", 
+                                             "$150,000 to $180,000", 
+                                             "$180,000 to $210,000", 
+                                             "More than $210,000")), 
+    
+    hh_income4 = case_when(hh_householdIncome == "000000_009999" ~ "Less than $40,000", 
+                               hh_householdIncome == "010000_019999" ~ "Less than $40,000", 
+                               hh_householdIncome == "020000_029999" ~ "Less than $40,000", 
+                               hh_householdIncome == "030000_039999" ~ "Less than $40,000", 
+                               
+                               hh_householdIncome == "040000_049999" ~ "$40,000 to $80,000", 
+                               hh_householdIncome == "050000_059999" ~ "$40,000 to $80,000", 
+                               hh_householdIncome == "060000_069999" ~ "$40,000 to $80,000", 
+                               hh_householdIncome == "070000_079999" ~ "$40,000 to $80,000", 
+                               
+                               hh_householdIncome == "080000_089999" ~ "$80,000 to $120,000", 
+                               hh_householdIncome == "090000_119999" ~ "$80,000 to $120,000", 
+                               
+                               hh_householdIncome == "120000_149999" ~ "More than $120,000", 
+                               hh_householdIncome == "150000_179999" ~ "More than $120,000", 
+                               hh_householdIncome == "180000_209999" ~ "More than $120,000", 
+                               hh_householdIncome == "210000_999999" ~ "More than $120,000", 
+    ),
+    hh_income4 = factor(hh_income4, levels = c("Less than $40,000",
+                                             "$40,000 to $80,000", 
+                                             "$80,000 to $120,000", 
+                                             "More than $120,000")), 
+    
+    education_level = case_when(s_highestEducationLevel %in% c("noCertificateDiplomaDegree", "highSchoolDiploma") ~ "High school or less",
+      s_highestEducationLevel %in% c("collegeCegepNonUniversityCertificateDiploma", "apprenticeshipTradesCertificateDiploma") ~ "Post-secondary non-university",
+      s_highestEducationLevel %in% c("universityBelowBachelor", "universityBachelorOrAbove") ~ "University"),
+    
+    education_level = factor(education_level),
+    
+    DriverLicense = case_when(
+      t_driverLicense == "yes" ~ "Yes",
+     TRUE ~ "No"
+    ),
+    DriverLicense = factor(DriverLicense, levels = c("No", "Yes")),
+    
+    TransitPass = case_when(
+      t_monthlyOrAnnualTransitPass == "yes" ~ "Yes",
+     TRUE ~ "No"
+    ),
+    TransitPass = factor(TransitPass, levels = c("No", "Yes")),
+    
+    TransitAvailable = case_when(
+      t_transitIsAvailable == "yes" ~ "Yes",
+     TRUE ~ "No"
+    ),
+    TransitAvailable = factor(TransitAvailable, levels = c("No", "Yes")),
+    
+    Paratransit = case_when(
+      t_useParatransitServices == "yes" ~ "Yes",
+     TRUE ~ "No"
+    ),
+    Paratransit = factor(Paratransit, levels = c("No", "Yes")),
+    
+    Indigenous = case_when(
+      s_firstNationsMetisOrInuit == "yes" ~ "Yes",
+     TRUE ~ "No"
+    ),
+    Indigenous = factor(Indigenous, levels = c("No", "Yes")),
+    
+    Non_White = case_when(
+      s_ethnicity == "white"  ~ "No",
+     TRUE ~ "Yes"
+    ),
+    Non_White = factor(Non_White, levels = c("No", "Yes")),
+    
+    Indigenous_or_racialized = case_when(
+      (s_ethnicity == "white" | s_firstNationsMetisOrInuit == "yes") ~ "No",
+     TRUE ~ "Yes"
+    ),
+    Indigenous_or_racialized = factor(Indigenous_or_racialized, levels = c("No", "Yes")),
+    
+    Temporary_or_refugee = case_when(
+      s_canadianStatus %in% c("temporaryResident", "refugeeAsylumSeeker") ~ "Yes",
+     TRUE ~ "No"
+     ),
+    Temporary_or_refugee = factor(Temporary_or_refugee, levels = c("No", "Yes")),
+    
+    houseOwnership = factor(h_houseOwnership, levels = c("Rent","Owner")),
+    
+    LongTermConditions = case_when(
+      s_longTermConditionsDifficultySeeing %in% c("often", "always") |  
+        s_longTermConditionsDifficultyHearing %in% c("often", "always") |  
+        s_longTermConditionsDifficultyWalking %in% c("often", "always") |  
+        s_longTermConditionsDifficultyLearning %in% c("often", "always") |  
+        s_emotionalPsychologicalMentalConditions %in% c("often", "always") ~ "Yes",
+     TRUE ~ "No"
+    ),
+    LongTermConditions = factor(LongTermConditions, levels = c("No", "Yes")),
+    
+    Immigrant = case_when(
+      s_bornInCanada == "yes" ~ "Yes",  # Born in Canada = not immigrant
+     TRUE ~ "No"
+    ),
+    Immigrant = factor(Immigrant, levels = c("No", "Yes")),
+    
+    Woman = case_when(
+      s_genderIdentity %in% c("woman", "transWoman") ~ "Yes",
+      TRUE ~ "No"
+    ),
+    Woman = factor(Woman, levels = c("No", "Yes")),
+    
+    Woman_or_genderdiverse = case_when(
+      !s_genderIdentity %in% c("man") ~ "Yes",
+      TRUE ~ "No"
+    ),
+    Woman_or_genderdiverse = factor(Woman_or_genderdiverse, levels = c("No", "Yes")),
+    
+    twoSTQI = case_when(
+      s_genderIdentity %in% c("woman", "man") ~ "No",
+      TRUE ~ "Yes"
+    ),
+    twoSTQI = factor(twoSTQI, levels = c("No", "Yes")), 
+    
+    mostFrequentMode = case_when(
+      pe_doesFrequentModeMatchPreferred == "yes" ~ pe_preferredMode,
+      pe_doesFrequentModeMatchPreferred == "no" ~ pe_mostFrequentMode),
+    
+     Transport_mode = case_when(
+       mostFrequentMode %in% c("carDriver", "carPassenger", "motorcycle", "scooter","taxiOrRidehailingApp") ~ "Car_motor",
+       mostFrequentMode %in% c("bus", "metro", "regionalTrain", "tram","lightRapidTransit") ~ "Transit",
+       mostFrequentMode %in% c("bike", "bikeSharing", "assitedBike") ~ "Bike",
+       mostFrequentMode %in% c("walkOrWheeling") ~ "Walk"), 
+       
+    Transport_mode = factor(Transport_mode, levels = c("Car_motor", "Transit", "Bike", "Walk")),
+    
+    
+      Transport_3mode = case_when(
+       mostFrequentMode %in% c("carDriver", "carPassenger", "motorcycle", "scooter","taxiOrRidehailingApp") ~ "Car_motor",
+       mostFrequentMode %in% c("bus", "metro", "regionalTrain", "tram","lightRapidTransit") ~ "Transit",
+       mostFrequentMode %in% c("bike", "bikeSharing", "assitedBike","walkOrWheeling") ~ "Active"), 
+       
+    Transport_3mode = factor(Transport_3mode, levels = c("Car_motor", "Transit", "Active")),
+    
+    Transit_user = case_when(Transport_mode == "Transit" ~ "Yes",
+                             !Transport_mode == "Transit" ~ "No"),
+    
+    Transit_user = factor(Transit_user, levels = c("No","Yes")),
+    
+    Transit_user_bin = case_when(Transport_mode == "Transit" ~ 1,
+                             !Transport_mode == "Transit" ~ 0),
+
+    Car_user_bin = case_when(Transport_mode == "Car_motor" ~ 1,
+                             !Transport_mode == "Car_motor" ~ 0), 
+    
+    Active_user_bin = case_when(Transport_mode %in% c("Walk","Bike") ~ 1,
+                             !Transport_mode %in% c("Walk","Bike") ~ 0), 
+    
+    Active_user = case_when(Transport_mode %in% c("Walk","Bike") ~ "Yes",
+                             !Transport_mode %in% c("Walk","Bike") ~ "No"),
+   
+     Active_user = factor(Active_user, levels = c("No","Yes")),
+
+    Match_mode = case_when(pe_doesFrequentModeMatchPreferred == "yes" ~ "Yes",
+                           pe_doesFrequentModeMatchPreferred == "no" ~ "No"),
+    Match_mode = factor(Match_mode, levels = c("No","Yes")), 
+    
+    CarNumber = t_householdCarNumber, 
+    BikeNumber = t_householdBikeNumber,
+    Age = s_age, 
+    age_group = case_when(Age < 15 ~ "<= 15", 
+                           Age >= 15 &  Age < 25 ~ "15 - 25",
+                           Age >= 25 &  Age < 35 ~ "25 - 35",
+                           Age >= 35 &  Age < 45 ~ "35 - 45",
+                           Age >= 45 &  Age < 55 ~ "45 - 55",
+                           Age >= 55 &  Age < 65 ~ "55 - 65",
+                           Age >= 65 ~ "65+"), 
+     age_group = factor(age_group), 
+     car_number_group = case_when(CarNumber == 0 ~ "0", 
+                           CarNumber == 1 ~ "1", 
+                           CarNumber > 1 ~ "2 or more"), 
+     car_number_group = factor(car_number_group)) %>%
+  dplyr::select(-c(t_driverLicense, t_monthlyOrAnnualTransitPass, 
+            t_transitIsAvailable, t_useParatransitServices,
+            s_firstNationsMetisOrInuit, s_ethnicity,
+            s_canadianStatus, s_longTermConditionsDifficultySeeing,
+            s_longTermConditionsDifficultyHearing, s_longTermConditionsDifficultyWalking,
+            s_longTermConditionsDifficultyLearning, s_emotionalPsychologicalMentalConditions,
+            s_bornInCanada, 
+            s_genderIdentity, pe_preferredMode, pe_doesFrequentModeMatchPreferred, pe_mostFrequentMode))
+```
+
+Number of children under 10:
+
+```{r}
+child_number <- mjsurvey_household %>% 
+  mutate(people = 1) %>%
+  group_by(interview_id) %>% 
+  summarise(Child_under_10 = sum(people[age <= 10]))
+
+
+control_var <- control_var %>% 
+  left_join(child_number, by = "interview_id")
+```
+
+Reshape accessibility table from long to wide table (each mode and
+spatial filter become separate columns so we can join them to the
+individual level data):
+
+```{r}
+accessibilities_wide <- Accessibilities %>%
+  rename(SA = SA_im, 
+         HT = HT_im,
+         SA_pp = SA_pp_im) %>%
+  pivot_wider(id_cols = CTUID,
+              names_from = PwMode_label, 
+              values_from = c(SA, Sf_dist_SA, HT, Sf_dist_HT, SA_pp, Sf_dist_SA_pp),
+              names_sep = "_")
+```
+
+Calculate the population density based on the DAs:
+
+```{r}
+dissemination_areas <- dissemination_areas %>% 
+  mutate(Pop_density = Population/LANDAREA) %>%
+  mutate(DAUID = as.numeric(DAUID))
+```
+
+
+Creating the population centre varible ("Rural", "Small", "Medium", or
+"Large"):
+
+```{r}
+mjsurvey_study_area_pc <- mjsurvey_study_area %>% 
+  sf::st_as_sf(coords = c("h_geography_x", "h_geography_y"), crs = st_crs(census_tracts)) %>% 
+  sf::st_join(population_centres %>% dplyr::select(pc_class, pc_type), largest = TRUE) %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::select(c(interview_id, DAUID_ADIDU, pc_type, pc_class)) %>% 
+  mutate(pc_class = case_when(is.na(pc_class) ~ "Rural",
+                              TRUE ~ pc_class), 
+         pc_class = factor(pc_class, levels = c("Rural", "Small", "Medium", "Large")),
+         pc_type = case_when(is.na(pc_type) ~ "Rural",
+                              TRUE ~ pc_type), 
+         pc_type = factor(pc_type, levels = c("Rural", "Secondary core", "Fringe", "Core"))) 
+```
+
+Combine all geographic and accessibility variables:
+
+```{r}
+keys <- keys %>% 
+  mutate(DAUID = as.numeric(DAUID))
+
+library(readr)
+
+r5r_routing <- read_csv(paste0(study_area_folder, "/CT/travel_times/ttm_lts2.csv"), 
+                        col_types = cols(from_id = col_character(), 
+                                         to_id = col_character())) %>% 
+  mutate(PwMode_label = case_when(
+    PwMode_label == "Car-motor" ~ "Car_motor",
+    TRUE ~ PwMode_label ))
+
+destinations_CT <- mjsurvey_study_area %>% 
+  filter(!is.na(p_workGeography_x), !is.na(p_workGeography_y)) %>% 
+  dplyr::select(c(interview_id,"p_workGeography_x", "p_workGeography_y")) %>%
+  sf::st_as_sf(coords = c("p_workGeography_x", "p_workGeography_y"), crs = st_crs(census_tracts)) %>% 
+  sf::st_join(census_tracts %>% dplyr::select(CTUID), largest = TRUE) %>%
+  sf::st_drop_geometry() %>% 
+  rename(PWCTUID = CTUID) %>% 
+  filter(!is.na(PWCTUID))
+
+geo_vars <- mjsurvey_study_area %>% 
+  dplyr::select(interview_id,X_activePersonId, DAUID_ADIDU) %>% 
+  rename(DAUID = DAUID_ADIDU) %>% 
+  left_join(keys, by = "DAUID") %>% 
+  left_join(accessibilities_wide, by = "CTUID") %>%
+  left_join(dissemination_areas %>% dplyr::select(DAUID, Pop_density),
+            by = "DAUID") %>% 
+  left_join(mjsurvey_study_area_pc, by = "interview_id")
+
+
+travel_times_grid <- expand.grid(CTUID = unique(geo_vars$CTUID), 
+                            PWCTUID = unique(destinations_CT$PWCTUID), 
+                            PwMode_label = unique(r5r_routing$PwMode_label)) %>% 
+  left_join(r5r_routing, by = c("CTUID" = "from_id", "PWCTUID" = "to_id", "PwMode_label")) %>% 
+  dplyr::select(CTUID, PWCTUID, PwMode_label, travel_time) %>% 
+  filter(!is.na(travel_time))
+
+
+geo_vars_with_travel_times <- geo_vars %>%
+  left_join(destinations_CT, by = "interview_id") %>% 
+  left_join(control_var %>% dplyr::select(interview_id, 
+                                          Transport_mode, 
+                                          Transport_3mode), by = "interview_id") %>%
+  rename(Mode = Transport_mode,
+         Mode3 = Transport_3mode) %>% 
+    left_join(travel_times_grid, by = c("CTUID", "PWCTUID","Mode" = "PwMode_label"))
+```
+
+Join all controls and outcomes:
+
+```{r}
+respondents <- geo_vars_with_travel_times %>% 
+  left_join(control_var, by = c("interview_id", "X_activePersonId")) %>% 
+  left_join(outcomes_std %>% dplyr::select(-fexp_final), by = c("interview_id", "X_activePersonId")) %>%
+  filter(PCD %in% pcd_codes) %>% 
+  mutate(fexp_scaled = fexp_final / mean(fexp_final, na.rm = TRUE)) %>% # Scaled survey weights
+  filter(!is.na(CTUID), 
+         !is.na(SA_pp_Active), 
+         !is.na(SA_pp_Transit), 
+         !is.na(hh_income), 
+         !is.na(travel_time))
+```
+
+Save the respondent data with all controls and outcomes for
+reproducibility:
+
+```{r}
+write.csv(respondents, paste0(diretorio_export, "respondents_employed_processed_NECTAR.csv"), row.names=FALSE)
+```
+
+# Regressions: first stage
+
+In this study we assume that the calculated accessibility is potentially
+endogenous to perceived employment outcomes. We use the Two-stage
+residual inclusion (2SRI) to address this potential endogeneity. First,
+we regress the accessibility indicators based on the spatial filters
+(instrumental variables) and the control variables. Then, we add the
+residuals of these first stage regressions to the estimation of the
+outcome, using the original accessibility indicators and controls.
+
+We use `svydesign` with weights `fexp_final` (no clustering) to create
+our survey design:
+
+```{r}
+design_respondents <- svydesign(
+  ids = ~1,  # No clustering
+  weights = ~fexp_final,
+  data = respondents)
+```
+
+
+## Transit IV
+
+Creating the first stage for transit accessibility:
+
+```{r}
+stage1_transit_SA_pp <- svyglm(SA_pp_Transit ~ SA_pp_Active   +
+SA_pp_Active:Active_user +
+Sf_dist_SA_pp_Transit   +
+Sf_dist_SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+## Transport Variables
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+travel_time + 
+  
+## Socio and demographic variables
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size  +
+hh_income4 +
+Pop_density +
+pc_class, design = design_respondents)
+
+summary(stage1_transit_SA_pp, diagnostics = TRUE)
+```
+
+Wald test for the instrument significance:
+
+```{r}
+wald_transit <- regTermTest(stage1_transit_SA_pp, ~ Sf_dist_SA_pp_Transit)
+wald_transit
+```
+
+## Car IV
+
+Creating the first stage for Car-motorized accessibility:
+
+```{r}
+stage1_car_SA_pp <- svyglm(`SA_pp_Car_motor` ~ SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+Sf_dist_SA_pp_Car_motor +
+## Transport Variables
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+travel_time + 
+## Socio and demographic variables
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size  +
+hh_income4 +
+Pop_density +
+pc_class, design = design_respondents)
+
+summary(stage1_car_SA_pp, diagnostics = TRUE)
+```
+
+Wald test for the instrument significance:
+
+```{r}
+wald_car <- regTermTest(stage1_car_SA_pp, ~ Sf_dist_SA_pp_Car_motor)
+wald_car
+```
+
+## Active IV
+
+Creating the first stage for Active accessibility:
+
+```{r}
+stage1_active_SA_pp <- svyglm(`SA_pp_Active` ~ Sf_dist_SA_pp_Active   +
+Sf_dist_SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+## Transport Variables
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+travel_time + 
+## Socio and demographic variables
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size  +
+hh_income4 +
+Pop_density +
+pc_class, design = design_respondents)
+
+summary(stage1_active_SA_pp)
+```
+
+Wald test for the instrument significance:
+
+```{r}
+wald_active <- regTermTest(stage1_active_SA_pp, ~ Sf_dist_SA_pp_Active)
+wald_active
+```
+
+Generate predicted values and residuals from first stage:
+
+```{r}
+respondents <- respondents %>%
+  mutate(SA_pp_Transit_IV = predict(stage1_transit_SA_pp, newdata = ., type = "response"),
+    SA_pp_Car_IV = predict(stage1_car_SA_pp, newdata = ., type = "response"),
+    SA_pp_Active_IV = predict(stage1_active_SA_pp, newdata = ., type = "response"),
+    SA_pp_Transit_Res_IV = SA_pp_Transit - SA_pp_Transit_IV,  
+    SA_pp_Car_Res_IV = `SA_pp_Car_motor` - SA_pp_Car_IV,  
+    SA_pp_Active_Res_IV = SA_pp_Active - SA_pp_Active_IV)
+```
+
+# Regressions: second stage - linear
+
+Although the main objective of this study is to identify the effect of
+accessibility on perceived employment outcomes in their categorized
+(Likert) form, we also estimate linear regressions based on the
+continuum outcomes to compare with them to the categorical models. The
+linear models use the predicted accessibility from the first stage
+(`SA_pp_ * _IV`) as regressors, in a classic 2SLS (two-stage least
+squares) approach. The same set of control variables is included.
+
+Define a reusable formula:
+
+```{r}
+########################
+##### 3 Modes Case #####
+########################
+
+stage2_linear_formula <- as.formula(Outcome ~
+## Spatial Availability variables
+SA_pp_Active_IV   +
+SA_pp_Active_IV:Active_user +
+SA_pp_Transit_IV   +
+SA_pp_Transit_IV:Transit_user +
+SA_pp_Car_IV +
+## Transport Variables
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+travel_time + 
+## Socio and demographic variables
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size  +
+hh_income4 +
+Pop_density +
+pc_class
+)
+
+```
+
+## Travel Too Long
+
+```{r}
+# Create survey design
+design_TravelTooLong <- svydesign(
+  ids = ~1,  # No clustering
+  weights = ~fexp_final,
+  data = respondents %>% 
+  filter(!is.na(TravelTooLong))) 
+```
+
+```{r}
+TravelTooLong_formula_3mode_lm_SA <- formula(update(stage2_linear_formula, TravelTooLong ~ .))
+
+TravelTooLong_3mode_lm_SA <- svyglm(TravelTooLong_formula_3mode_lm_SA,
+                                   design = design_TravelTooLong)
+
+summary(TravelTooLong_3mode_lm_SA)
+```
+
+```{r}
+null_deviance <- TravelTooLong_3mode_lm_SA$null.deviance
+model_deviance <- TravelTooLong_3mode_lm_SA$deviance
+r_squared <- 1 - (model_deviance / null_deviance)
+r_squared
+```
+
+```{r}
+formula_current <- TravelTooLong_formula_3mode_lm_SA
+model_current <- TravelTooLong_3mode_lm_SA
+design_current <- design_TravelTooLong
+```
+
+```{r}
+max_iter <- 10
+iter <- 0
+outliers_removed <- 0
+
+while (iter < max_iter) {
+  
+  #survey-weighted standardized residuals
+  stdres_obj <- svystdres(model_current)
+  stdres_vals <- stdres_obj$stdresids
+  
+  influential <- which(abs(stdres_vals) > 2)
+  
+  # h <- svyhat(model_current)
+  # influential <- which(h > 3 * mean(h) | abs(stdres_vals) > 2)
+  
+  if (length(influential) == 0) {
+    cat("No more outliers with |stdres| > 2. Stopping.\n")
+    break
+  }
+  
+  cat("Iteration", iter + 1, ": removing", length(influential), "outliers\n")
+  
+  keep <- !(seq_len(nrow(design_current$variables)) %in% influential)
+  design_new <- subset(design_current, keep)
+  
+  # refit the model
+  model_new <- svyglm(formula_current,
+                      design = design_new)
+  
+  design_current <- design_new
+  model_current <- model_new
+  iter <- iter + 1
+  outliers_removed <- outliers_removed + length(influential)
+}
+
+cat("Total outliers removed:", outliers_removed, "\n")
+```
+
+```{r}
+summary(model_current)
+```
+
+```{r}
+null_deviance <- model_new$null.deviance
+model_deviance <- model_new$deviance
+r_squared <- 1 - (model_deviance / null_deviance)
+r_squared
+```
+
+```{r}
+car::vif(model_current)
+```
+
+```{r}
+#svydiags::svystdres(model_current, doplot=TRUE)
+```
+
+```{r}
+summary(svydiags::svystdres(model_current)$stdresids)
+```
+
+```{r}
+TravelTooLong_3mode_lm_SA_pp_clean <- model_current
+TravelTooLong_3mode_lm_SA_pp_clean_design <- design_current
+```
+
+Test to identify weak instruments:
+
+```{r}
+iv_model_ttl <- iv_robust(TravelTooLong ~ 
+SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+travel_time +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class 
+| Sf_dist_SA_pp_Active   +
+Sf_dist_SA_pp_Active:Active_user +
+Sf_dist_SA_pp_Transit   +
+Sf_dist_SA_pp_Transit:Transit_user +
+Sf_dist_SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+travel_time +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class, data = TravelTooLong_3mode_lm_SA_pp_clean_design$variables,
+                      weights = fexp_final,
+                      diagnostics = TRUE)
+
+summary(iv_model_ttl)
+```
+
+## Easy to Reach
+
+To what extent do you agree with the following? "With the transport
+options available to me, I can easily participate/reach the following
+destinations: Work"
+
+```{r}
+# Create survey design
+design_EasyToGo <- svydesign(
+  ids = ~1,  # No clustering
+  weights = ~fexp_final,
+  data = respondents %>% 
+  filter(!is.na(EasyToGo)))
+```
+
+```{r}
+EasyToGo_formula_3mode_lm_SA <- formula(update(stage2_linear_formula, EasyToGo ~ .))
+
+EasyToGo_3mode_lm_SA <- svyglm(EasyToGo_formula_3mode_lm_SA,
+                                   design = design_EasyToGo)
+summary(EasyToGo_3mode_lm_SA)
+```
+
+```{r}
+null_deviance <- EasyToGo_3mode_lm_SA$null.deviance
+model_deviance <- EasyToGo_3mode_lm_SA$deviance
+r_squared <- 1 - (model_deviance / null_deviance)
+r_squared
+```
+
+```{r}
+formula_current <- EasyToGo_formula_3mode_lm_SA
+model_current <- EasyToGo_3mode_lm_SA
+design_current <- design_EasyToGo
+```
+
+```{r}
+max_iter <- 10
+iter <- 0
+outliers_removed <- 0
+
+while (iter < max_iter) {
+  
+  # survey-weighted standardized residuals
+  stdres_obj <- svystdres(model_current)
+  stdres_vals <- stdres_obj$stdresids
+  
+  influential <- which(abs(stdres_vals) > 2)
+  
+  # h <- svyhat(model_current)
+  # 
+  # influential <- which(h > 3 * mean(h) | abs(stdres_vals) > 2)
+  
+  if (length(influential) == 0) {
+    cat("No more outliers with |stdres| > 2. Stopping.\n")
+    break
+  }
+  
+  cat("Iteration", iter + 1, ": removing", length(influential), "outliers\n")
+  
+  keep <- !(seq_len(nrow(design_current$variables)) %in% influential)
+  design_new <- subset(design_current, keep)
+  
+  # refit the model
+  model_new <- svyglm(formula_current,
+                      design = design_new)
+  
+  design_current <- design_new
+  model_current <- model_new
+  iter <- iter + 1
+  outliers_removed <- outliers_removed + length(influential)
+}
+
+cat("Total outliers removed:", outliers_removed, "\n")
+```
+
+```{r}
+summary(model_current)
+```
+
+```{r}
+null_deviance <- model_new$null.deviance
+model_deviance <- model_new$deviance
+r_squared <- 1 - (model_deviance / null_deviance)
+r_squared
+```
+
+```{r}
+car::vif(model_current)
+```
+
+```{r}
+#svydiags::svystdres(model_current, doplot=TRUE)
+```
+
+```{r}
+summary(svydiags::svystdres(model_current)$stdresids)
+```
+
+```{r}
+EasyToGo_3mode_lm_SA_pp_clean <- model_current
+EasyToGo_3mode_lm_SA_pp_clean_design <- design_current
+```
+
+Test to identify weak instruments:
+
+```{r}
+iv_model_etg <- iv_robust(EasyToGo ~ 
+SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+  travel_time +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class 
+| Sf_dist_SA_pp_Active   +
+Sf_dist_SA_pp_Active:Active_user +
+Sf_dist_SA_pp_Transit   +
+Sf_dist_SA_pp_Transit:Transit_user +
+Sf_dist_SA_pp_Car_motor +
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+  travel_time +
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+Pop_density +
+pc_class, data = EasyToGo_3mode_lm_SA_pp_clean_design$variables,
+                      weights = fexp_final,
+                      diagnostics = TRUE)
+
+summary(iv_model_etg)
+```
+
+# Regressions: second stage - ordinal
+
+The perceived outcomes are on ordinal scale (Likert variables) and now
+we estimate cumulative link models (`svyolr`) using the 2SRI approach,
+in which we include the first‑stage residuals as additional regressors
+to correct for endogeneity, so the residuals absorb the endogenous
+variation.
+
+The ordinal formula is:
+
+```{r}
+ordinal_SA_pp_3mode_formula <- as.formula(Outcome ~ 
+                                # Spatial Availability variables
+SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+# Transport variables
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+travel_time + 
+# Socio and demographic variables
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+# Environmental
+Pop_density +
+pc_class +
+# # Causal-effect
+SA_pp_Active_Res_IV +
+SA_pp_Transit_Res_IV +
+SA_pp_Car_Res_IV)
+```
+
+Creating a new dataframe with a reduced number of variables:
+
+```{r}
+respondents_filtered <- respondents %>%
+dplyr::select(SA_pp_Active, SA_pp_Transit, SA_pp_Car_motor, 
+              Sf_dist_SA_pp_Active, Sf_dist_SA_pp_Transit, Sf_dist_SA_pp_Car_motor, 
+              SA_Active, SA_Transit, SA_Car_motor, Transit_user_bin, Active_user_bin, 
+               Transit_user, Active_user, TransitPass, travel_time, 
+              Car_user_bin, pc_class, hh_income4, Transport_3mode,
+CarNumber, BikeNumber, Match_mode, Indigenous_or_racialized,
+Temporary_or_refugee, LongTermConditions, Woman_or_genderdiverse,
+Age, hh_size, hh_income, Pop_density, SA_pp_Active_Res_IV,
+SA_pp_Transit_Res_IV, SA_pp_Car_Res_IV, Transit_user,
+FewJobs, FewJobs_Likert,
+TravelTooLong, TravelTooLong_Likert,
+EasyToGo, EasyToGo_Likert,
+DeclineEmployment, DeclineEmployment_Likert,
+fexp_final, education_level, TransitAvailable, PCD, labour_force)
+```
+
+## Travel Too Long: Likert
+
+```{r}
+complete_data_ttg <- respondents_filtered %>% 
+  filter(!is.na(TravelTooLong)) %>%
+  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE), 
+         travel_time_unscaled = travel_time, 
+         SA_pp_Active_unscaled = SA_pp_Active,
+         SA_pp_Car_motor_unscaled = SA_pp_Car_motor,
+         SA_pp_Transit_unscaled = SA_pp_Transit)
+
+vars_to_scale <- c("SA_pp_Active", "SA_pp_Transit", "SA_pp_Car_motor",
+  "Pop_density", "travel_time", 
+  "SA_pp_Active_Res_IV", "SA_pp_Transit_Res_IV", "SA_pp_Car_Res_IV")
+
+complete_data_scaled_ttg <- complete_data_ttg %>%
+  mutate(across(all_of(vars_to_scale), 
+                function(x) {
+                  scaled <- scale(x)
+                  return(as.numeric(scaled))
+                }))
+
+scale_centers_ttg <- sapply(vars_to_scale, function(var) {
+  attr(scale(complete_data_ttg[[var]]), "scaled:center")
+})
+
+scale_scales_ttg <- sapply(vars_to_scale, function(var) {
+  attr(scale(complete_data_ttg[[var]]), "scaled:scale")
+})
+```
+
+```{r}
+design_ordinal_norm_ttg <- svydesign(
+  ids = ~1,
+  weights = ~fexp_normalized,
+  data = complete_data_scaled_ttg)
+```
+
+```{r}
+TravelTooLong_formula_3mode_ordinal_SA <- formula(update(ordinal_SA_pp_3mode_formula, TravelTooLong_Likert ~ .))
+
+TravelTooLong_ordinal_3modes <- svyolr(TravelTooLong_formula_3mode_ordinal_SA,
+                                   design = design_ordinal_norm_ttg)
+
+summary(TravelTooLong_ordinal_3modes)
+```
+
+We also compute the correlation between each spatial filter and the
+outcome (as a simple bivariate check):
+
+```{r}
+active_cor <- svycor(~ Sf_dist_SA_pp_Active + TravelTooLong, design = design_ordinal_norm_ttg)$cors[2]
+transit_cor <- svycor(~ Sf_dist_SA_pp_Transit + TravelTooLong, design = design_ordinal_norm_ttg)$cors[2]
+car_cor <- svycor(~ Sf_dist_SA_pp_Car_motor + TravelTooLong, design = design_ordinal_norm_ttg)$cors[2]
+
+filters <- c("Active", "Transit", "Car")
+values <- c(active_cor, transit_cor, car_cor)
+traveltoolongcorr <- data.frame(Filter = filters, "TravelTooLong" = values)
+
+traveltoolongcorr
+```
+
+```{r}
+regTermTest(TravelTooLong_ordinal_3modes, "travel_time")
+```
+
+## Easy to Reach: Likert
+
+```{r}
+complete_data_etg <- respondents_filtered %>% 
+  filter(!is.na(EasyToGo)) %>%
+  mutate(fexp_normalized = fexp_final / mean(fexp_final, na.rm = TRUE), 
+         SA_pp_Active_unscaled = SA_pp_Active,
+         SA_pp_Car_motor_unscaled = SA_pp_Car_motor,
+         SA_pp_Transit_unscaled = SA_pp_Transit)
+
+complete_data_scaled_etg <- complete_data_etg %>%
+  mutate(across(all_of(vars_to_scale), 
+                function(x) {
+                  scaled <- scale(x)
+                  return(as.numeric(scaled))
+                }))
+
+scale_centers_etg <- sapply(vars_to_scale, function(var) {
+  attr(scale(complete_data_etg[[var]]), "scaled:center")
+})
+
+scale_scales_etg <- sapply(vars_to_scale, function(var) {
+  attr(scale(complete_data_etg[[var]]), "scaled:scale")
+})
+```
+
+```{r}
+design_ordinal_norm_etg <- svydesign(
+  ids = ~1,
+  weights = ~fexp_normalized,
+  data = complete_data_scaled_etg)
+```
+
+```{r}
+EasyToGo_formula_3mode_ordinal_SA <- formula(update(ordinal_SA_pp_3mode_formula, EasyToGo_Likert ~ .))
+
+EasyToGo_ordinal_3modes <- svyolr(EasyToGo_formula_3mode_ordinal_SA,
+                                   design = design_ordinal_norm_etg)
+
+summary(EasyToGo_ordinal_3modes)
+```
+
+```{r}
+survey::regTermTest(EasyToGo_ordinal_3modes, "SA_pp_Transit")
+```
+
+```{r}
+active_cor <- svycor(~ Sf_dist_SA_pp_Active + EasyToGo, design = design_ordinal_norm_etg)$cors[2]
+transit_cor <- svycor(~ Sf_dist_SA_pp_Transit + EasyToGo, design = design_ordinal_norm_etg)$cors[2]
+car_cor <- svycor(~ Sf_dist_SA_pp_Car_motor + EasyToGo, design = design_ordinal_norm_etg)$cors[2]
+
+filters <- c("Active", "Transit", "Car")
+values <- c(active_cor, transit_cor, car_cor)
+easytogocorr <- data.frame(Filter = filters, "EasyToGo" = values)
+easytogocorr
+```
+
+# Average effects
+
+## Travel too long: Transit:Transit_user
+
+```{r}
+accessibility_lines_transit <- data.frame(Statistic = "Median",
+  Value = Hmisc::wtd.quantile(respondents$SA_pp_Transit, weights = respondents$fexp_final, probs = 0.5))
+median_sa_transit <- accessibility_lines_transit$Value
+
+order <- c("Most Negative", "Negative", "Neutral", "Positive", "Most Positive")
+my_colors <- c("#d7191c", "#fdae61", "#bababa", "#a6d96a", "#1a9641")
+names(my_colors) <- order
+
+linear_transit_ttl_data <- as.data.frame(jtools::effect_plot(TravelTooLong_3mode_lm_SA_pp_clean, pred = SA_pp_Transit_IV, plot.points = FALSE, interval = TRUE, facet.by = Transit_user)@data)
+
+linear_transit_ttl_data <- linear_transit_ttl_data %>% 
+  rename(predicted = TravelTooLong, 
+         Transit = SA_pp_Transit_IV,
+         max = ymax, 
+         min = ymin) %>% 
+  dplyr::select(predicted, Transit, Transit_user, max, min) %>% 
+  mutate(model_type = "Linear model", y = "Linear", 
+         predicted = predicted/100,
+         min = min/100, 
+         max = max/100)
+```
+
+
+```{r}
+transit_ttl_data <- linear_transit_ttl_data %>% 
+  mutate(model_type = factor(model_type),
+         Transit_user = case_when(Transit_user == "No" ~ "Transit user: No",
+                                 Transit_user == "Yes" ~ "Transit user: Yes"),
+         Transit_user = factor(Transit_user, levels = c("Transit user: No", "Transit user: Yes")), 
+         y = factor(y, levels = c("Linear", "Most Negative", "Negative", "Neutral", "Positive", "Most Positive")))
+```
+
+```{r}
+max_transit_accessibility <- round(max(TravelTooLong_3mode_lm_SA_pp_clean$survey.design$variables$SA_pp_Transit_IV),2)
+  
+AME_transit_ttl <- ggplot(transit_ttl_data) +
+  aes(x = Transit, y = predicted, ymin = min, ymax = max, colour = y, fill = y) +
+  geom_line() +
+  geom_vline(data = accessibility_lines_transit, aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") + 
+  annotate("text", x = median_sa_transit, y = Inf, 
+           label = paste0("Median: ", round(median_sa_transit,2)),
+           angle = 90,
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") + 
+  geom_ribbon(colour = "transparent", alpha = 0.05) +
+  scale_y_continuous(labels = scales::percent) + 
+  labs(x = "Public transit accessibility per transit user",
+       y = "Probability",
+       title = str_wrap("\"It takes too long to travel to work\"", width = 70)) +
+theme_minimal() +
+facet_wrap(~Transit_user) + 
+coord_cartesian(ylim = c(0, 1),
+   xlim = c(0, max_transit_accessibility)) + 
+scale_color_manual(values = my_colors, na.value = "#8da0cb") +
+scale_fill_manual(values = my_colors, na.value = "#8da0cb") +
+theme(legend.title = element_text(size = 9),
+legend.text = element_text(size = 8),
+#plot.title = element_text(face = "italic")
+)
+
+ggsave(file = paste0(diretorio_export_images,"/AME_Transit_TravelTooLong.jpg"),
+plot = AME_transit_ttl,
+width = 16,
+height = 8,
+units = "cm",
+dpi = 600)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/AME_Transit_TravelTooLong.jpg"))
+```
+
+## Travel too long: Travel Duration
+
+```{r}
+travel_time_lines <- data.frame(Statistic = "Median",
+  Value = Hmisc::wtd.quantile(respondents$travel_time, weights = respondents$fexp_final, probs = 0.5))
+median_travel_time <- travel_time_lines$Value
+
+linear_ttl_data <- as.data.frame(jtools::effect_plot(TravelTooLong_3mode_lm_SA_pp_clean, pred = travel_time, plot.points = FALSE, interval = TRUE)@data)
+
+linear_ttl_data <- linear_ttl_data %>% 
+  rename(predicted = TravelTooLong, 
+         Travel_time = travel_time,
+         max = ymax, 
+         min = ymin) %>% 
+  dplyr::select(predicted, Travel_time, max, min) %>% 
+  mutate(model_type = "Linear model", y = "Linear", 
+         predicted = predicted/100,
+         min = min/100, 
+         max = max/100)
+```
+
+```{r}
+ordinal_ttl <- svyAME(TravelTooLong_ordinal_3modes,
+              varname = "travel_time",
+              diffchange = "range",
+              seed = 51)
+
+ordinal_ttl_data <- ordinal_ttl$preds
+
+travel_time_scaled_ttl <- scale(TravelTooLong_ordinal_3modes$survey.design$variables$travel_time_unscaled)
+
+mu_ttl <- attr(travel_time_scaled_ttl, "scaled:center")
+sigma_ttl <- attr(travel_time_scaled_ttl, "scaled:scale")
+
+ordinal_ttl_data <- ordinal_ttl_data %>%
+  mutate(travel_time_unscaled = travel_time * sigma_ttl + mu_ttl) %>% 
+  rename(predicted = predicted, 
+         Travel_time = travel_time_unscaled,
+         max = conf.low, 
+         min = conf.high) %>% 
+  dplyr::select(predicted, Travel_time, max, min, y) %>% 
+  mutate(model_type = "Ordinal model")
+```
+
+```{r}
+active_ttl_data <- rbind(linear_ttl_data, ordinal_ttl_data) %>% 
+  mutate(model_type = factor(model_type),
+         y = factor(y, levels = c("Linear", "Most Negative", "Negative", "Neutral", "Positive", "Most Positive")))
+```
+
+```{r}
+max_travel_time <- round(max(TravelTooLong_3mode_lm_SA_pp_clean$survey.design$variables$travel_time),2)
+
+AME_ttl_travel_time <- ggplot(active_ttl_data) +
+  aes(x = Travel_time, y = predicted, ymin = min, ymax = max, colour = y, fill = y) +
+  geom_line() +
+    geom_vline(data = travel_time_lines, aes(xintercept = Value),
+             linetype = "dashed", alpha = 0.75, linewidth = 0.3, color = "#666666") + 
+  annotate("text", x = median_travel_time, y = Inf, 
+           label = paste0("Median: ", round(median_travel_time,2)),
+           angle = 90,
+           hjust = 1, vjust = -0.5, size = 2.8, color = "#333333") + 
+  geom_ribbon(colour = "transparent", alpha = 0.05) +
+  scale_y_continuous(labels = scales::percent) + 
+  labs(x = "Estimated travel time to reach work",
+       y = "Probability",
+       color = "Likert scale", fill = "Likert scale",
+       title = str_wrap("\"It takes too long to travel to work\"", width = 70)) +
+theme_minimal() +
+facet_wrap(~model_type) + 
+coord_cartesian(ylim = c(0, 1),
+   xlim = c(0, max_travel_time)) + 
+scale_color_manual(values = my_colors, na.value = "#8da0cb") +
+scale_fill_manual(values = my_colors, na.value = "#8da0cb") +
+theme(legend.position = "bottom",
+legend.direction = "horizontal",
+legend.title = element_text(size = 9),
+legend.text = element_text(size = 8),
+#plot.title = element_text(face = "italic")
+)
+
+ggsave(file = paste0(diretorio_export_images,"/AME_TravelTime_TravelTooLong.jpg"),
+plot = AME_ttl_travel_time,
+width = 16,
+height = 8,
+units = "cm",
+dpi = 600)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/AME_TravelTime_TravelTooLong.jpg"))
+```
+
+
+# Saving model files
+
+All models, predictions, FGT measures, threshold values, and processed
+data are saved as `.rds` or `.csv` in the export directory:
+
+## Models
+
+```{r}
+### LINEAR 
+
+saveRDS(EasyToGo_3mode_lm_SA_pp_clean_design, paste0(diretorio_export,"easy_to_reach_design_linear.rds"))
+saveRDS(TravelTooLong_3mode_lm_SA_pp_clean_design, paste0(diretorio_export,"travel_too_long_design_linear.rds"))
+
+saveRDS(TravelTooLong_3mode_lm_SA_pp_clean, paste0(diretorio_export,"travel_too_long_linear.rds"))
+saveRDS(EasyToGo_3mode_lm_SA_pp_clean, paste0(diretorio_export,"easy_to_reach_linear.rds"))
+```
+
+```{r}
+# ORDINAL 
+saveRDS(design_ordinal_norm_etg, paste0(diretorio_export,"easy_to_reach_design_ordinal.rds"))
+saveRDS(design_ordinal_norm_ttg, paste0(diretorio_export,"travel_too_long_design_ordinal.rds"))
+
+saveRDS(EasyToGo_ordinal_3modes, paste0(diretorio_export,"easy_to_reach_ordinal.rds"))
+saveRDS(TravelTooLong_ordinal_3modes, paste0(diretorio_export,"travel_too_long_ordinal.rds"))
+```
+
+```{r}
+ttl_linear <- broom::tidy(TravelTooLong_3mode_lm_SA_pp_clean)
+names(ttl_linear)[2:4] <- paste0(names(ttl_linear)[2:4], "_ttl")
+
+etr_linear <- broom::tidy(EasyToGo_3mode_lm_SA_pp_clean)
+names(etr_linear)[2:4] <- paste0(names(etr_linear)[2:4], "_etr")
+
+linear_models <- ttl_linear %>% 
+  left_join(etr_linear, by = "term")
+```
+
+```{r}
+write.csv(linear_models, paste0(diretorio_export, "linear_models_emp.csv"), row.names=FALSE)
+```
+
+```{r}
+etr_ordinal <- broom::tidy(EasyToGo_ordinal_3modes)
+names(etr_ordinal)[2:5] <- paste0(names(etr_ordinal)[2:5], "_etr")
+
+ttl_ordinal <- broom::tidy(TravelTooLong_ordinal_3modes)
+names(ttl_ordinal)[2:5] <- paste0(names(ttl_ordinal)[2:5], "_ttl")
+
+ordinal_models <- ttl_ordinal %>% 
+  left_join(etr_ordinal, by = "term")
+```
+
+```{r}
+write.csv(ordinal_models, paste0(diretorio_export, "ordinal_models_emp.csv"), row.names=FALSE)
+```
+
+# Tables for presentation
+
+```{r}
+accesscorr <- Accessibilities %>%
+filter(PwMode_label %in% c("Active", "Transit", "Car_motor")) %>%
+group_by(PwMode_label) %>%
+summarise(Accessibility = cor(Sf_dist_SA_pp, SA_pp_im, method = "pearson", use = "complete.obs")) %>%
+rename(Filter = PwMode_label) %>%
+mutate(Filter = case_when(Filter == "Car_motor" ~ "Car",
+TRUE ~ Filter))
+
+correlations_sf_outcomes <- accesscorr  %>%
+left_join(easytogocorr, by = "Filter") %>%
+left_join(traveltoolongcorr, by = "Filter")
+
+correlations_sf_outcomes
+
+write.csv(correlations_sf_outcomes, paste0(diretorio_export, "correlations_sf_outcomes_emp.csv"), row.names=FALSE)
+```
+
+```{r vardescriptions, cache = TRUE}
+vars <- c("SA_pp_Active","SA_pp_Transit", "SA_pp_Car_motor", 
+          "Active_user", "Transit_user", "LongTermConditions", 
+          "CarNumber", "BikeNumber", "Match_mode", 
+          "Indigenous_or_racialized", "Temporary_or_refugee",  
+          "Woman_or_genderdiverse", "Age", "hh_size", "hh_income4", "Pop_density", "pc_class", "TransitAvailable", "TransitPass")
+
+label_list <- list(SA_pp_Active = "Active job accessibility per active traveller",
+              SA_pp_Transit = "Transit job accessibility per transit user",
+              SA_pp_Car_motor = "Motorized job accessibility per motorized user",
+              SA_pp_Active_IV = "Predicted active accessibility per user",
+              SA_pp_Transit_IV = "Predicted transit accessibility per user",
+              SA_pp_Car_IV = "Predicted motorized accessibility per user", 
+              Active_user = "Active transportation user",
+              Transit_user = "Public transit user",
+              CarNumber = "Number of Cars",
+              BikeNumber = "Number of Bikes",
+              Match_mode = "Preferred mode match most frequent mode",
+              Indigenous_or_racialized = "Indigenous or racialized person",
+              Temporary_or_refugee = "Temporary visa or refugee",
+              LongTermConditions = "Person with disability",
+              Woman_or_genderdiverse = "Woman, transgender or non-binary person", 
+              Age = "Age", 
+              hh_size = "Household size",
+              hh_income4 = "Household income", 
+              Pop_density = "Population density (people/km2)", 
+              pc_class = "Population centre class",
+              TransitAvailable = "Public transit availability in the neighbourhood", 
+              TransitPass = "Montly or annual public transit pass", 
+              SA_pp_Active_Res_IV = "Residuals: Active acessibility",
+              SA_pp_Transit_Res_IV = "Residuals: Transit acessibility",
+              SA_pp_Car_Res_IV = "Residuals: Motorized acessibility",
+              `SA_pp_Active:Active_user` = "Active mode interaction: accessibility × user", 
+              `SA_pp_Active_IV:Active_user` = "Active mode interaction: accessibility × user", 
+              `SA_pp_Transit_IV:Transit_user` = "Transit mode interaction: accessibility × user",
+              `SA_pp_Transit:Transit_user` = "Transit mode interaction: accessibility × user",
+              travel_time = "Estimated travel time to reach work")
+
+type_list <- list(SA_pp_Active = "continuous",
+                  SA_pp_Active_IV = "continuous",
+              Active_user = "dichotomous",
+              SA_pp_Transit = "continuous",
+              SA_pp_Transit_IV = "continuous",
+              Transit_user = "dichotomous",
+              SA_pp_Car_motor = "continuous", 
+              SA_pp_Car_IV = "continuous", 
+              CarNumber = "continuous",
+              BikeNumber = "continuous",
+              Match_mode = "dichotomous",
+              Indigenous_or_racialized = "dichotomous",
+              Temporary_or_refugee = "dichotomous",
+              LongTermConditions = "dichotomous",
+              travel_time = "continuous",
+              Woman_or_genderdiverse = "dichotomous", 
+              Age = "continuous", 
+              hh_size = "continuous",
+              hh_income4 = "categorical", 
+              Pop_density = "continuous", 
+              pc_class = "categorical",
+              TransitAvailable = "dichotomous", 
+              TransitPass = "dichotomous")
+```
+
+```{r}
+vars_model <- c("SA_pp_Active","SA_pp_Active:Active_user", "SA_pp_Transit", "SA_pp_Transit:Transit_user", "SA_pp_Car_motor", "travel_time")
+
+single_row_models <- c("SA_pp_Active:Active_user", "SA_pp_Transit:Transit_user")
+
+ttl_model_table <- TravelTooLong_ordinal_3modes %>% 
+  tbl_regression(exponentiate = TRUE,
+                 include = vars_model, 
+                 show_single_row = single_row_models, 
+                 label = label_list, 
+                 intercept = FALSE) %>% 
+  add_global_p() %>% 
+   add_significance_stars(hide_p = FALSE, hide_ci = TRUE,  pattern = "{estimate}{stars}")
+
+etg_model_table <- EasyToGo_ordinal_3modes %>% 
+  tbl_regression(exponentiate = TRUE,
+                 include = vars_model, 
+                 show_single_row = single_row_models, 
+                 label = label_list, 
+                 intercept = FALSE) %>% 
+  add_global_p() %>% 
+  add_significance_stars(hide_p = FALSE, hide_ci = TRUE,  pattern = "{estimate}{stars}")
+
+
+combined_table <- tbl_merge(tbls = list(ttl_model_table,  etg_model_table),
+    tab_spanner = c("**Travel too long**", "**Easy to reach**"))
+
+combined_table
+```
