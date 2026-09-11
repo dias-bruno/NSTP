@@ -247,7 +247,7 @@ Also extract transit‑related perceptions (satisfaction, wait time, reliability
 ```{r}
 # Few job availability with ideal commute 
 LS_FewJobs <- mjsurvey_study_area %>% 
-  dplyr::select(fexp_final, X_activePersonId,pe_tooFewJobsInMyIdealCommutingTime, p_mainOccupation) %>% 
+  dplyr::select(fexp_final, X_activePersonId,pe_tooFewJobsInMyIdealCommutingTime, p_mainOccupation,labour_force) %>% 
   filter(!pe_tooFewJobsInMyIdealCommutingTime %in% c("na","")) %>% 
   mutate(FewJobs = as.numeric(pe_tooFewJobsInMyIdealCommutingTime)) %>% 
   filter(FewJobs >= 0) %>%
@@ -256,14 +256,22 @@ LS_FewJobs <- mjsurvey_study_area %>%
                breaks = Hmisc::wtd.quantile(FewJobs, weights = fexp_final, probs = c(0, 0.2, 0.4, 0.6, 0.8, 1)), 
                #breaks = c(0,20,40,60,80,100), 
                labels = c("Most Positive", "Positive", "Neutral", "Negative", "Most Negative"),
-               include.lowest = TRUE), 
+               include.lowest = TRUE),
          FewJobs_Likert = factor(FewJobs_Likert, 
+                                              levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
+             ordered = TRUE),
+    FewJobs_Likert_Breaks = 
+           cut(FewJobs,
+               breaks = c(0,20,40,60,80,100), 
+               labels = c("Most Positive", "Positive", "Neutral", "Negative", "Most Negative"),
+               include.lowest = TRUE), 
+         FewJobs_Likert_Breaks = factor(FewJobs_Likert_Breaks, 
                                               levels = c("Most Negative", "Negative", "Neutral","Positive", "Most Positive"),
              ordered = TRUE))
 
 # Travel to work too long 
 LS_TravelTooLong <- mjsurvey_study_area %>% 
-  dplyr::select(fexp_final, X_activePersonId,pe_tooLongToTravelToWork) %>% 
+  dplyr::select(fexp_final, X_activePersonId,pe_tooLongToTravelToWork,labour_force) %>% 
   filter(!pe_tooLongToTravelToWork %in% c("na","")) %>% 
   mutate(TravelTooLong = as.numeric(pe_tooLongToTravelToWork)) %>% 
   filter(TravelTooLong >= 0) %>%
@@ -279,7 +287,7 @@ LS_TravelTooLong <- mjsurvey_study_area %>%
 
 # Easy to go work
 LS_EasyToGo <- mjsurvey_study_area %>% 
-  dplyr::select( fexp_final,  X_activePersonId,pe_easilyReachWork, p_fixedWorkplaceOutsideHome, p_mainOccupation) %>% 
+  dplyr::select( fexp_final,  X_activePersonId,pe_easilyReachWork, p_fixedWorkplaceOutsideHome, p_mainOccupation,labour_force) %>% 
   filter(!pe_easilyReachWork %in% c("na","")) %>% 
   mutate(EasyToGo = as.numeric(pe_easilyReachWork)) %>% 
   filter(EasyToGo >= 0) %>%
@@ -416,11 +424,11 @@ LS_ForcedCar <- mjsurvey_study_area %>%
 Combine all outcomes into one data frame:
 
 ```{r}
-outcomes_std <- mjsurvey_study_area %>% dplyr::select(interview_id, X_activePersonId, fexp_final) %>% 
-  left_join(LS_DeclineEmployment %>% dplyr::select(-fexp_final) , by = "X_activePersonId") %>% 
-  left_join(LS_FewJobs %>% dplyr::select(-fexp_final) , by = "X_activePersonId") %>% 
-  left_join(LS_TravelTooLong %>% dplyr::select(-fexp_final), by = "X_activePersonId") %>% 
-  left_join(LS_EasyToGo %>% dplyr::select(-fexp_final), by = "X_activePersonId") %>%
+outcomes_std <- mjsurvey_study_area %>% dplyr::select(interview_id, X_activePersonId, fexp_final, labour_force) %>% 
+  left_join(LS_DeclineEmployment %>% dplyr::select(-c(fexp_final,labour_force)) , by = "X_activePersonId") %>% 
+  left_join(LS_FewJobs %>% dplyr::select(-c(fexp_final,labour_force)) , by = "X_activePersonId") %>% 
+  left_join(LS_TravelTooLong %>% dplyr::select(-c(fexp_final,labour_force)), by = "X_activePersonId") %>% 
+  left_join(LS_EasyToGo %>% dplyr::select(-c(fexp_final,labour_force)), by = "X_activePersonId") %>%
   left_join(LS_WorkbyTransit, by = "X_activePersonId") %>%
   left_join(LS_TransportSatisfaction, by = "X_activePersonId") %>%
   left_join(LS_TransitWaitTime, by = "X_activePersonId") %>%
@@ -1135,6 +1143,7 @@ summary(iv_model_fj)
 # moran.test(morans_fj$residuals, listw = wieghts, zero.policy = TRUE)
 ```
 
+
 ## Travel Too Long
 
 ```{r}
@@ -1636,7 +1645,7 @@ CarNumber, BikeNumber, Match_mode, Indigenous_or_racialized,
 Temporary_or_refugee, LongTermConditions, Woman_or_genderdiverse,
 Age, hh_size, hh_income, Pop_density, SA_pp_Active_Res_IV,
 SA_pp_Transit_Res_IV, SA_pp_Car_Res_IV, Transit_user,
-FewJobs, FewJobs_Likert,
+FewJobs, FewJobs_Likert, FewJobs_Likert_Breaks, 
 TravelTooLong, TravelTooLong_Likert,
 EasyToGo, EasyToGo_Likert,
 DeclineEmployment, DeclineEmployment_Likert,
@@ -1715,6 +1724,52 @@ filters <- c("Active", "Transit", "Car")
 values <- c(active_cor, transit_cor, car_cor)
 fewjobscorr <- data.frame(Filter = filters, "FewJobs" = values)
 fewjobscorr
+```
+
+## Few jobs: Likert - Categorized with fixed intervals
+
+```{r}
+FewJobs_ordinal_3modes_breaks <- svyolr(FewJobs_Likert_Breaks ~ 
+                                # Spatial Availability variables
+SA_pp_Active   +
+SA_pp_Active:Active_user +
+SA_pp_Transit   +
+SA_pp_Transit:Transit_user +
+SA_pp_Car_motor +
+# Transport variables
+CarNumber +
+BikeNumber +
+Match_mode +
+TransitPass +
+TransitAvailable +
+# Socio and demographic variables
+Indigenous_or_racialized +
+Temporary_or_refugee +
+LongTermConditions +
+Woman_or_genderdiverse +
+Age +
+hh_size +
+hh_income4 +
+# Environmental
+Pop_density +
+pc_class +
+# # Causal-effect
+SA_pp_Active_Res_IV +
+SA_pp_Transit_Res_IV +
+SA_pp_Car_Res_IV,
+design = design_ordinal_norm_fj)
+
+summary(FewJobs_ordinal_3modes_breaks)
+```
+
+```{r}
+car::vif(FewJobs_ordinal_3modes_breaks)
+```
+
+Significance of transit accessibility (using `regTermTest`):
+
+```{r}
+survey::regTermTest(FewJobs_ordinal_3modes, "SA_pp_Transit")
 ```
 
 ## Travel Too Long: Likert
@@ -2210,9 +2265,9 @@ names(my_colors_likert) <- Likert_order
 ```
 
 ```{r}
-priority_group_name <- "Equity-deserving"
+priority_group_name <- "Transport disadvantaged"
 non_priority_group_name <- "Advantaged group"
-majority_group_name <- "Most common population"
+majority_group_name <- "Most prevalent population"
 ```
 
 ```{r}
@@ -3060,22 +3115,27 @@ filter(Equity == priority_group_name) %>%
 pull(Progressive)
 
 priority_geo_areas <- census_tracts %>% 
+  mutate(LIMAT = case_when(is.na(LIMAT) ~ 0, 
+                            TRUE ~ LIMAT)) %>% 
   sf::st_drop_geometry() %>% 
   left_join(accessibilities_wide, by = "CTUID") %>% 
   filter(!is.na(SA_pp_Transit)) %>% 
   group_by(CTUID) %>% 
   dplyr::summarise(SA_pp_Transit = first(SA_pp_Transit, na_rm = TRUE),
-               Weighted_Pop = Population) %>% 
+               Weighted_Pop = Population, 
+               LIM_concentration = LIMAT/LANDAREA, 
+               LIMAT = LIMAT, 
+               ) %>% 
   mutate(range_cons = conservative_threshold - SA_pp_Transit, 
          range_prog = progressive_threshold - SA_pp_Transit, 
          range_inte = intermediate_threshold - SA_pp_Transit, 
-         AFI_cons = range_cons * Weighted_Pop, 
-         AFI_prog = range_prog * Weighted_Pop, 
-         AFI_inte = range_inte * Weighted_Pop)
+         AFI_cons = range_cons * LIM_concentration, 
+         AFI_prog = range_prog * LIM_concentration, 
+         AFI_inte = range_inte * LIM_concentration)
 
 # Conservative threshold 
 cons_classification <- priority_geo_areas %>% 
-  filter(range_cons > 0)
+  filter(range_cons >= 0)
 
 q2  <- quantile(cons_classification$AFI_cons, 0.25, na.rm = TRUE)   
 q50 <- quantile(cons_classification$AFI_cons, 0.50, na.rm = TRUE)   
@@ -3092,7 +3152,7 @@ cons_classification <- cons_classification %>%
 # Progressive threshold 
 
 prog_classification <- priority_geo_areas %>% 
-  filter(range_prog > 0)
+  filter(range_prog >= 0)
 
 q2  <- quantile(prog_classification$AFI_prog, 0.25, na.rm = TRUE)   
 q50 <- quantile(prog_classification$AFI_prog, 0.50, na.rm = TRUE)   
@@ -3109,7 +3169,7 @@ prog_classification <- prog_classification %>%
 # Intermediate threshold 
 
 inte_classification <- priority_geo_areas %>% 
-  filter(range_inte > 0)
+  filter(range_inte >= 0)
 
 q2  <- quantile(inte_classification$AFI_inte, 0.25, na.rm = TRUE)   
 q50 <- quantile(inte_classification$AFI_inte, 0.50, na.rm = TRUE)   
@@ -3159,90 +3219,57 @@ knitr::include_graphics(paste0(diretorio_export_images,"/AFI_boxplot.jpg"))
 Calculating FGT measures:
 
 ```{r}
-fgt_equity <- function(df, threshold) {
-  N <- df %>% 
-    dplyr::summarize(Weighted_Pop = sum(Weighted_Pop, na.rm = TRUE))
-  
-  headcount <-
-    df %>%
-    filter(SA_pp_Transit <= threshold) %>%
-    dplyr::summarize(fgt0_toSum = sum(Weighted_Pop),
-              Unweighted = n(), 
-              fgt1_toSum = sum(Weighted_Pop * ((threshold - SA_pp_Transit)/threshold)),
-              fgt2_toSum = sum(Weighted_Pop * ((threshold - SA_pp_Transit)/threshold)^2))
-
-    fg <- mutate(headcount,
-               Weighted_Pop = N$Weighted_Pop, 
-               fgt0 = fgt0_toSum / Weighted_Pop,
-               fgt1 = fgt1_toSum / Weighted_Pop,
-               fgt2 = fgt2_toSum / Weighted_Pop,
-               quant = threshold)
-}
-
-fgt_equity_intermediate <- fgt_equity(df = priority_geo_areas, 
-                        threshold = intermediate_threshold) %>%
-  as.data.frame() %>% 
-  mutate(priority = "General", Threshold = "Intermediate")
-
-fgt_equity_conservative <- fgt_equity(df = priority_geo_areas, 
-                               threshold = conservative_threshold) %>%
-  as.data.frame() %>% 
-  mutate(priority = "General", Threshold = "Conservative")
-
-fgt_equity_progressive <- fgt_conservative <- fgt_equity(df = priority_geo_areas, 
-                                                  threshold = progressive_threshold) %>%
-  as.data.frame() %>% 
-  mutate(priority = "General", Threshold = "Progressive")
-
-fgt_priorities <- function(df, threshold, priority) {
-  N <- df %>% 
-    dplyr::summarize(Weighted_Pop = sum(Weighted_Pop, na.rm = TRUE))
+fgt_equity <- function(df, threshold, pop_var){
+  base_total <- sum(df[[pop_var]], na.rm = TRUE)
   
   headcount <- df %>%
     filter(SA_pp_Transit <= threshold) %>%
-    group_by(.data[[priority]]) %>%
-    dplyr::summarize(fgt0_toSum = sum(Weighted_Pop),
-                            Unweighted = n(), 
-      fgt1_toSum = sum(Weighted_Pop * ((threshold - SA_pp_Transit)/threshold)),
-      fgt2_toSum = sum(Weighted_Pop * ((threshold - SA_pp_Transit)/threshold)^2),
-      .groups = "drop")
+     dplyr::summarize(fgt0_toSum = sum(.data[[pop_var]], na.rm= TRUE),
+      Unweighted = n(),
+      fgt1_toSum = sum(.data[[pop_var]]*((threshold-SA_pp_Transit)/threshold),
+                       na.rm = TRUE),
+      fgt2_toSum = sum(.data[[pop_var]]*((threshold-SA_pp_Transit)/threshold)^2,
+                       na.rm = TRUE))
   
-  fg <- headcount %>% 
-    mutate(Weighted_Pop = N$Weighted_Pop, 
-      fgt0 = fgt0_toSum / Weighted_Pop,
-      fgt1 = fgt1_toSum / Weighted_Pop,
-      fgt2 = fgt2_toSum / Weighted_Pop,
-      quant = threshold)
-  
-  return(fg)
+  headcount %>%
+    mutate(Weighted_Pop = base_total, fgt0 = fgt0_toSum/Weighted_Pop,
+           fgt1 = fgt1_toSum/Weighted_Pop, 
+           fgt2 = fgt2_toSum/Weighted_Pop,
+           quant = threshold,
+      pop_var = pop_var) %>%
+    dplyr::select(pop_var, quant, 
+           fgt0, fgt1, fgt2, 
+           Unweighted,
+           fgt0_toSum, fgt1_toSum, 
+           fgt2_toSum, Weighted_Pop)
 }
 
-fgt_prior_intermediate <- fgt_priorities(
-  df = priority_geo_areas,
-  threshold = intermediate_threshold,
-  priority = "priority_inte") %>%
-  as.data.frame() %>% 
-  rename(priority = priority_inte) %>% 
-  mutate(Threshold = "Intermediate")
-  
-fgt_prior_conservative <- fgt_priorities(
-  df = priority_geo_areas,
-  threshold = conservative_threshold,
-  priority = "priority_cons") %>%
-  as.data.frame() %>% 
-  rename(priority = priority_cons) %>% 
-  mutate(Threshold = "Conservative")
 
-fgt_prior_progressive <- fgt_priorities(
-  df = priority_geo_areas,
-  threshold = progressive_threshold,
-  priority = "priority_prog") %>% 
-  rename(priority = priority_prog) %>%
-  as.data.frame() %>% 
-  mutate(Threshold = "Progressive")
+fgt_equity_multi <- function(df, threshold, pop_vars){
+  map_dfr(pop_vars, ~ fgt_equity(df, threshold, .x))
+}
 
-fgt_measures <- bind_rows(fgt_equity_intermediate, fgt_equity_conservative, fgt_equity_progressive,
-                           fgt_prior_intermediate, fgt_prior_conservative, fgt_prior_progressive) %>% 
+fgt_equity_intermediate <- fgt_equity_multi(df = priority_geo_areas,
+                                            threshold = intermediate_threshold,
+                                            pop_vars = c("Weighted_Pop", "LIMAT"))  %>%
+  as.data.frame() %>% 
+  mutate(priority = "General", Threshold = "Intermediate")
+
+fgt_equity_conservative <- fgt_equity_multi(df = priority_geo_areas,
+                                            threshold = conservative_threshold,
+                                            pop_vars = c("Weighted_Pop", "LIMAT")) %>%
+  as.data.frame() %>% 
+  mutate(priority = "General", Threshold = "Conservative")
+
+fgt_equity_progressive <- fgt_conservative <- fgt_equity_multi(df = priority_geo_areas,
+                                            threshold = progressive_threshold,
+                                            pop_vars = c("Weighted_Pop", "LIMAT")) %>%
+  as.data.frame() %>% 
+  mutate(priority = "General", Threshold = "Progressive")
+
+fgt_measures <- bind_rows(fgt_equity_intermediate, 
+                          fgt_equity_conservative, 
+                          fgt_equity_progressive) %>% 
   filter(!is.na(priority)) 
 ```
 
@@ -3255,49 +3282,12 @@ plot_fgt_data <-  fgt_measures %>%
                 ifelse(name == "fgt1", "FGT-1", "FGT-2")), 
          pop = "Population")
 
-priority_order <- c("General", 
-                   "Very-high priority", 
-                   "High priority", 
-                   "Moderate priority", 
-                   "Low priority")
-
-my_colors <- c("#525252","#e31a1c","#fd8d3c", "#feb24c","#fed976")
-
-names(my_colors) <- priority_order
-  
-plot_fgt <- plot_fgt_data %>% 
-  mutate(priority = factor(priority, levels = priority_order)) %>%
-  ggplot(aes(y = Threshold, x = value, fill = priority)) + 
-  geom_point(size = 2.5, alpha = 0.70, pch=21, colour = "black")  + 
-  scale_x_continuous(limits = c(0, 1)) + 
-  scale_fill_manual(values = my_colors) +
-  facet_wrap(~ name) + 
-  theme_minimal() +
-  xlab(NULL) + 
-  ylab(NULL) + 
-  theme(legend.position = "bottom",
-        legend.title = element_blank(),
-        panel.grid.minor = element_blank())
-
-ggplot2::ggsave(plot = plot_fgt, 
-          filename = paste0(diretorio_export_images,"FGT_plots.jpg"), 
-          width = 18, 
-          height= 5, 
-          units = "cm", 
-          dpi = 300)
-
-knitr::include_graphics(paste0(diretorio_export_images,"/FGT_plots.jpg"))
-```
-
-```{r}
 FGT_plots_general <- plot_fgt_data %>% 
-  filter(priority == "General") %>%
-  mutate(priority = factor(priority, levels = priority_order)) %>%
-  ggplot(aes(y = Threshold, x = value , fill = priority)) + 
+  ggplot(aes(y = pop_var, x = value , fill = Threshold)) + 
   geom_point(size = 2.5, alpha = 0.70, pch = 21, colour = "black") + 
   geom_text(aes(label = round(value, 2)), 
             hjust = 0, vjust = -0.5, size = 3) +  
-  scale_fill_manual(values = my_colors) +
+  #scale_fill_manual(values = my_colors) +
   facet_wrap(~ name) + 
   theme_minimal() +
   xlab(NULL) + 
@@ -3306,31 +3296,12 @@ FGT_plots_general <- plot_fgt_data %>%
         legend.title = element_blank(),
         panel.grid.minor = element_blank())
 
-ggplot2::ggsave(plot = FGT_plots_general, 
-          filename = paste0(diretorio_export_images,"FGT_plots_general.jpg"), 
-          width = 18, 
-          height= 5, 
-          units = "cm", 
-          dpi = 300)
-
-ggplot2::ggsave(plot = FGT_plots_general, 
-          filename = paste0(here(),"/manuscript/figures/FGT_plots_general.jpg"), 
-          width = 18, 
-          height= 5, 
-          units = "cm", 
-          dpi = 300)
-
-knitr::include_graphics(paste0(diretorio_export_images,"/FGT_plots_general.jpg"))
-```
-
-```{r}
 FGT01_plots_general <- plot_fgt_data %>% 
   filter(priority == "General", !name %in% c("FGT-2")) %>%
-  ggplot(aes(y = Threshold, x = value)) + 
-  geom_point(size = 2.5, alpha = 0.70, pch = 21, colour = "black", fill = "grey70") + 
+  ggplot(aes(y = Threshold, x = value, fill = pop_var)) + 
+  geom_point(size = 2.5, alpha = 0.70, pch = 21) + 
   geom_text(aes(label = round(value, 2)), 
             hjust = 0, vjust = -0.5, size = 3) +  
-  scale_fill_manual(values = my_colors) +
   facet_wrap(~ name) + 
   theme_minimal() +
   xlab(NULL) + 
@@ -3355,56 +3326,56 @@ ggplot2::ggsave(plot = FGT01_plots_general,
 
 knitr::include_graphics(paste0(diretorio_export_images,"/FGT01_plots_general.jpg"))
 ```
+
 ```{r}
-plot_fgt_data_mj <- fgt_measures %>% 
-  filter(priority == "General") %>%
-  dplyr::select(-fgt2) %>%
-  mutate(fgt1_diff = round(fgt1*quant,2),
-         fgt0 = round(100*fgt0,2), 
-         fgt1 = round(100*fgt1,2),
-         Threshold_label = paste0(Threshold, ": ", round(quant, 2)), 
-         ) %>% 
-  pivot_longer(cols = c(fgt0, fgt1)) %>%
-  mutate(name = ifelse(name == "fgt0", "FGT-0",
-                ifelse(name == "fgt1", "FGT-1", "FGT-2")), 
-         fgt_label = ifelse(name == "FGT-0",paste0(value,"%"),paste0(value,"% - ",fgt1_diff)))
-
-FGT01_plots_general_mj <- plot_fgt_data_mj %>% 
-  ggplot(aes(y = Threshold_label, x = value)) + 
-  geom_point(size = 2.5, alpha = 0.70, pch = 21, colour = "black", fill = "grey70") + 
-  geom_text(aes(label = fgt_label), 
-            hjust = -0.1, 
-            vjust = -0.6, 
-            size = 2.5
-            ) +  
-  scale_fill_manual(values = my_colors) +
-  coord_cartesian(
-   xlim = c(35, 110)) + 
-  scale_x_continuous(breaks = c(40, 70, 100)) + 
-  facet_wrap(~ name) + 
-  theme_minimal() +
-  xlab(NULL) + 
-  ylab(NULL) + 
-  theme(legend.position = NULL,
-        legend.title = element_blank(),
-        panel.grid.minor = element_blank())
-
-ggplot2::ggsave(plot = FGT01_plots_general_mj, 
-          filename = paste0(diretorio_export_images,"FGT01_plots_general_mj.jpg"), 
-          width = 16, 
-          height= 5, 
-          units = "cm", 
-          dpi = 300)
-
-ggplot2::ggsave(plot = FGT01_plots_general_mj, 
-          filename = paste0(here(),"/manuscript/figures/FGT01_plots_general_mj.jpg"), 
-          width = 16, 
-          height= 5, 
-          units = "cm", 
-          dpi = 300)
-
-knitr::include_graphics(paste0(diretorio_export_images,"/FGT01_plots_general_mj.jpg"))
-  
+# plot_fgt_data_mj <- fgt_measures %>% 
+#   filter(priority == "General") %>%
+#   dplyr::select(-fgt2) %>%
+#   mutate(fgt1_diff = round(fgt1*quant,2),
+#          fgt0 = round(100*fgt0,2), 
+#          fgt1 = round(100*fgt1,2),
+#          Threshold_label = paste0(Threshold, ": ", round(quant, 2)), 
+#          ) %>% 
+#   pivot_longer(cols = c(fgt0, fgt1)) %>%
+#   mutate(name = ifelse(name == "fgt0", "FGT-0",
+#                 ifelse(name == "fgt1", "FGT-1", "FGT-2")), 
+#          fgt_label = ifelse(name == "FGT-0",paste0(value,"%"),paste0(value,"% - ",fgt1_diff)))
+# 
+# FGT01_plots_general_mj <- plot_fgt_data_mj %>% 
+#   ggplot(aes(y = Threshold_label, x = value)) + 
+#   geom_point(size = 2.5, alpha = 0.70, pch = 21, colour = "black", fill = "grey70") + 
+#   geom_text(aes(label = fgt_label), 
+#             hjust = -0.1, 
+#             vjust = -0.6, 
+#             size = 2.5
+#             ) +  
+#   scale_fill_manual(values = my_colors) +
+#   coord_cartesian(
+#    xlim = c(35, 110)) + 
+#   scale_x_continuous(breaks = c(40, 70, 100)) + 
+#   facet_wrap(~ name) + 
+#   theme_minimal() +
+#   xlab(NULL) + 
+#   ylab(NULL) + 
+#   theme(legend.position = NULL,
+#         legend.title = element_blank(),
+#         panel.grid.minor = element_blank())
+# 
+# ggplot2::ggsave(plot = FGT01_plots_general_mj, 
+#           filename = paste0(diretorio_export_images,"FGT01_plots_general_mj.jpg"), 
+#           width = 16, 
+#           height= 5, 
+#           units = "cm", 
+#           dpi = 300)
+# 
+# ggplot2::ggsave(plot = FGT01_plots_general_mj, 
+#           filename = paste0(here(),"/manuscript/figures/FGT01_plots_general_mj.jpg"), 
+#           width = 16, 
+#           height= 5, 
+#           units = "cm", 
+#           dpi = 300)
+# 
+# knitr::include_graphics(paste0(diretorio_export_images,"/FGT01_plots_general_mj.jpg"))
 ```
 
 ## Maps
@@ -3496,20 +3467,21 @@ priority_plot <- tm_shape(priority_geo_areas_long) +
     legend.outside.position = c("right"))
 
 tmap_save(priority_plot, 
-          paste0(diretorio_export_images,"geographical_priorities.jpg"), 
+          paste0(diretorio_export_images,"geographical_priorities_LIMAT.jpg"), 
           width = 17, 
           height= 10, 
           units = "cm", 
           dpi = 500)
+
 
 tmap_save(priority_plot, 
-          paste0(here(),"/manuscript/figures/geographical_priorities.jpg"), 
+          paste0(here(),"/manuscript/figures/geographical_priorities_LIMAT.jpg"), 
           width = 17, 
           height= 10, 
           units = "cm", 
           dpi = 500)
 
-knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities.jpg"))
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_LIMAT.jpg"))
 ```
 
 
@@ -3532,13 +3504,13 @@ conservative_threshold_plot <- priority_geo_areas_long %>%
     legend.outside.position = c("right"))
 
 tmap_save(conservative_threshold_plot, 
-          paste0(diretorio_export_images,"geographical_priorities_conservative.jpg"), 
+          paste0(diretorio_export_images,"geographical_priorities_conservative_LIMAT.jpg"), 
           width = 14, 
           height= 10, 
           units = "cm", 
           dpi = 500)
 
-knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_conservative.jpg"))
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_conservative_LIMAT.jpg"))
 ```
 
 ```{r}
@@ -3561,13 +3533,13 @@ conservative_threshold_pcd <- priority_geo_areas_long %>%
     legend.outside.position = c("right"))
 
 tmap_save(conservative_threshold_pcd, 
-          paste0(diretorio_export_images,"/geographical_priorities_conservative_pcd.jpg"), 
+          paste0(diretorio_export_images,"/geographical_priorities_conservative_pcd_LIMAT.jpg"), 
           width = 18, 
           height= 12, 
           units = "cm", 
           dpi = 500)
 
-knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_conservative_pcd.jpg"))
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_conservative_pcd_LIMAT.jpg"))
 ```
 
 ```{r}
@@ -3589,13 +3561,13 @@ intermediate_threshold_plot <- priority_geo_areas_long %>%
     legend.outside.position = c("right"))
 
 tmap_save(intermediate_threshold_plot, 
-          paste0(diretorio_export_images,"geographical_priorities_intermediate.jpg"), 
+          paste0(diretorio_export_images,"geographical_priorities_intermediate_LIMAT.jpg"), 
           width = 14, 
           height= 10, 
           units = "cm", 
           dpi = 500)
 
-knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_intermediate.jpg"))
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_intermediate_LIMAT.jpg"))
 ```
 
 ```{r}
@@ -3618,13 +3590,13 @@ intermediate_threshold_pcd <- priority_geo_areas_long %>%
     legend.outside.position = c("right"))
 
 tmap_save(intermediate_threshold_pcd, 
-          paste0(diretorio_export_images,"/geographical_priorities_intermediate_pcd.jpg"), 
+          paste0(diretorio_export_images,"/geographical_priorities_intermediate_pcd_LIMAT.jpg"), 
           width = 18, 
           height= 12, 
           units = "cm", 
           dpi = 500)
 
-knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_intermediate_pcd.jpg"))
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_intermediate_pcd_LIMAT.jpg"))
 ```
 
 ```{r}
@@ -3646,13 +3618,13 @@ progressive_threshold_plot <- priority_geo_areas_long %>%
     legend.outside.position = c("right"))
 
 tmap_save(progressive_threshold_plot, 
-          paste0(diretorio_export_images,"geographical_priorities_progressive.jpg"), 
+          paste0(diretorio_export_images,"geographical_priorities_progressive_LIMAT.jpg"), 
           width = 14, 
           height= 10, 
           units = "cm", 
           dpi = 500)
 
-knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_progressive.jpg"))
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_progressive_LIMAT.jpg"))
 ```
 
 ```{r}
@@ -3675,13 +3647,13 @@ progressive_threshold_pcd <- priority_geo_areas_long %>%
     legend.outside.position = c("right"))
 
 tmap_save(progressive_threshold_pcd, 
-          paste0(diretorio_export_images,"/geographical_priorities_progressive_pcd.jpg"), 
+          paste0(diretorio_export_images,"/geographical_priorities_progressive_pcd_LIMAT.jpg"), 
           width = 18, 
           height= 12, 
           units = "cm", 
           dpi = 500)
 
-knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_progressive_pcd.jpg"))
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_progressive_pcd_LIMAT.jpg"))
 ```
 
 ```{r}
@@ -3704,13 +3676,13 @@ priority_plot_3520 <- tm_shape(priority_geo_areas_long %>% filter(PCD == 3520)) 
     legend.outside.position = c("right"))
 
 tmap_save(priority_plot_3520, 
-          paste0(diretorio_export_images,"geographical_priorities_3520.jpg"), 
+          paste0(diretorio_export_images,"geographical_priorities_3520_LIMAT.jpg"), 
           width = 17, 
           height= 10, 
           units = "cm", 
           dpi = 500)
 
-knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_3520.jpg"))
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_3520_LIMAT.jpg"))
 ```
 
 ```{r}
@@ -3733,13 +3705,13 @@ priority_plot_3525 <- tm_shape(priority_geo_areas_long %>% filter(PCD == 3525)) 
     legend.outside.position = c("right"))
 
 tmap_save(priority_plot_3525, 
-          paste0(diretorio_export_images,"geographical_priorities_3525.jpg"), 
+          paste0(diretorio_export_images,"geographical_priorities_3525_LIMAT.jpg"), 
           width = 17, 
           height= 10, 
           units = "cm", 
           dpi = 500)
 
-knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_3525.jpg"))
+knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_3525_LIMAT.jpg"))
 ```
 
 
@@ -3931,8 +3903,8 @@ write.csv(pop_controls, paste0(diretorio_export, "pop_controls.csv"), row.names=
 
 ```{r}
 summary_pcd_priority_areas <-  priority_geo_areas_long %>% 
-  group_by(pcd_label,AFI_type, Priority_value) %>% 
-  dplyr::summarise(Population = sum(Population, na.rm = FALSE), CTs = n(),.groups = "drop_last") %>%
+  group_by(pcd_label, AFI_type, Priority_value) %>% 
+  dplyr::summarise(Population = sum(LIMAT, na.rm = FALSE), CTs = n(),.groups = "drop_last") %>%
   mutate(Priority_value = case_when(
     is.na(Priority_value) ~ "No deficit", TRUE ~ Priority_value)) %>%
   group_by(pcd_label, AFI_type) %>%
@@ -3955,7 +3927,7 @@ summary_pcd_standards <-  summary_pcd_priority_areas %>%
 ```{r}
 census_tracts %>%
   filter(PCD == 3518) %>% 
-  pull(Population) %>% 
+  pull(LIMAT) %>% 
   sum()
 
 summary_pcd_priority_areas %>%
@@ -3980,7 +3952,7 @@ write.csv(summary_pcd_standards, paste0(diretorio_export, "summary_pcd_standards
 ```{r}
 summary_pcsd_priority_areas <- priority_geo_areas_long %>% 
   group_by(pcsd_label, AFI_type, Priority_value) %>% 
-  summarise(Population = sum(Population, na.rm = FALSE), 
+  summarise(Population = sum(LIMAT, na.rm = FALSE), 
     CTs = n(),.groups = "drop_last") %>%
   mutate(Priority_value = case_when(
     is.na(Priority_value) ~ "No deficit", TRUE ~ Priority_value)) %>%
@@ -4000,12 +3972,38 @@ summary_pcsd_standards <- summary_pcsd_priority_areas %>%
   mutate(Pop_percent = Population/sum(Population, na.rm = TRUE) * 100,   CT_percent = CTs/sum(CTs, na.rm = TRUE)*100) %>%
   ungroup() %>%
   sf::st_drop_geometry()
+
+# For the conservative standard, only 35% of the CTs (516 out
+# of the 1,489 CTs in the study area) present transit 
+# accessibility levels above the shortfall limit
+summary_pcsd_standards %>% 
+  filter(AFI_type == "Conservative", priority_category != "Deficit") %>% 
+  pull(CTs) %>% 
+  sum() 
+
+# with most of them (91%) located in the City of Toronto. 
+summary_pcsd_standards %>% 
+  filter(AFI_type == "Conservative", priority_category != "Deficit", pcsd_label == "Toronto") %>% 
+  pull(CTs) %>% 
+  sum() 
+
+#This share of CTs decreases to less than 10% for the intermediate equity standard (136 CTs). 
+summary_pcsd_standards %>% 
+  filter(AFI_type == "Intermediate", priority_category != "Deficit") %>% 
+  pull(CTs) %>% 
+  sum() 
+
+
+summary_pcsd_standards %>% 
+  filter(AFI_type == "Conservative") %>% 
+  pull(CTs) %>% 
+  sum()
 ```
 
 ```{r}
 census_tracts %>%
   filter(PCSD == 3518005) %>% 
-  pull(Population) %>% 
+  pull(LIMAT) %>% 
   sum()
 
 summary_pcsd_priority_areas %>%
@@ -4046,6 +4044,12 @@ outcomes_quantile_df <- outcomes_quantile_df %>%
   pivot_wider(names_from = quantile, values_from = value)
 
 outcomes_quantile_df
+```
+
+Few jobs with pre-defined breaks: 
+
+```{r}
+saveRDS(FewJobs_ordinal_3modes_breaks, paste0(diretorio_export,"FewJobs_ordinal_3modes_breaks_paper.rds"))
 ```
 
 ```{r}

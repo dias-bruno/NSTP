@@ -427,8 +427,9 @@ if (nrow(specific_function_pcd) < 4) {
 }
 
 specific_function_final <- specific_function_final %>% 
-  mutate(PwMode = case_when(PwMode == "Car/motor" ~ "Car-motor", 
-                            TRUE ~ PwMode))
+  mutate(PwMode = case_when(PwMode_label == "Car-motorized" ~ "Car-motor", 
+                            PwMode_label == "Public transit" ~ "Transit", 
+                            TRUE ~ PwMode_label))
 ```
 
 
@@ -476,31 +477,31 @@ generate_impedance <- function(mode_function, travel_cost){
   f <- 0
   
   # lnorm impedance 
-  if(mode_function$distribution == "lnorm"){
+  if(mode_function$Distribution == "Log-normal"){
   f <- dlnorm(travel_cost,
                     meanlog = mode_function$est_1,
                     sdlog = mode_function$est_2)
   }
   
   # Unif impedance 
-  else if(mode_function$distribution == "unif") {
+  else if(mode_function$Distribution == "Uniform") {
    f <- dunif(travel_cost,
                      min = 0,
                      max = mode_function$est_2)
    
   # Exponential impedance 
-  } else if(mode_function$distribution == "exp") {
+  } else if(mode_function$Distribution == "Exponential") {
     f <- rescale(dexp(travel_cost,
                     rate = mode_function$est_1))
     
   # Gamma impedance 
-  } else if (mode_function$distribution == "gamma"){  
+  } else if (mode_function$Distribution == "Gamma"){  
     f <- dgamma(travel_cost,
                     shape = mode_function$est_1,
                     rate = mode_function$est_2)
     
   # Norm impedance 
-  } else if (mode_function$distribution == "norm"){
+  } else if (mode_function$Distribution == "Normal"){
         f <- dnorm(travel_cost,
                     mean = mode_function$est_1,
                     sd = mode_function$est_2)
@@ -530,7 +531,7 @@ for(pcd_codes in unique(ttm$PCD)){
      ttm_f_mode$f <- generate_impedance(mode_function = pcd_mode_function,
                                   travel_cost = ttm_f_mode$travel_time)
      
-     ttm_f_mode$distribution <-  pcd_mode_function$distribution
+     ttm_f_mode$Distribution <-  pcd_mode_function$Distribution
      ttm_f_mode$est_1 <-  pcd_mode_function$est_1
      ttm_f_mode$est_2 <-  pcd_mode_function$est_2
      
@@ -1328,7 +1329,9 @@ knitr::include_graphics(paste0(diretorio_export_figures,"SA_pp_3modes.jpg"))
 ```{r out.width="100%"}
 SA_pp_3modes_v2 <- mode_pp_metrics_ct_sf %>% 
   filter(PwMode_label %in% c("Active", "Transit", "Car-motor")) %>%
-  mutate(PwMode_label = case_when(PwMode_label == "Car-motor" ~ "Motorized",
+  mutate(PwMode_label = case_when(PwMode_label == "Car-motor" ~ "Private vehicles",
+                                  PwMode_label == "Active" ~ "Active modes",
+                                  PwMode_label == "Transit" ~ "Public transit",
                                   TRUE ~ PwMode_label )) %>%
   tm_shape() + 
    tm_polygons("SA_pp_im",
@@ -1337,7 +1340,7 @@ SA_pp_3modes_v2 <- mode_pp_metrics_ct_sf %>%
               title = "Spatial availability per person",
               border.col = NULL) + 
   tm_scale_bar(position = c("right", "bottom"), breaks = c(0, 10, 15, 25)) +
-  tm_compass(position = c("left", "top"), size=0.5)  + 
+  tm_compass(position = c("left", "top"), size=0.8)  + 
    tm_facets(by = "PwMode_label", ncol = 3) +       
    tm_shape(census_subdivisions) +
    tm_borders("black", lwd=0.5) +

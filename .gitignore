@@ -7,6 +7,8 @@
 /data-raw/output/
 /data-raw/NECTAR/nectar-backup/
 /data-raw/NECTAR/output/
+/data-raw/NECTAR/vectors/
+/data-raw/NECTAR/rasters/
 .httr-oauth
 .DS_Store
 .quarto

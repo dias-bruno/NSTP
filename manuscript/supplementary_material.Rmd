@@ -83,7 +83,7 @@ standards_measures_diretorio <- paste0(here::here(),"/data-raw/output/GTAH/CT/st
 
 # Supplementary material
 
-Table \ref{tab:pcsd_summary} presents the total number of people living in each priority level for policy intervention, by equity standard type and census subdivision. Priority areas for policy intervention are determined with reference to the transit accessibility shortfall and to the Accessibility Fairness Index based on conservative, intermediate, and progressive equity standards.
+Table \ref{tab:pcsd_summary} presents the total number of people in low-income living in each priority level for policy intervention, by equity standard type and census subdivision. Priority areas for policy intervention are determined with reference to the transit accessibility shortfall and to the Equity-Weighted Accessibility Fairness Index based on conservative, intermediate, and progressive equity standards.
 
 ```{r}
 summary_pcsd <- read.csv(paste0(standards_measures_diretorio, "/summary_pcsd_priority_areas.csv")) %>%
@@ -94,7 +94,7 @@ summary_pcsd <- read.csv(paste0(standards_measures_diretorio, "/summary_pcsd_pri
         booktabs = TRUE, longtable = TRUE,
         caption = paste0("\\label{tab:pcsd_summary}People living in priority areas for policy-intervention by equity standard and census subdivision."),
         col.names = c("Subdivision", "Equity standard","Priority class", "Total","(%)","Total","(%)")) %>%
-    add_header_above(c(" " = 3, "Population" = 2, "Census Tract" = 2)) %>%
+    add_header_above(c(" " = 3, "Low-income population" = 2, "Census Tract" = 2)) %>%
     kable_styling(full_width = FALSE,
                 latex_options=c("scale_down", "repeat_header"),
                 font_size = 10) %>%

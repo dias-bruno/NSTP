@@ -138,6 +138,10 @@ You can visualize all available data set in the library by doing:
 ```{r}
 list_census_datasets()
 ```
+```{r}
+find_census_vectors("LIM-AT", dataset = "CA21")
+```
+
 
 For this demonstration, we will access the data set related to the City
 of Toronto (Census Divisions (CD) = `3520`).
@@ -213,23 +217,28 @@ is not within a Census Agglomeration or Census Metropolitan Area, you
 will not have census tract available for your city!):
 
 ```{r}
-census_tracts <- get_census(dataset='CA21', regions=list(CD=code), level='CT', geo_format = "sf")
+census_tracts <- get_census(dataset='CA21', regions=list(CD=code), 
+                            vectors = c("v_CA21_1025"),
+                            level='CT', geo_format = "sf")
 ```
 
 Filtering and adjusting variable names:
 
 ```{r}
 census_tracts <- census_tracts %>% 
-  dplyr::select(GeoUID, name, `Shape Area`, Population, Households, CD_UID, CMA_UID, CSD_UID, geometry) %>% 
+  dplyr::select(GeoUID, name, `Shape Area`, Population, Households, CD_UID, CMA_UID, CSD_UID, 
+                "v_CA21_1025: In low income based on the Low-income measure, after tax (LIM-AT)",
+                geometry) %>% 
   dplyr::rename(CTUID = GeoUID, 
                 CTNAME = name,
+                LIMAT = "v_CA21_1025: In low income based on the Low-income measure, after tax (LIM-AT)",
                 PCD = CD_UID,
                 LANDAREA =`Shape Area`,
                 CMAUID = CMA_UID,
                 PCSD = CSD_UID) %>% 
   mutate(PRUID = substr(CMAUID, start = 1, stop = 2),
          CMAUID = substr(CMAUID, start = 3, stop = 5)) %>% 
-  dplyr::select(CTUID,CTNAME, LANDAREA, PCD, PCSD, CMAUID, PRUID, Population, Households, geometry) %>% 
+  dplyr::select(CTUID,CTNAME, LANDAREA, PCD, PCSD, CMAUID, PRUID, Population, LIMAT, Households, geometry) %>% 
   left_join(census_subdivisions %>% 
               dplyr::select(CSDUID, CSDNAME, CDNAME) %>% 
               st_drop_geometry(), by = c("PCSD" = "CSDUID"))
@@ -265,6 +274,7 @@ dissemination_areas <- dissemination_areas %>%
 ```{r}
 plot(dissemination_areas["geometry"])
 ```
+
 
 ## Download from the Census Website
 

@@ -1,0 +1,2065 @@
+\documentclass[preprint, 3p,
+authoryear]{elsarticle} %review=doublespace preprint=single 5p=2 column
+%%% Begin My package additions %%%%%%%%%%%%%%%%%%%
+
+\usepackage[hyphens]{url}
+
+  \journal{An awesome journal} % Sets Journal name
+
+\usepackage{graphicx}
+%%%%%%%%%%%%%%%% end my additions to header
+
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+% TODO: Currently lineno needs to be loaded after amsmath because of conflict
+% https://github.com/latex-lineno/lineno/issues/5
+\usepackage{lineno} % add
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \usepackage{fontspec}
+  \ifxetex
+    \usepackage{xltxtra,xunicode}
+  \fi
+  \defaultfontfeatures{Mapping=tex-text,Scale=MatchLowercase}
+  \newcommand{\euro}{€}
+\fi
+% use microtype if available
+\IfFileExists{microtype.sty}{\usepackage{microtype}}{}
+\usepackage[]{natbib}
+\bibliographystyle{elsarticle-harv}
+
+\ifxetex
+  \usepackage[setpagesize=false, % page size defined by xetex
+              unicode=false, % unicode breaks when used with xetex
+              xetex]{hyperref}
+\else
+  \usepackage[unicode=true]{hyperref}
+\fi
+\hypersetup{breaklinks=true,
+            bookmarks=true,
+            pdfauthor={},
+            pdftitle={Exploring equity standards for transport policy: A case study of calculated accessibility, perceived accessibility, and employment outcomes in the Greater Toronto and Hamilton Area, Canada},
+            colorlinks=false,
+            urlcolor=blue,
+            linkcolor=magenta,
+            pdfborder={0 0 0}}
+
+\setcounter{secnumdepth}{5}
+% Pandoc toggle for numbering sections (defaults to be off)
+
+
+% tightlist command for lists without linebreak
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+
+
+
+\usepackage{pdflscape}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+
+
+
+\begin{document}
+
+
+\begin{frontmatter}
+
+  \title{Exploring equity standards for transport policy: A case study
+of calculated accessibility, perceived accessibility, and employment
+outcomes in the Greater Toronto and Hamilton Area, Canada}
+    \author[McMaster University]{Bruno Dias dos Santos%
+  \corref{cor1}%
+  }
+   \ead{dossanb@mcmaster.ca} 
+    \author[Western University]{Anastasia Soukhov%
+  %
+  }
+   \ead{asoukhov@uwo.ca} 
+    \author[McMaster University]{Antonio Páez%
+  %
+  }
+   \ead{paezha@mcmaster.ca} 
+      \affiliation[McMaster University]{
+    organization={School of Earth, Environment \&
+Society},addressline={1280 Main Street
+West},city={Hamilton},postcode={L8S
+4K1},state={Ontario},country={Canada},}
+    \affiliation[Western University]{
+    organization={Department of Geography and
+Environment},addressline={1151 Richmond
+Street},city={London},postcode={N6A
+3K7},state={Ontario},country={Canada},}
+    \cortext[cor1]{Corresponding author}
+  
+  \begin{abstract}
+  The lack of standards for the equitable distribution of accessibility
+  complicates efforts to address transport poverty. This study
+  identifies equity standards by exploring the relationship between
+  calculated accessibility, perceived job accessibility, and employment
+  outcomes for individuals living in the Greater Toronto and Hamilton
+  Area, Canada. We use calculated accessibility for three modes of
+  travel (active transportation, public transit, and private vehicles)
+  along individual-level variables to estimate ordinal models. To
+  control for endogeneity we use spatial filters as instrumental
+  variables. We estimated the effect of calculated accessibility on the
+  perception of having too few jobs available within an ideal commuting
+  time (a perceived accessibility indicator) and the reports of having
+  to decline jobs because of transportation constraints (an employment
+  outcome indicator). The results indicate that higher levels of active
+  and transit accessibility tend to mitigate negative perceptions and
+  outcomes regarding these situations. Based on the results of these
+  models, we identify accessibility thresholds that reduce the
+  likelihood of negative perceptions and outcomes for
+  transport-disadvantaged groups. We present three equity standards that
+  we classify as conservative, intermediate, and progressive. We believe
+  that these standards can serve as a data-driven example of how to
+  support transportation planning in achieving more equitable outcomes,
+  as well as for participatory processes to collectively define minimum
+  or sufficient accessibility levels.
+  \end{abstract}
+    \begin{keyword}
+    benchmark \sep justice \sep effect \sep egalitarian \sep 
+    sufficient
+  \end{keyword}
+  
+ \end{frontmatter}
+
+\section{Introduction}\label{introduction}
+
+Transportation equity refers to the distribution of the burdens and
+benefits of transportation systems among a population
+\citep{karner2020, pereira2017}. Burdens include health-related concerns
+arising from exposure to air pollution, noise, and traffic; sedentary
+lifestyles; and the risk of injury or death from collisions. In
+contrast, the primary benefit is the provision of accessibility
+\citep{pereira2021}, understood as the ease of reaching (spatially
+distributed) opportunities and destinations
+\citep{páez2012, hansen1959, soukhov2025}, including employment,
+healthcare, educational services, and venues for social interaction.
+
+Accessibility is one of the primary outcomes of spatial development
+\citep{páez2012}. It is influenced by the spatial distribution of the
+population and opportunities and depends on the characteristics and
+performance of the transportation network. In other words, it is a
+product of both transportation systems and land use patterns
+\citep{wee2011}. There is a growing consensus among researchers and
+transportation planners that the goal of transport policy should be to
+improve accessibility \citep{el-geneidy2022, boisjoly2017}. This
+contrasts with traditional planning approaches that have prioritized
+mobility patterns that stimulate private automobile use and higher
+speeds as solutions to congestion and long commuting times.
+Mobility-centered policies often focus on metrics like increasing the
+number of trips, raising average speeds, and reducing congestion,
+treating mobility as an end in itself rather than a means to reach
+destinations. However, this approach has proved problematic as movement
+becomes the measure of success, while often producing negative
+externalities that neutralize or even cancel any initial increases in
+accessibility. In reality people travel to access opportunities,
+activities, or other people at their destinations, and so accessibility
+is seen as a superior indicator of performance \citep{pereira2023}. It
+is worth noting, however, it is important to mention that congestion is
+part of the everyday routine of many people and one of the most
+immediate and felt transportation concerns of the public
+\citep{handy2020}, which may help to explain why mobility-centered
+approaches remain in practice.
+
+Access to opportunities is one of the main ways in which transportation
+can help in the promotion of a dignified life \citep{karner2020, BRUNO}.
+In contrast, insufficient or inadequate accessibility can prevent
+individuals from participating in location-based activities they wish to
+engage in for reasons beyond their control, in a process described in
+the literature as Transport-Related Social Exclusion (TRSE)
+\citep{litman2024, lucas2012, preston2007, luz2022, paez2009mobility}.
+Insufficient accessibility, when combined with other forms of social and
+economic disadvantage, can result in transportation poverty
+\citep{lucas2019, luz2022}: the failure of transportation and land use
+systems to provide access to essential services or employment.
+Transportation poverty increases vulnerability among individuals who
+already face challenges associated with age \citep{vandülmen2022},
+income \citep{allen2019}, race \citep{awaworyichurchill2020}, gender
+\citep{murphy2023}, disability \citep{upham2022}, among other factors
+\citep{kim2024}. With the suburbanization of low-income populations, it
+is estimated that over one million Canadians live in transport poverty
+\citep{allen2019}.
+
+Complicating efforts to address transportation poverty is the lack of
+standards for the equitable distribution of accessibility
+\citep{soukhov2025a}. Additionally, there is an absence of
+transportation data in the form of open data products to support urban
+planners \citep{arribas-bel2021, behrendtfrauke2021, páez2021}, and
+transportation planners receive limited formal guidance in assessing the
+equity implications of their projects
+\citep{miller2018, palm2023, tebrömmelstroet2016}. Furthermore,
+relatively few studies explicitly link accessibility levels with the
+experience of accessibility, such as employment opportunities declined
+or accepted due to transport conditions, or the ease to reach employment
+opportunities within ideal commuting times. Combined, this results in a
+gap in the development and implementation of accessibility standards to
+ensure equity in transportation planning and policy.
+
+This study is guided by the following research questions: How do job
+accessibility indicators created based on spatial and transport data
+relate to perceived accessibility of employment opportunities and to
+self-reported employment outcomes? And could a given level of
+accessibility serve as a standard or goal for equitable transport
+planning? To answer these questions, this study has the general
+objective of proposing equity standards for transportation planning
+based on the relationship between accessibility calculated based on
+spatial and transport data - which we refer to hereafter as calculated
+accessibility - and people's perceived accessibility of job
+opportunities and self-reported employment outcomes, grounded in an
+egalitarian and sufficientarian understanding of transportation equity.
+From this perspective, a fair transportation system should guarantee a
+minimum, sufficient level of accessibility to all members of society,
+with this sufficient level being defined from the standpoint of those
+facing the greatest transportation disadvantage (Martens and Golub,
+2021; Pereira and Karner, 2021).
+
+While prior studies have examined the association between calculated and
+perceived accessibility, and between calculated accessibility and
+employment outcomes, few have used these relationships to derive
+accessibility thresholds as propositions towards equitable
+transportation planning. Our research advances the literature on the
+equitable distribution of transportation benefits by proposing a
+model-based approach to identify minimum levels of calculated
+accessibility associated with reduced likelihood of negative perceived
+accessibility and employment outcomes. This research is made possible by
+the release of Canada's first National Survey of Transport Poverty
+(NSTP) \citep{tiznado-aitken}. Although the proposed standards are
+presented at the neighbourhood level, they indirectly also incorporate
+individual-level characteristics, since these standards are derived from
+individuals' self-reported perceptions and outcomes in the NSTP. In this
+way, these thresholds can assist policymakers in interpreting how
+different levels of calculated accessibility are associated with
+residents' perceived ability to reach employment opportunities under
+existing social and spatial constraints. This increases the potential
+for government adoption and enhances the comprehensibility and relevance
+of such standards for community members and those experiencing unequal
+accessibility. Furthermore, identifying sufficient job accessibility
+levels can help assess and highlight areas at higher risk of transport
+poverty, particularly those with a higher concentration of transport
+disadvantage populations.
+
+In addition, to facilitate collaboration and further analysis and to
+ensure the transparency and replicability of our study, we developed
+this paper using literate programming, with the data analysis code
+accessible through our GitHub page
+(https://github.com/dias-bruno/NSTP/), in alignment with best practices
+in spatial data science \citep{páez2021, arribas-bel2021}.
+
+\section{Theoretical background}\label{theoretical-background}
+
+\subsection{Calculated and perceived
+accessibility}\label{calculated-and-perceived-accessibility}
+
+The most commonly used accessibility measures are based on the gravity
+model of Hansen \citeyearpar{hansen1959} and they are often called
+objective, place-, spatial-, or location-based accessibility for relying
+in the use of spatial and transport to create the indicators. This model
+considers the number of opportunities that a person can reach to be
+proportional to the sum of opportunities in each destination, discounted
+by the travel cost to reach that destination. This type of metric is
+classified as a place-based measure \citep{pereira2023}, representing a
+characteristic of a given location that assumes that all people in this
+location have equal access to the spatially distributed opportunities.
+However, they do not take into account the individual characteristics of
+people.
+
+The perceived accessibility, on the other hand, refers to the perception
+of people of how easily they can reach opportunities
+\citep{lättman2016, pot2025, mehdizadeh2025}, resulting from not only
+the interaction of land-use and transport infrastructure
+\citep{geurs2004}, but also from travel options (e.g., having a car or a
+transit pass), travel experiences, and individual characteristics and
+preferences. Often, perceived accessibility deviates from place-based
+calculated accessibility, with some research indicating that calculated
+accessibility might not be able to capture the multiple ways in which
+people experience a lack of access to opportunities \citep{zhu2025}.
+Explanations for these differences are partially attributed to
+differences in individuals' travel attitudes, capabilities, and
+preferences \citep{devos2025, vandervlugt2022}. In addition,
+accessibility measures often rely on travel time as the only impedance
+factor, while other factors that might also shape individuals'
+perceptions of the ease or difficulty of reaching destinations are not
+considered, such as safety, comfort, and even enjoyment of the trip
+\citep{handy2020, handy2001}.
+
+Another factor that might impact the relationship between calculated and
+perceived accessibility is adaptive preference, in which political
+oppression, poverty, and adverse social conditions distort the
+preferences of individuals living in deprived circumstances
+\citep{Baber}. In this situation, someone with restricted financial
+resources living in an area with low (calculated) accessibility might
+adapt their expectations and preferences to align with their
+circumstances, and might therefore not consider their accessibility
+levels to be insufficient.
+
+Another point impacting the relationship between perceived and
+calculated accessibility is the residential self-selection, in which
+people may choose their residential locations based on travel needs,
+abilities, and travel-related attitudes. In fact, residential location
+decisions differ across income groups, impacting the relationship
+between calculated job accessibility and employment status (cite Hu,
+Cao, Cervero). For instance, high-income individuals often prioritize
+living in places with low job accessibility because they prefer suburban
+housing amenities, such as green spaces and larger homes, over proximity
+to work, accepting longer commutes because they can afford - and might
+even prefer to have - a car. As a consequence, their perceived ability
+to reach employment opportunities may be shaped less by their
+neighbourhood's job accessibility and more by their resources and
+preferences. On the other hand, low-income individuals might prefer to
+live close to employment hubs to maximize their chances of having a job,
+while reducing commuting and housing costs.
+
+Even though, as demonstrated in the following subsection, calculated
+accessibility is still commonly used to evaluate the effect that the
+interaction between land-use characteristics and the transportation
+system has on perceived job accessibility and on employment outcomes. In
+addition, existing studies on perceived accessibility seem to have
+difficulties in creating standardized definitions and measurement tools,
+contributing to the somewhat limited knowledge on the topic
+\citep{negm2025}. In this context, connecting calculated to perceived
+accessibility helps to capture non-spatial and employment‑related
+barriers that are not visible in place‑based measures alone, since the
+calculated accessibility might be perceived differently even between
+people living within that same neighbourhood. In this paper, as
+suggested by Pot et al. \citeyearpar{pot2025}, we define sufficient
+levels of accessibility based on the relationship between calculated
+accessibility and people's perception of job accessibility and
+employment outcomes, while also controlling for individual
+characteristics.
+
+\subsection{Job accessibility and employment
+outcomes}\label{job-accessibility-and-employment-outcomes}
+
+Studies connecting employment outcomes to job accessibility date back to
+the 1960s, when John Kain \citeyearpar{kain1968} proposed the spatial
+mismatch hypothesis while analyzing Detroit and Chicago, USA. The author
+hypothesized that the low employment rates among Black Americans in
+inner cities resulted from employment decentralization and the
+difficulty faced by the Black population in moving out of these areas,
+primarily due to racial discrimination and segregation.
+
+Since Kain \citeyearpar{kain1968}, studies linking calculated job
+accessibility and different employment outcomes have presented mixed
+results. Bania et al. \citeyearpar{bania2008} found no significant
+effect for job access when examining its relationship with employment,
+earnings, hourly wage, and weekly hours worked for women leaving welfare
+in Ohio, USA. Delmelle et al. \citeyearpar{delmelle2021} also found that
+changes in car accessibility had no significant impact on employment
+rates for different population income groups in the Metropolitan Area of
+Charlotte, North Carolina, USA, arguing that the spatial separation
+between lower-wage workers and their workplaces might already be
+relatively small. Studying Los Angeles, USA, Merlin and Hu
+\citeyearpar{merlin2017} found mixed-effects of job accessibility on
+employment status, with a stronger association for more highly educated
+groups. The authors argued that lower-educated groups may be more
+limited by non-spatial factors that impede their employment
+opportunities, such as qualifications, labour market readiness and lack
+of social networks. On the other hand, for workers with a higher level
+of education, the time and monetary costs of spatial separation itself
+may play a relatively more important role, so accessibility measures may
+have a greater impact on their decisions and ability to enter the labour
+market.
+
+In contrast, other studies found significant effects of job
+accessibility on employment outcomes
+\citep{bastiaanssen2021, duarte2023, jin2018, johnson2017, matas2010}.
+Jin and Paulsen \citeyearpar{jin2018} used a difference-in-differences
+model for the Chicago Metropolitan Area, finding that increasing job
+accessibility between 2010 and 2017 was associated with reduced
+unemployment rates. Duarte et al. \citeyearpar{duarte2023} found that
+job accessibility had a positive effect on participation in the labour
+market for women, a negative effect on informal employment for women,
+and a positive effect on the probability of being employed for both
+women and men. More recently, Bastiaanssen et al.
+\citeyearpar{bastiaanssen2025} examined differential employment effects
+of job accessibility by public transport in combination with the bicycle
+for different educational groups at the national level in the
+Netherlands. They found that jobs for lower-educated groups are often
+located outside areas of high accessibility, thereby reducing job
+accessibility among these groups, while jobs for higher-educated groups
+tend to be concentrated in and around downtowns and are associated with
+greater accessibility. In this study, the assumed connection between the
+spatial dimension of accessibility and people's perceived accessibility
+and employment outcomes is the basis for the identification of equity
+standards.
+
+\subsection{Equity standards}\label{equity-standards}
+
+An equity standard, when operationalized, defines the level of fairness
+to be adopted and the acceptable inequality \citep{soukhov2025a}.
+Accessibility standards typically combine a concept of fairness with
+threshold criteria, reflecting both vertical and horizontal equity
+approaches. Vertical equity is often operationalized through
+opportunity‑based standards defined for specific population groups
+(e.g., minimum access to opportunities within a 10‑minute walking trip
+for older adults), whereas horizontal equity commonly appears in the use
+of uniform travel impedance thresholds applied across all potential
+users (e.g., a maximum acceptable distance to a transit stop).
+
+Yenisetty \& Bahadure \citeyearpar{yenisetty2020} set an
+opportunity-based standard, considering a distance of more than 1,200
+meters between amenities, services, and facilities by public transport
+to be unfair when analyzing cities in India. Tiznado-Aitken
+\citeyearpar{tiznado-aitken2018} defined unfair cases as those where bus
+stops and metro stations are located more than 1 kilometer away. Sun \&
+Thakuriah \citeyearpar{sun2021} adopted 400 meters as the maximum
+acceptable walking distance to bus and tram stops, and 800 meters to
+ferry stations in England. In another study, Peungnumsai et al.
+\citep{peungnumsai2020} identified opportunity standards through the
+ratio of public transport supply to demand, considering conditions fair
+when demand is greater than supply.
+
+The use of different thresholds reflects the idiosyncratic manner in
+which standards are developed, and the rationale for choosing a certain
+distance to, for example, bus stops or train stations, is often unclear.
+In addition, the use of distance-based thresholds may be problematic,
+since the time required to cross a certain distance can vary
+considerably within a city, even for the same mode of transportation. To
+address this problem, we suggest standards based on key thresholds of
+calculated accessibility.
+
+However, beyond making explicit how standards are defined, it is also
+important to make transparent the moral principles that guide their
+definition, because different theories of justice lead to different
+perspectives on how policies should manage the distribution of
+transport-related benefits. Pereira and Karner (2021) argue that
+transportation equity research benefits from linking two justice
+theories: Rawlsian egalitarianism (Rawls, 1999) and the Capability
+Approach (Sen, 1999, 2005). Rawls' Difference Principle holds that
+inequalities are only justifiable if they benefit the least advantaged
+members of society, centred on the fair distribution of primary social
+goods - resources and opportunities that every person needs to pursue
+their life plans. Sen builds on this, arguing that the focus should
+shift from primary goods to human capabilities: the opportunities
+available to individuals and their freedom to choose and act,
+recognizing that the same resource can translate into different real
+opportunities depending on individual circumstances.
+
+Both theories inform two moral perspectives commonly applied, though
+rarely made explicit, in transportation equity research (Martens, 2016b;
+Wee and Geurs, 2011). The sufficientarian perspective asks why some
+groups or areas lack sufficient access, building on the idea of a
+minimum threshold of accessibility required to meet basic needs, with
+priority given to those falling below it. The egalitarian perspective
+instead focuses on relative differences in accessibility between groups
+or areas, treating unequal access as unfair regardless of whether a
+group's absolute access level meets a minimum threshold (Pereira and
+Karner, 2021).
+
+In this study, we recognize accessibility as a human capability
+\citep{sen2005, sen1999, pereira2017, luz2022}, something required for a
+dignified life \citep{karner2020}, and the one of main benefits of
+transportation to be distributed across society in order to increase
+people's freedom. we adopt an perspective that combines both
+sufficientarian and egalitarian principles. Following the
+sufficientarian perspective, we define equity standards as minimum
+accessibility thresholds required to reduce the likelihood of negative
+perceptions and outcomes. Following the egalitarian view, we define
+these thresholds based on transport disadvantage population groups,
+rather than in general population, aiming to reduce inequalities of
+opportunities between population groups.
+
+\section{Materials and methods}\label{materials-and-methods}
+
+Our approach for obtaining equity standards of accessibility based on
+the relationship between calculated measures and people's perceptions
+can be synthesized in the following main steps: modelling job
+accessibility, predicting individual perception using calculated
+accessibility, setting equity standards for transportation, measuring
+transportation equity by using Foster-Greer-Thorbecke (FGT) measures
+\citep{foster2010}, and defining priority geographical areas for policy
+interventions.
+
+\subsection{Study area and data
+sources}\label{study-area-and-data-sources}
+
+The study area for this research is the metropolitan region of the
+Greater Toronto Area and the Hamilton Area (GTHA), in Ontario, Canada.
+More specifically, the study area refers to the Census Divisions of the
+regional municipalities of Hamilton, Halton, Peel, Toronto, York, and
+the Durham subdivisions within the Toronto Census Metropolitan Area
+(Figure \ref{fig:study-area-map}). According to the latest census
+\citep{statisticscanada2023}, over 7.2 million residents live in this
+area, which is spread across around 7,300 square kilometres.
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{figures/location_map_v2} \caption{Map of the study area (population density is classified using quantile breaks).}\label{fig:study-area-map}
+\end{figure}
+
+Regarding the primary data sources, this study uses data from two
+different sources: the latest Canadian Census (2021) from Statistics
+Canada; and the National Survey of Transport Poverty (NSTP) from the
+Mobilizing Justice Partnership \citep{tiznado-aitken}. The Census was
+selected due to its various socio-economic and demographic variables and
+due to the ``Commuting to Work'' questionnaire, allowing the
+identification of individuals in the labour force and including
+variables required to calculate job accessibility, such as place of
+work, commuting modes, and commuting duration. The Census also provides
+standardized spatial datasets with statistical and administrative
+geographical boundaries, including the Census Tract (CTs), which are
+used in this study as the spatial units used for calculating
+accessibility measures (obtained using the \{cancensus\} `R package
+\citep{cancensus}). According to the Census
+\citep{statisticscanada2023}, 3,868,120 individuals in the labour force
+reside in the study area, competing for a total of 3,043,730 job
+opportunities.
+
+The second source of data, NSTP \citep{tiznado-aitken}, is a large-scale
+survey designed to understand TRSE and transport poverty in Canada. It
+is a representative sample of more than 27,000 people aged 15 years and
+older across the country, and it provides an unprecedented perspective
+at the transportation challenges that Canadians face, especially among
+transport disadvantage groups whose experiences are often overlooked.
+The survey is openly available to researchers, decision-makers, and the
+public, and offers information on household dynamics, respondents'
+perceptions, and individual-level socioeconomic data. The NSTP provides
+respondent weights to enable the creation of statistics that are
+consistent and representative of the Canadian population. From this
+survey we select variables corresponding to respondents' perceptions of
+accessibility and employment outcomes, in addition to socioeconomic and
+demographic variables at the individual level. The responses are
+geocoded by place of residence and can be assigned to Census geographies
+to link them to calculated accessibility.
+
+Not all questions from the NSTP were answered by all survey respondents.
+The questions were defined according to demographic and socioeconomic
+profiles and previous responses. For this study, the NSTP sample
+corresponds to labour force respondents residing in the GTHA who also
+answered the questions displayed in Table \ref{tab:out-description},
+totalling 2,270 respondents that represent 3,576,893 individuals in the
+labour force (weighted sample). Using a continuum scale from 0
+(completely disagree) to 100 (completely agree), the respondents
+answered to what extent they agreed with the statements in Table
+\ref{tab:out-description}.
+
+\begin{table}
+\centering
+\caption{\label{tab:unnamed-chunk-1}\label{tab:out-description}Weighted summary statistics of the outcome variables.}
+\centering
+\fontsize{10}{12}\selectfont
+\begin{tabular}[t]{lc}
+\toprule
+To what extent do you agree with the following statements? & \textbf{N = 3,576,893}\\
+\midrule
+There are too few jobs available for me in my ideal commuting time & 58.84 (27.71)\\
+I have had to decline employment opportunities because of my transport situation & 41.00 (31.62)\\
+\bottomrule
+\multicolumn{2}{l}{\rule{0pt}{1em}\textsuperscript{1} Mean (SD)}\\
+\end{tabular}
+\end{table}
+
+\subsection{Calculating accessibility}\label{calculating-accessibility}
+
+In this study, we implement the multimodal spatial availability measure
+of \citet{soukhov2024}. This measure is a constrained indicator of
+accessibility that can account for multiple modes
+\citep[see][]{soukhov2023, soukhov2025}. This measure considers
+competition for opportunities, which prevents a single job opportunity
+to be available to more than one person. Competitive measures matter
+when considering employment outcomes because jobs are exclusive, and
+their use by one person prevents their use by another. In addition, this
+measure relies on a proportional allocation that balances the cost of
+travel and the population size, imposing a constrained calculation that
+allocates the opportunities to each origin. This ensures that, when all
+accessible jobs are summed, the sum is equal to the total number of
+opportunities in the region. Lastly, this measure is a more
+interpretable indicator since it returns scores in the units of
+opportunities.
+
+We calculated the multimodal spatial availability \(V_i^m\) using
+Equation (\ref{eq:spatial-availability-multimodal}):
+
+\begin{equation}
+\label{eq:spatial-availability-multimodal}
+V^m_{i} = \sum_{j=1}^J O_j\ F^{tm}_{ij}
+\end{equation}
+
+where:
+
+\begin{itemize}
+\tightlist
+\item
+  \(V^m_{i}\) is the spatial availability of opportunities at origin
+  \(i\) and travel mode \(m\);
+\item
+  \(O_j\) is the number of opportunities at destination \(j\);
+\item
+  \(F^{tm}_{ij}\) is a balancing factor allocating opportunities at
+  \(j\) to origin \(i\) considering mode \(m\).
+\end{itemize}
+
+\(F^{tm}_{ij}\) incorporates both population demand and travel
+impedance, defined according to Equation
+\ref{eq:multimodal-balancing-factors}:
+
+\begin{equation}
+\label{eq:multimodal-balancing-factors}
+F^{tm}_{ij} = \frac{F^{pm}_{i} \cdot F^{cm}_{ij}}{\sum_{m=1}^M \sum_{i=1}^N F^{pm}_{i} \cdot F^{cm}_{ij}}
+\end{equation}
+
+The population-based allocation factor is obtained by:
+
+\begin{itemize}
+\tightlist
+\item
+  \(F^{pm}_{i} = \frac{P_{i}^m}{\sum_{m}\sum_{i} P_{i}^m}\)
+\end{itemize}
+
+Where \(P_{i}^m\) represents the population at origin \(i\) using mode
+\(m\) competing for the opportunities \(O\) at the destination \(_j\).
+In this study the population competing for these opportunities refers to
+people in the labour force according classification used in the Canadian
+Census.
+
+On its turn, the travel impedance allocation factor is given by:
+
+\begin{itemize}
+\tightlist
+\item
+  \(F_{ij}^{cm} = \frac{f^m(c_{ij}^m)}{\sum_{m} \sum_{i} f^m(c_{ij}^m)}\)
+\end{itemize}
+
+Where:
+
+\begin{itemize}
+\tightlist
+\item
+  \(c^m_{ij}\) is the cost to travel between \(i\) and \(j\) for mode
+  \(m\);
+\item
+  \(f^m{c^m_{ij}}\) is an impedance function representing the effect of
+  travel cost.
+\end{itemize}
+
+Using microdata from the Census, we calculated for each CT the number of
+people in the labour force that commute to work by walking, cycling,
+private vehicles (those who commute by car, truck, or van as a driver or
+passenger, and motorcycles or scooters), and public transit (those who
+commute by bus, subway, light rail, streetcar, commuter train, and
+passenger ferry). We distributed remote workers according to the share
+of each transportation mode in each CT. Then, we summed the number of
+jobs in each CT considering the place of work mentioned by each worker.
+
+We calculated the travel times between origins and destinations for each
+travel mode using the \{r5r\} \texttt{R} package \citep{pereira2021a}
+with a street network obtained from OpenStreetMap. We used the General
+Transit Feed Specification (GTFS) obtained from the Canadian Public
+Transit Network Database \citep{statisticscanada} to retrieve the public
+transit schedule and coverage. Considering that our study area contains
+different transit agencies, we evaluated the GTFS files to identify a
+common date/week with public transit service. After this analysis, we
+set 8 a.m. (morning peak time) of December 22, 2025, as the trip
+departure time. Although this date falls during Christmas week, there
+were no differences in the public transit service schedules of the
+transit agencies due to the holiday, which makes this date
+representative of a regular weekday in terms of public transit travel
+time estimation. We also used Digital Elevation Models (DEM) from the
+Canadian Digital Surface Model (CDSM), with a spatial resolution of
+about 20 meters, to estimate the effect of declivity on walking and
+cycling times. For cycling trips, we defined a standard level of traffic
+stress (LTS) as tolerable for most mainstream adults. LTS defines the
+level of comfort or danger that a street presents for cyclists based on
+speed limits, lane counts, and infrastructure. The standard LTS defined
+in \{r5r\} \citep{pereira2021a} includes bike lanes with physical
+separation from multi-lane or higher-speed traffic. We set a maximum
+duration of 180 minutes (3 hours) for private vehicles and public
+transit trips, with a maximum walking time of 5 minutes to reach the
+vehicle and 15 minutes to reach the public transit stop/station; for
+walking and cycling trips, we set a maximum duration of 90 minutes (one
+and a half hours). After estimating the travel times between CTs, we
+assumed that all intra-CT trip durations are equal to 0.1 minute.
+
+Commute duration was used to calibrate Probability Density Functions
+(PDFs) to represent travel impedance, following the approach of Soukhov
+and Páez \citeyearpar{soukhov2024a}, Verma and Ukkusuri
+\citeyearpar{verma2025}, and Dos Santos et al.
+\citeyearpar{dossantos2026}, where the impedance value represents the
+probability that the trip will occur given a specif travel time. We used
+the \{fitdistrplu\}s \texttt{R} package \citep{delignette-muller2015}
+and tested different functional forms (uniform, negative exponential,
+gamma, normal, and lognormal distributions) to select the best PDF for
+each mode of transportation and municipality, using a selection criteria
+the lowest Akaike Information Criterion (AIC) value \citep{akaike1974}.
+The estimated impedance functions appear in Table
+\ref{tab:impedance_functions}.
+
+\subsection{Modeling the causal relationship between calculated
+accessibility, perceived accessibility, and employment
+outcomes}\label{modeling-the-causal-relationship-between-calculated-accessibility-perceived-accessibility-and-employment-outcomes}
+
+In this study, we aim to define minimum levels of calculated
+accessibility by identifying key thresholds in its relationship with
+perceived accessibility and employment outcomes. As previously
+explained, distortions between calculated accessibility and both
+perceived accessibility and employment outcomes can arise from
+individual preferences, capabilities, and attitudes, as well as from
+phenomena such as residential self-selection and adaptive preference.
+This means that the observed association between calculated and
+perceived accessibility cannot be assumed to reflect the true effect of
+accessibility on how people experience and evaluate their access to
+employment opportunities. If calculated accessibility is to be used as a
+benchmark or standard for equitable transportation planning, it is
+important to isolate its actual causal impact on perceived accessibility
+and employment outcomes, after accounting for these confounding
+mechanisms, rather than relying on a raw statistical association that
+may be inflated, offset, or masked by unobserved individual preferences
+and constraints. To address this, our approach is relies on, first,
+controlling for individual-level covariates capturing demographic,
+socioeconomic, and travel-related characteristics; and second, applying
+an explicit causal framework.
+
+The underlying hypothesis of this strategy is that changes in the
+land-use and transport characteristics of a neighbourhood, captured and
+represented by calculated accessibility, lead to changes in how
+residents perceived their ability to reach job opportunities and in
+their reported employment outcomes. We hypothesize that residents of
+neighbourhoods with more (calculated) accessibility are less likely to
+perceive job scarcity or to report having declined employment due to
+transport constraints, independent of their individual demographic and
+socioeconomic profiles. In our approach, we use calculated accessibility
+not as a causal exposure in itself, but as a proxy for the underlying
+land-use and transport conditions that, as we hypothesize, shape
+individual perceptions and outcomes.
+
+Following the steps suggested by Huntington-Klein
+\citeyearpar{huntington-klein2021}, we draw a causal diagram to
+graphically represent our hypothesis (Figure \ref{fig:DAG}). Causal
+diagrams show a chain of causal effects by using nodes to symbolize
+random variables and arrows to represent the causal effect between two
+random variables in the direction of the arrow
+\citep{cunningham2021causal}.
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{figures/DAG} \caption{Causal diagram of calculated accessibility on perceived accessibility.}\label{fig:DAG}
+\end{figure}
+
+We hypothesize that there is a direct effect of calculated job
+accessibility on perceived accessibility and on employment outcomes.
+However, there are other ways in which they are connected, represented
+by the other nodes of the diagram. First, there are mediator components
+that influence the way a person perceives calculated accessibility. In
+our study, we use place-based measures to calculate accessibility, so
+that these indicators represent land-use and transport characteristics
+at the neighbourhood level (CT). However, each individual will perceive
+these neighbourhood characteristics differently based on their
+capabilities and preferences, as well as their travel options and
+experiences. For instance, a person with a disability that prevents or
+makes it difficult for them to walk or cycle will probably not enjoy the
+benefits of active accessibility to the same extent as a person without
+such a disability \citep{church_accessibility_2003}; someone without a
+car will not take advantage of high car accessibility; someone without a
+monthly transit pass might take less public transit than someone with a
+transit pass, therefore reducing their potential for spatial interaction
+promoted by higher public transit accessibility.
+
+In the causal diagram, the accessibility of a neighbourhood is caused by
+urban characteristics, such as land use and transportation
+infrastructure. In addition, place of residence, and consequently their
+neighbourhood accessibility, is affected (caused) by socioeconomic
+factors, with household income as the main driver of this decision, and
+also by demographic characteristics (such as gender, race, citizenship,
+among others). These socioeconomic and demographic factors not only
+determine where someone will live, but also shape how individuals
+experience travel and, consequently, make use of their neighbourhood
+accessibility.
+
+However, it is also worth mentioning that socioeconomic and demographic
+factors and the urban landscape of the place of residence are also
+linked through a common cause (\(U_1\)) that we cannot measure or
+properly define as a variable causing both. For instance, someone's
+neighbourhood and their income level are probably related to
+generational wealth, a variable that cannot be obtained from the
+surveys. In addition, there must exist other factors, unknown or not
+translated into measurable variables, such as residential self-selection
+and adaptive preference, that probably affect both calculated and
+perceived accessibility (\(U_2\)).
+
+From a causal diagram, we can identify all paths through which we can go
+from one node (a variable) to another using the arrows connecting them,
+with particular importance given to those paths connecting the treatment
+to the outcome. Paths in which all arrows point away from the treatment
+are front-door paths \citep{cunningham2021causal, huntington-klein2021};
+whereas paths that point towards the treatment are back-door paths. To
+identify the effect of the treatment on the outcome, we need to control
+for at least one variable in the back-door paths (hold this variable
+constant and unchanged), in a process that closes these biasing paths,
+while not controlling for at least one front-door path
+\citep{huntington-klein2021}. In this study, we employ regressions to
+estimate the relationship between treatment and outcome, controlling for
+all other measurable variables.
+
+To model the causal diagram from Figure \ref{fig:DAG}, we use weighted
+regressions that combine multimodal spatial availability per person with
+variables at the individual and household levels from the NSTP.
+Considering respondent weights, we transformed the dependent variables
+into an ordered Likert scale based on their quintile position,
+categorizing them as: ``Most Negative'', ``Negative'', ``Neutral'',
+``Positive'', and ``Most Positive''. The thresholds used for this
+categorization is presented in Table \ref{tab:outcomes_quintiles}.
+
+\begin{table}
+\centering
+\caption{\label{tab:outcomes-quintiles}\label{tab:outcomes_quintiles}Quintile thresholds used to categorize dependent variables.}
+\centering
+\fontsize{10}{12}\selectfont
+\begin{tabular}[t]{lrrrrr}
+\toprule
+Outcome & 20\% & 40\% & 60\% & 80\% & 100\%\\
+\midrule
+Few jobs available in my ideal commuting time & 35 & 52 & 69 & 87 & 100\\
+Declined employment opportunities because of my transport situation & 8 & 26 & 51 & 72 & 100\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Based on the causal diagram and on our literature review, we selected
+the following variables to represent each node:
+
+\begin{itemize}
+\tightlist
+\item
+  Calculated accessibility (treatment): multimodal spatial availability
+  per person by transportation mode.
+\item
+  Perceived accessibility (outcome 1): agreement with \emph{``there are
+  too few jobs available for me in my ideal commuting time,''} obtained
+  from NSTP.
+\item
+  Self-reported employment outcome (outcome 2): agreement with \emph{``I
+  have had to decline employment opportunities because of my transport
+  situation,''} obtained from NSTP.
+\item
+  Travel attitudes, capabilities, and prefences: most used
+  transportation mode; whether the preferred transportation mode matches
+  the most frequent mode; whether the individual has a monthly or annual
+  public transit pass; number of cars and bikes in the household; and
+  whether the person has any disability, all obtained from NSTP.
+\item
+  Socioeconomic and demographic: whether the person is Indigenous or
+  from a racialized population group; whether the person self-identifies
+  as a woman; or as a transgender or non-binary person; age; household
+  size and household income; and citizenship (temporary visa or
+  refugee), all obtained from NSTP.
+\item
+  Urban landscape: population centre class (rural, small, medium, or
+  large urban population centre) and population density (dissemination
+  area level), obtained from Census.
+\end{itemize}
+
+Considering that the outcome is an ordinal categorical variable, we used
+weighted ordinal logistic regressions \citep{lumley2011} to model the
+effect of the calculated accessibility indicators on the perception
+categories, using Equation \ref{eq:ordinal-logit}:
+
+\begin{equation}
+\label{eq:ordinal-logit}
+\log(\frac{P(Y\le j)}{P(Y\ge j)}) = \theta_j - \beta_1 X_1 + \beta_2 X_2 + ... + \beta_p X_p
+\end{equation}
+
+\noindent where \(Y\) represents the perception category of the
+respondent (ranging from ``Most Negative'' to ``Most Positive''), and
+\(X_1, X2, ..., X_p\) represent the set of explanatory variables, and
+\(\theta_j\) and \(\beta_p\) are unknown parameters to be estimated. The
+parameters \(\beta_p\) are constant for all outcome categories and
+measure the change in the log-odds of reporting higher perception
+categories associated with each explanatory variable, while \(\theta_j\)
+represents the intercept separating the perception categories.
+
+\begin{table}
+
+\caption{\label{tab:vardescriptions}\label{tab:var-description}Weighted summary statistics of the explanatory variables, based on the NSTP respondents in the labour force and residing in the Greater Toronto and Hamilton Area.}
+\centering
+\begin{tabular}[t]{lc}
+\toprule
+Explanatory variables & \textbf{N = 3,576,893}\\
+\midrule
+Active job accessibility per active traveller & 0.06 (0.13)\\
+Transit job accessibility per transit user & 0.14 (0.09)\\
+Private vehicle accessibility per user & 1.00 (0.27)\\
+Active commuter & 528,927 (15\%)\\
+Public transit user & 829,940 (23\%)\\
+\addlinespace
+Person with disability & 716,861 (20\%)\\
+Number of Cars & 1.30 (0.92)\\
+Number of Bikes & 1.15 (1.33)\\
+Preferred mode match most frequent mode & 2,706,882 (76\%)\\
+Indigenous or racialized person & 1,866,043 (52\%)\\
+\addlinespace
+Temporary visa or refugee & 268,654 (7.5\%)\\
+Woman, transgender or non-binary person & 1,757,263 (49\%)\\
+Age & 40.15 (13.49)\\
+Household size & 2.90 (1.61)\\
+Household income & \\
+\addlinespace
+\hspace{1em}Less than \$40,000 & 561,182 (16\%)\\
+\hspace{1em}\$40,000 to \$80,000 & 1,145,633 (32\%)\\
+\hspace{1em}\$80,000 to \$120,000 & 930,128 (26\%)\\
+\hspace{1em}More than \$120,000 & 939,950 (26\%)\\
+Population density (people/km2) & 7,809.82 (13,610.23)\\
+\addlinespace
+Population centre class & \\
+\hspace{1em}Rural & 89,251 (2.5\%)\\
+\hspace{1em}Small & 48,306 (1.4\%)\\
+\hspace{1em}Medium & 58,128 (1.6\%)\\
+\hspace{1em}Large & 3,381,208 (95\%)\\
+\addlinespace
+Public transit availability in the neighbourhood & 3,435,002 (96\%)\\
+Monthly or annual public transit pass & 1,063,225 (30\%)\\
+\bottomrule
+\multicolumn{2}{l}{\rule{0pt}{1em}\textsuperscript{1} Mean (SD); n (\%)}\\
+\end{tabular}
+\end{table}
+
+Because of the high correlation between public transit and bicycle
+accessibility (with Pearson correlation above 0.80), and because only 61
+NSTP respondents (less than 3\% of the sample) mentioned cycling as
+their main commuting mode, we combined walking and cycling into a single
+active transportation indicator, summing the jobs spatially available by
+each mode. Including bicycle accessibility as a separate indicator,
+given this small subsample and high collinearity with transit
+accessibility, would likely have caused convergence problems when
+creating our ordinal models. Fitting these models also requires a
+sufficient number of respondents within each category and combination of
+categories, which the small cycling subsample could not support.
+However, we acknowledge that this combined active measure does not
+account for the difference in travel speed between walking and cycling,
+which can be substantial, and may understate the accessibility gains
+cycling offers relative to walking over longer distances.
+
+Table \ref{tab:var-description} presents the variables included in the
+regression models and their descriptive statistics for the NSTP sample
+(weighted mean and weighted standard deviation for continuous and dummy
+variables, and weighted count and percentage for categorical variables,
+created using the \{gtsummary\} \texttt{R} package \citep{gtsummary}).
+
+\subsubsection{Controlling for
+endogeneity}\label{controlling-for-endogeneity}
+
+The presence of \(U_2\) in our causal diagram implies the possibility of
+bias caused by omitted variables, in which unobserved factors
+simultaneously affect both calculated and perceived accessibility.
+Omitted variable bias is the source of endogeneity, which occurs when an
+independent variable correlates with the regression error term and
+compromises the consistency of the estimators
+\citep{antonakis2010, cunningham2021causal, huntington-klein2021}. In
+this study, we address the potential endogeneity by applying an
+instrumental variable (IV) technique. An instrumental variable \(Z\)
+must be correlated with the outcome only through accessibility. Examples
+of instrumental variables used in studies analyzing the relationship
+between employment outcomes and job accessibility include Euclidean
+distance from the spatial unit centroid to the nearest major road or
+employment subcenter \citep{delmelle2021, jin2018}, share of automobile
+ownership \citep{Hu2017}, transit accessibility and car unavailability
+\citep{johnson2017}, distance to rivers \citep{duarte2023, luz2022}, and
+population density \citep{bastiaanssen2021, bastiaanssen2025}.
+
+However, two challenges arise in the search for relevant instruments: i)
+the likelihood that the instruments and error terms are correlated
+increases as the correlation between the endogenous variable and the
+instruments becomes stronger, which can render the instruments invalid;
+and ii) instruments that are only weakly correlated with the endogenous
+variable may be ineffective and perform poorly. In response to these
+challenges, Le Gallo and Páez \citeyearpar{legallo2013} developed an
+approach that relies on the use of synthetic instruments derived from
+the spatial configuration of the data
+\citep[see][]{getis_comparative_2002, griffith_spatial_2003}. Synthetic
+variables generated via spatial filtering ensure high correlation with
+the treatment and while remaining exogenous to the oucome.
+
+Following the methodological approach of Le Gallo and Páez
+\citeyearpar{legallo2013} to create spatial filters for the
+accessibility variables:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  We built a queen-contiguity matrix for the census tracts to represent
+  spatial weights, expressing the existence of a neighbouring relation
+  as a binary relationship (1 for neighbours and 0 otherwise).
+\item
+  Then, we computed all eigenvectors associated with the contiguity
+  matrix. These eigenvectors are orthogonal to one another and represent
+  a portion of the variance in the spatial contiguity matrix.
+\item
+  After this, we initialized a variable \(S\) with value \(0\) and
+  linearly regressed each accessibility indicator (the independent
+  variable) on each eigenvector and \(S\). If the eigenvector
+  coefficient was significant (adopting a p-value \(\leq\) 0.05), we
+  multiplied the eigenvector by its coefficient and added it to value of
+  \(S\). After this process, \(S\) represents the spatial filter
+  associated with the accessibility indicator.
+\end{enumerate}
+
+All spatial filters presented a Pearson correlation above 0.88 with
+their respective accessibility measures and absolute correlations lower
+than 0.15 with the original perception dependent variables (before
+transforming them into categorical variables). These results suggest
+that the spatial filters are strongly correlated with the endogenous
+accessibility variables while remaining weakly associated with the
+outcome, which is consistent with the relevance and exclusion conditions
+required for valid instrumental variables. In addition, we performed the
+Wald test to evaluate the null hypothesis of weak instruments and
+insufficient explanatory power to predict our endogenous variables.
+
+Since our dependent variables are not linear, the popular technique of
+replacing endogenous variables by their first-stage predictors
+(two-stage least square estimation) is not appropriate - the so-called
+``forbidden regression'' in econometrics
+\citep{wooldridge2010, cunningham2021causal, huntington-klein2021}.
+Therefore, we applied the two-stage residual inclusion (2SRI) approach
+\citep{terza2008}, in which in the first-stage we estimated the
+accessibility measures using a linear regression including all control
+variables plus spatial filters (our instrumental variables). Next, in
+the second-stage, the dependent variables were estimated using the
+accessibility measures, the control variables, and the residuals from
+the first-stage regressions. In both stages, the respondent weights were
+considered to perform the regressions. In this approach, we use the
+regular treatment to predict the outcome, but also control for the
+unexplained part of the treatment.
+
+\subsection{Identifying equity
+standards}\label{identifying-equity-standards}
+
+Considering only the cases in which the calculated accessibility was
+statistically significant, we measured changes in the predicted
+probabilities across perception categories by varying the levels of
+calculated accessibility, while controlling for the other explanatory
+variables. There are many possible ways of controlling the explanatory
+variables (e.g., fixing the number of cars in the household as 0, 1, or
+2+; or fixing the respondent age as 30, or 31, and so on). Based on
+this, we decided to evaluate the effects of calculated accessibility in
+three distinct individual profiles:
+
+\begin{itemize}
+\item
+  An transport disadvantage profile, with individual-level control
+  variables set to the values corresponding to populations facing the
+  greatest transportation challenges.
+\item
+  The most common profile, reflecting modal characteristics of the study
+  area population and with control variables set to their most common
+  values; and,
+\item
+  An advantaged profile, defined by selecting for the most privileged
+  population segment in terms of their transport experience.
+\end{itemize}
+
+For each individual profile, we increased the value of each
+accessibility measure by 0.01 jobs per person, while holding constant
+other accessibility measures (representing alternative transportation
+modes) at their weighted median values. We also adopted the weighted
+median value for the population density and a constant zero value for
+the residuals obtained from the first-stage regressions. For each
+transportation mode, we evaluated the effect of accessibility by
+considering the individual profiles as users of that specific mode. That
+is, for active travel accessibility, all individual profiles were set as
+active travellers, and so on for the remaining modes.
+
+Then, for all individual profiles, we identified the minimum value of
+calculated job accessibility per person in which the probability of the
+positive and neutral perceptions combined was higher than the
+probability of being in negative perceptions, naming this minimum value
+as a conservative threshold. Next, we defined a progressive threshold as
+the minimum accessibility value that resulted in the probability of
+positive perceptions (not considering neutral perceptions) being higher
+than of negative perceptions. We then identified an intermediate
+threshold, set as the midpoint between the conservative and progressive
+thresholds.
+
+We base our methodology on egalitarian and sufficientarian perspectives,
+and we propose defining equity standards based on the transport
+disadvantage profile. Therefore, we selected as our equity standards the
+accessibility thresholds obtained based on the transport disadvantage
+individual profile. The rationale behind this equity standard definition
+is to identify the minimum accessibility level (sufficientarianism) that
+gives the most disadvantaged population (egalitarianism) a higher
+probability of having at least a neutral perception (conservative
+standard), a neutral to positive perception (intermediate standard), or
+a positive perception (progressive standard).
+
+\subsection{Measuring transportation
+equity}\label{measuring-transportation-equity}
+
+We calculated the extent and severity of accessibility gap using FGT
+measures \citep{foster2010}, according to the Equation \ref{eq:FGT}. FGT
+measures evaluates the number of people below a standard and the size of
+the accessibility shortfall relative to it.
+
+\begin{equation}
+\label{eq:FGT}
+FGT_\alpha = \frac{1}{N}\sum_{H}^{i=1}\left(\frac{z-y_i}{z}  \right)^{\alpha}
+\end{equation}
+
+Where \(N\) is the size of the total population; \(z\) is the
+accessibility standard; \(H\) is the number of individuals below the
+\(z\); \(y_i\) is the accessibility level of each individual i; and
+\(\alpha\): determines how sensitive the index is to change in the
+accessibility gap.
+
+Changing the values of \(\alpha\) enables the calculation of different
+FGT indices \citep{karner2024}. When \(\alpha = 0\), \(FGT_0\) measures
+the extent of undersupply as a simple headcount, indicating the
+proportion of people below the standard. When \(\alpha = 1\), \(FGT_1\)
+measures the severity of the undersupply as the average percent distance
+between the standard and the accessibility levels of the individuals
+below it.
+
+We applied the FGT measures to the general population in each CT, and
+also to the population classified as low-income according to the Census.
+We used the Low-Income Measure, After-Tax (LIM-AT) to obtain the number
+of people in low income, which is a relative threshold set at 50\% of
+the median adjusted after-tax household income, where each household's
+after-tax income is adjusted by dividing it by the square root of the
+household's size. According to the 2021 Census, around 10\% of the study
+area population lives in low income.
+
+\subsection{Areas for priority
+intervention}\label{areas-for-priority-intervention}
+
+For each equity standard, we identified CTs where accessibility was less
+than the equity threshold. Inspired by the Accessibility Equity Index
+(AFI) \citep{martens2016}, we calculated an equity-weighted version of
+the AFI to measure the severity of the shortfall, by multiplying the
+low-income population density by the accessibility gap. Different from
+the original version, which uses total population size, we replaced that
+term with low-income population density (low-income population divided
+by the CT's area) to account for both the distributional equity
+dimension of accessibility disadvantage and the variation in size and
+geometry among the CTs. In practice, this equity-weighted AFI highlights
+areas with a high concentration of low-income residents who fall far
+short of sufficient level of accessibility, whereas the standard AFI
+highlights areas where the majority of the population is affected.
+
+After this, we classified CTs with an accessibility gap into levels of
+priority for policy interventions: Very-high (equity-weighted AFI above
+the third quartile, top 25\%), High (equity-weighted AFI between the
+median and third quartile, 25--50\% from the top), Moderate
+(equity-weighted AFI between the first quartile and the median, 50--75\%
+from the top), and Low priority (equity-weighted AFI below the first
+quartile, bottom 25\%). Finishing our methodological steps, we summed
+the number of low-income individuals by priority category within each
+subdivision to identify the subdivisions that should be the focus of
+transportation planning policy interventions.
+
+\section{Results and discussions}\label{results-and-discussions}
+
+\subsection{Multimodal spatial availability per
+person.}\label{multimodal-spatial-availability-per-person.}
+
+Figure \ref{fig:multi-sa-pp} presents the maps with the multimodal
+spatial availability of jobs per person. These maps show how, generally,
+private vehicle users can access more job opportunities, but also show
+that there is not much spatial variation when compared to the other two
+modes, with most of the CTs in the study area classified in the
+second-highest and or highest accessibility categories. Toronto and
+Mississauga present the highest level of private vehicle accessibility.
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{figures/SA_pp_3modes_v2_clipped} \caption{Maps of the multimodal spatial availability per person, considering active, public transit and private vehicles (accessibility values are classified using quintile breaks.).}\label{fig:multi-sa-pp}
+\end{figure}
+
+Transit accessibility appears to be more spatially distributed across
+the study area, with the city of Toronto presenting the highest rate of
+jobs accessible per transit commuters. Overall, we can observe an
+expected spatial pattern where CTs close to public transit
+infrastructure present higher levels of transit accessibility when
+compared to suburbs and rural areas, which often lack public transit
+services.
+
+Next, the map of the active jobs accessible per active traveller
+(walkers or cyclists) does not present a clear spatial pattern, with
+many suburban and rural areas presenting higher levels when compared to
+more urbanized areas. This can be explained by either a higher number of
+jobs accessible within typical walking or cycling trip durations, less
+probable; or, probably, because the number of active travellers in these
+areas is very low, resulting in a higher rate of jobs per person, in a
+way that higher accessibility values in these areas may reflect low
+competition rather than higher absolute job availability.
+
+Although private vehicle commuters represent about 78\% of the labour
+force, they compete for 96\% of the jobs in the study area. Transit
+users represent 15\% of the labour force, but they reach only 3.4\% of
+the jobs available, while the remaining 0.6\% percent of jobs available
+are competed for by the 7\% of active users. On average, each active
+user respondent from the NSTP can access 0.06 jobs, while each transit
+user can access, on average, 0.14 jobs. These both measures are
+substantially lower than the number of jobs that each private vehicle
+commuter can reach, which is approximately one job per commuter on
+average.
+
+\subsection{The effect of calculated accessibility on perceived
+accessibility}\label{the-effect-of-calculated-accessibility-on-perceived-accessibility}
+
+Table \ref{tab:models} presents the two probability models linking
+calculated to perceived accessibility. We reject the null hypothesis of
+weak instruments and insufficient explanatory power to predict our
+endogenous variables (calculated accessibility indicators) based on Wald
+tests, given that all of the F-statistics are much higher than the
+Stock--Yogo critical values and are statistically significant (p-value
+\textless{} 0.05). However, the first-stage residuals were
+non-significant in the second-stage regressions, suggesting that there
+is little evidence of endogeneity in the calculated accessibility
+indicators, and that standard regressions (without the IV approach)
+could also have been appropriate. Despite that, we decided to continue
+our analysis using the models that account for potential endogeneity.
+
+\begin{table}
+
+\caption{\label{tab:unnamed-chunk-2}\label{tab:models}Weighted ordinal logistic regression models connecting calculated to perceived accessibility and to employment outcome.}
+\centering
+\begin{tabular}[t]{lcccccc}
+\toprule
+\multicolumn{1}{c}{ } & \multicolumn{3}{c}{\textbf{Few jobs}} & \multicolumn{3}{c}{\textbf{Declined job offers}} \\
+\cmidrule(l{3pt}r{3pt}){2-4} \cmidrule(l{3pt}r{3pt}){5-7}
+\textbf{Variable} & \textbf{OR} & \textbf{SE} & \textbf{p-value} & \textbf{OR} & \textbf{SE} & \textbf{p-value}\\
+\midrule
+Active job accessibility per active traveller & \textbf{0.86*} & 0.064 & 0.024 & \textbf{0.84*} & 0.085 & 0.033\\
+Active mode interaction: accessibility × user & \textbf{1.17*} & 0.072 & 0.029 & \textbf{1.21*} & 0.091 & 0.036\\
+Transit job accessibility per transit user & \textbf{1.25*} & 0.112 & 0.044 & 0.89 & 0.191 & 0.5\\
+Transit mode interaction: accessibility × user & 0.95 & 0.133 & 0.7 & 1.16 & 0.208 & 0.5\\
+Private vehicle accessibility per user & 0.93 & 0.097 & 0.4 & 1.17 & 0.147 & 0.3\\
+\addlinespace
+Number of Cars & 0.98 & 0.121 & 0.9 & 1.11 & 0.137 & 0.4\\
+Number of Bikes & 1.08 & 0.067 & 0.2 & 1.02 & 0.066 & 0.7\\
+Preferred mode match most frequent mode & 1.14 & 0.168 & 0.4 & 1.27 & 0.246 & 0.3\\
+Monthly or annual public transit pass & \textbf{0.68*} & 0.174 & 0.026 & \textbf{0.52*} & 0.257 & 0.012\\
+Public transit availability in the neighbourhood & 0.75 & 0.245 & 0.3 & 1.04 & 0.228 & 0.9\\
+\addlinespace
+Indigenous or racialized person & \textbf{0.60**} & 0.164 & 0.002 & \textbf{0.57**} & 0.211 & 0.008\\
+Temporary visa or refugee & 1.61 & 0.257 & 0.064 & 0.70 & 0.421 & 0.4\\
+Person with disability & 0.69 & 0.209 & 0.077 & 0.80 & 0.232 & 0.3\\
+Woman, transgender or non-binary person & 1.05 & 0.149 & 0.7 & 1.02 & 0.195 & >0.9\\
+Age & 1.01 & 0.006 & 0.080 & \textbf{1.02*} & 0.007 & 0.023\\
+\addlinespace
+Household size & 1.06 & 0.052 & 0.2 & 0.94 & 0.068 & 0.4\\
+Household income &  &  & 0.11 & \textbf{**} &  & 0.004\\
+\hspace{1em}Less than \$40,000 & — & — &  & — & — & \\
+\hspace{1em}\$40,000 to \$80,000 & 0.80 & 0.188 &  & 1.50 & 0.272 & \\
+\hspace{1em}\$80,000 to \$120,000 & 1.23 & 0.220 &  & 1.99 & 0.250 & \\
+\addlinespace
+\hspace{1em}More than \$120,000 & 1.29 & 0.227 &  & 3.08 & 0.314 & \\
+Population density (people/km2) & \textbf{1.18*} & 0.075 & 0.024 & 1.10 & 0.101 & 0.3\\
+Population centre class &  &  & 0.3 & \textbf{***} &  & <0.001\\
+\hspace{1em}Rural & — & — &  & — & — & \\
+\hspace{1em}Small & 1.34 & 0.487 &  & 0.86 & 0.484 & \\
+\addlinespace
+\hspace{1em}Medium & 2.35 & 0.469 &  & 5.13 & 0.457 & \\
+\hspace{1em}Large & 1.25 & 0.322 &  & 1.16 & 0.331 & \\
+Residuals: Active acessibility & 1.09 & 0.078 & 0.3 & 0.97 & 0.085 & 0.7\\
+Residuals: Transit acessibility & 0.85 & 0.092 & 0.073 & 0.85 & 0.148 & 0.3\\
+Residuals: Private vehicle acessibility & 1.13 & 0.068 & 0.075 & 0.97 & 0.094 & 0.7\\
+\midrule\\
+\addlinespace
+Wald F & 2.86 &  &  & 4.85 &  & \\
+p‑value & <0.001 &  &  & <0.001 &  & \\
+AIC & 6,829 &  &  & 4,312 &  & \\
+BIC & 7,000 &  &  & 4,469 &  & \\
+\bottomrule
+\multicolumn{7}{l}{\rule{0pt}{1em}Abbreviations: CI = Confidence Interval, OR = Odds Ratio, SE = Standard Error}\\
+\multicolumn{7}{l}{\textsuperscript{} *p<0.05; **p<0.01; ***p<0.001.}\\
+\end{tabular}
+\end{table}
+
+Calculated accessibility indicators were partially significant across
+the models. Private vehicle accessibility did not present significant
+values for any of the models, probably due to its ubiquity and
+homogeneity across the study area.
+
+The model related to the perception of job availability (i.e., ``there
+are too few jobs available for me in my ideal commuting time'') produces
+an estimated association consistent with our hypothesized causal effect,
+in which increases in calculated transit and active accessibility is
+associated with a higher probability of having a more positive of
+accessibility. In fact, this is the model in which the outcome is the
+most similar to the spatial availability of jobs definition, which
+refers directly to the number of jobs accessible, calculated using the
+impedance functions calibrated based on population behaviour. For this
+model, one additional job accessible by transit per transit user
+increases the average odds of being in a more positive perception group
+by 25\%, indicating that fewer respondents agree that there are too few
+jobs accessible within their ideal commuting time. Active accessibility
+plays an overall significant effect for non-active travellers, reducing
+the odds of being in a more positive perception category by 14\%. For
+active travellers, on the other hand, the interaction effect more than
+offsets this to result in a net positive effect. The same occurs in the
+model related to declined job offers due to transport constraints,
+whereby active accessibility is negative for non-active travellers, but
+positive for active travellers. We believe that the general negative
+effect of active accessibility for non-active travellers can be
+explained in terms of job competition, since increasing the number of
+jobs accessible for a mode that an individual does not use implies
+greater competition for jobs accessible through other modes, effectively
+reducing perceived accessibility for the mode a person actually uses. In
+addition, as previously shown in Figure \ref{fig:multi-sa-pp}, many of
+the areas with high active accessibility are located outside downtown
+cores, in more suburban areas with a low concentration of job
+opportunities. This further reinforces the assumption that some suburban
+areas exhibit high active accessibility not because of greater job
+availability, but due to a very low number of active travellers,
+resulting in a higher rate of jobs per person - reflecting low
+competition for jobs accessible by walking and cycling rather than
+higher active job availability.
+
+Table \ref{tab:controls_pop} presents the control variable values
+applied for each individual profile, while Figure
+\ref{fig:transit-accessibility-thresholds} displays the specific effect
+of increasing transit accessibility across the selected individual
+profiles for the ``few jobs available'' model. For all of them, we
+observe a decrease in negative perceptions as calculated transit
+accessibility increases. For the transport disadvantage individual
+profile, the ``Most negative'' perception has high probability at low
+levels of calculated accessibility. In fact, at the median calculated
+transit accessibility (0.12 jobs accessible by public transit per
+transit user, calculated based on all NSTP respondents), the two most
+negative perception categories (``Most negative'' and ``Negative'')
+together account for over 52\% of the total probability, resulting in a
+high likelihood that individuals in the transport disadvantage group to
+have negative perceptions at this accessibility level. For the most
+common population, the initial pattern appears similar to the transport
+disadvantage group, but the decline in negative perceptions occurs
+faster, with the ``Most positive'' probability surpassing negative
+probabilities at approximately 0.28 jobs per transit user. In contrast,
+for the advantaged population, we can see that even at very low levels
+of accessibility, the positive perceptions already present the highest
+probabilities and increasing transit accessibility only reinforces these
+positive perceptions.
+
+\begin{table}
+\centering
+\caption{\label{tab:controls}\label{tab:controls_pop}Individual profiles to estimate probabilities.}
+\centering
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
+\fontsize{10}{12}\selectfont
+\begin{tabular}[t]{lccc}
+\toprule
+Variable & Transport disadvantage & Most common population & Advantaged group\\
+\midrule
+Number of Cars & 0 & 1 & 2\\
+Number of Bikes & 0 & 1 & 1\\
+Preferred mode match most frequent mode & No & Yes & Yes\\
+\textbf{Indigenous or racialized person} & \textbf{Yes} & \textbf{Yes} & \textbf{No}\\
+Temporary visa or refugee & Yes & No & No\\
+\addlinespace
+Person with disability & Yes & No & No\\
+Woman, transgender or non-binary person & Yes & No & No\\
+\textbf{Age} & \textbf{35} & \textbf{40} & \textbf{45}\\
+Household size & 3 & 3 & 3\\
+\textbf{Household income} & \textbf{Less than \$40,000} & \textbf{\$40,000 to \$80,000} & \textbf{More than \$120,000}\\
+\addlinespace
+\textbf{Population centre class} & \textbf{Small} & \textbf{Large} & \textbf{Large}\\
+Public transit availability in the neighbourhood & Yes & Yes & Yes\\
+\textbf{Monthly or annual public transit pass} & \textbf{Yes} & \textbf{No} & \textbf{No}\\
+\bottomrule
+\multicolumn{4}{l}{\textsuperscript{} Bold variables are statistically significant (p-value < 0.05) for at least one of the models.}\\
+\end{tabular}}
+\end{table}
+
+Regarding the control variables, in the model related to ``there are too
+few jobs available for me in my ideal commuting time'', having a monthly
+or annual public transit pass is associated with a 32\% reduction in the
+odds of being in a more positive category. Being an Indigenous or
+racialized person is associated with a reduction of 40\% in the odds of
+more positive perceptions, while increasing one person per square
+kilometres (population density) was associated with an 18\% increase in
+the odds of being in a more positive category.
+
+In the model related to ``I have had to decline employment opportunities
+because of my transport situation'', having a monthly or annual public
+transit pass reduced the odds of being in a more positive category by
+48\%; being Indigenous or racialized reduced the odds by 43\%; and each
+additional year of age is associated with an increase of 2\% in the odds
+of being in a more positive group. In terms of income, higher income is
+associated with more positive perceptions (less perceived employment
+decline), with households earning more than \$120,000 CAD having
+approximately three times higher odds of being in a positive category
+compared to those earning less than \$40,000 CAD. In relation to the
+census population centre class, living in a medium-sized population
+centre is associated with substantially more positive perceptions (over
+five times higher odds), while living in a small centre is associated
+with 12\% lower odds, and living in a large centre is associated with
+16\% higher odds - all this when compared to rural areas.
+
+\subsection{Equity standards and their impact on tranpostation
+equity}\label{equity-standards-and-their-impact-on-tranpostation-equity}
+
+In this section we use the models presented above to identify active
+accessibility thresholds, while only the ``there are too few jobs
+available for me in my ideal commuting time'' model was selected to
+identify public transit thresholds - since calculated transit
+accessibility was statistically significant only in this model.
+
+Figure \ref{fig:transit-accessibility-thresholds} shows the
+conservative, intermediate, and progressive public transit thresholds
+calculated for each individual profile. For the advantaged profile, a
+level of 0 jobs per transit user is already enough to result in positive
+perceptions, which means that the current transit accessibility levels
+would be sufficient and no individuals would fall below the minimum
+accessibility if this profile was selected as the reference. However, it
+is worth noting that this result should not be interpreted as evidence
+that public transportation accessibility is irrelevant to the advantaged
+group's ability to reach employment. Rather, it demonstrates that the
+predicted probability of a positive perception for this profile is
+determined primarily by its other characteristics, such as car ownership
+and higher household income, so that variation in accessibility has
+little additional effect. This is consistent with our causal diagram,
+which shows that individual resources and the availability of
+transportation options mediate the relationship between calculated and
+perceived accessibility, such that the more advantaged group has a
+greater ability to overcome low spatial accessibility through other
+means.
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{figures/accessibility-threshold-v2} \caption{Public transit accessibility thresholds based on selected individual profiles.}\label{fig:transit-accessibility-thresholds}
+\end{figure}
+
+For the most common profile, the conservative standard (the minimum
+level of accessibility at which the sum of negative perceptions is lower
+than the sum of all other perceptions) is equal to 0.09 jobs per transit
+user. This threshold is lower than the median calculated transit
+accessibility. The progressive threshold, defined as the minimum level
+at which the sum of positive perceptions exceeds the sum of negative
+perceptions, for this profile is 0.28 jobs per transit user, with the
+intermediate threshold defined as the midpoint between these two values
+(0.18). However, for the transport disadvantage profile, the
+conservative threshold is equal to 0.16 jobs per transit user, which is
+higher than the median accessibility level. The progressive standard is
+equal to 0.36 jobs per transit user, which corresponds to the maximum
+observed level of accessibility in the study area, and the intermediate
+threshold is 0.26.
+
+Evaluating the thresholds for active accessibility, we again find that
+even a minimal level of accessible jobs per active traveller is already
+enough to result in positive perceptions for the most advantaged profile
+in both models, meaning that the current active accessibility levels
+would be sufficient and no individuals would fall below the minimum
+accessibility threshold. For the most common profile, the identified
+conservative threshold is also minimal; and the progressive thresholds
+are approximately 1.09 and 2.19 jobs per active user, resulting in
+higher probabilities of positive perceptions for the models of declined
+job offers and few jobs available, respectively.
+
+However, for the model related to declined job offers due to
+transportation conditions, we were not able to identify a threshold that
+resulted in a higher likelihood of positive perceptions for the
+transport disadvantage profile, even after estimating probabilities at
+more than double the maximum observed active accessibility level (2.03
+jobs per active user). For the model regarding the perception that there
+are too few jobs available within an ideal commuting time, we identified
+0.9 as the conservative threshold (22 times the observed median level)
+and a progressive threshold close to 5 jobs per active user (almost 2.5
+times the maximum observed level and 123 times the median). These high
+thresholds are explained by the relatively small net positive effect of
+active accessibility, while the other explanatory variables exerted a
+greater influence on the estimated probabilities of belonging to a more
+positive perception group. Based on both models, the high active
+accessibility thresholds help illustrate the limitations of potential
+policies focused solely on increasing active accessibility to promote
+positive perceptions: an approach that intervene only in the spatial
+dimension of accessibility, without considering the capacities and
+travel preferences of the population, would likely result in limited
+impact on residents' perceived accessibility and employment outcomes.
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{figures/accessibility-active-threshold} \caption{Active accessibility thresholds based on selected individual profiles.}\label{fig:active-accessibility-thresholds}
+\end{figure}
+
+These thresholds show how, depending on how the socioeconomic and
+transportation parameters are controlled and how the individual profiles
+are defined, different sufficient levels of accessibility are obtained.
+In fact, if one chooses to define thresholds based on the advantaged
+profile, it might lead to the conclusion that the current accessibility
+state is already sufficient and that no intervention or improvement is
+required. Alternatively, transport disadvantage groups might still hold
+negative perceptions depending on the threshold based on the most common
+population is selected. Therefore, the only way to ensure that transport
+disadvantage groups have a better chance of experience positive
+perceptions is to define minimum accessibility levels based on the
+controls tailored to these populations, setting socioeconomic and
+transportation parameters that represent them, thereby adopting a truly
+equity-based standard.
+
+Considering the feasibility for policy interventions, we suggest the
+transit threshold defined in terms of the transport-disadvantaged
+profile as an example of an equity standard. Around 66\% of the study
+area population lives in areas with transit accessibility levels lower
+than the conservative equity standard (0.16), while 91\% live in areas
+with transit accessibility levels lower than 0.26 jobs accessible by
+transit per transit user (intermediate equity standard), and almost the
+entire study area population lives in areas below the progressive equity
+standard (0.36, which is also the maximum transit accessibility observed
+in the study area). Regarding the low-income population, 55\% live in
+areas with an accessibility shortfall under the conservative standard,
+86\% under the intermediate standard, and almost all live in areas with
+an accessibility shortfall under the most progressive standard.
+
+In terms of the severity of transport disadvantage (FGT-1), the average
+gap among deprived individuals amounts to 36\% under the conservative
+standard, meaning that those who do not meet the threshold fall short of
+it by roughly one-third on average (about 0.06). For the low-income
+population, the average shortfall is around 27\% (about 0.04). For the
+intermediate standard, the average shortfall for the general population
+is 53\% (about 0.14), while it is 44\% (0.11) for the low-income group.
+For the progressive equity standard, the average shortfall for the
+general population is about 0.23 (65\% of the standard), and about 0.20
+(58\%) for the low-income group. These FGT measures show that, as the
+minimum transit accessibility levels become more demanding when moving
+from conservative to progressive standards, not only do more individuals
+fall below the threshold, but those in accessibility shortfall are, on
+average, substantially further from achieving it. They also show that
+the low-income population is, in general, located in areas with greater
+public transportation accessibility than the general population, meaning
+that low-income individuals who fall below a certain threshold are, on
+average, closer to reaching it and would need comparatively smaller
+improvements in accessibility to reach it.
+
+\subsection{Areas for priority
+intervention}\label{areas-for-priority-intervention-1}
+
+Figure \ref{fig:priority_areas} shows the priority areas for policy
+intervention for CTs with transit accessibility shortfall, based on
+their equity-weighted AFI, for each standard type. All census
+subdivisions contain CTs experiencing transit accessibility shortfall,
+independently of the type of standard. For the conservative standard,
+only 35\% of the CTs (516 out of the 1,489 CTs in the study area)
+present transit accessibility levels above the shortfall limit, with
+most of them (83\%) located in the City of Toronto. This share of CTs
+without an accessibility shortfall decreases to less than 10\% for the
+intermediate equity standard (136 CTs). Only one CT, located in Toronto,
+does not present an accessibility shortfall when evaluated under the
+progressive standard. This unique CT corresponds to the area surrounding
+the St.~George Subway Station in Downtown Toronto, connected to the two
+subway lines that cross the city and link neighbouring municipalities,
+running from north to south and from east to west. This CT is bounded by
+Spadina Avenue to the west and Bloor Street to the south, with many
+connections to the public transit system, including a streetcar line on
+Spadina.
+
+In terms of areas for policy intervention, by the conservative standard,
+Hamilton has both the largest low-income population living in very
+high-priority areas (44,170 people) and the highest proportion of its
+low-income population impacted (73\%, or 8\% of the city's residents),
+followed by Toronto (23,295 people, although they represent only 6\% of
+its low-income population and less than 1\% of the city's residents) and
+Brampton (13,315 people, 32\% of its low-income population and 2\% of
+the city's residents). Considering only the proportion of the low-income
+population, Milton (63\%) and Oshawa (55\%) also stand out, despite
+their smaller absolute numbers (4,880 and 9,835 people, respectively).
+
+According to the progressive standard, Toronto and Hamilton again have
+the largest low-income populations in very high-priority areas, with
+about 57\% of each subdivision's low-income population living in areas
+with accessibility gap, followed by Mississauga, with just over 31,000
+low-income people (47\% of its low-income population), and Richmond Hill
+(39\%). This difference occurs because the priority areas are defined
+based on their equity-weighted AFI position in the quantile
+classification for the entire study area, and as additional CTs are
+included under more rigorous standards, the AFI distribution also
+shifts. A list of the total number of people living in each priority
+area, by equity standard and subdivision, is available as supplementary
+material.
+
+\begin{figure}
+\includegraphics[width=1\linewidth]{figures/geographical_priorities_LIMAT} \caption{Priority areas for policy intervention by type of equity standard.}\label{fig:priority_areas}
+\end{figure}
+
+\section{Critical analysis and
+limitations}\label{critical-analysis-and-limitations}
+
+In this study, we present a methodology for defining equity standards
+for transportation planning, theoretically guided by the recognition of
+accessibility as a human capability, aligned with a sufficientarian and
+egalitarian perspective on how it should be distributed. Making explicit
+the moral foundations that support our analysis is, in our view,
+important because different theories of justice lead to different
+perspectives on how policies should manage the distribution of
+transport-related benefits. In addition to a theoretical foundation,
+equity standards based on accessibility are also operationalized through
+the use of thresholds. We propose defining thresholds based on the
+estimated relationship between calculated accessibility and perceived
+accessibility and employment outcomes, and we believe that this approach
+is our most significant contribution to transportation studies, and more
+specifically to the equitable distribution of transportation benefits,
+as it makes these standards easier to communicate with policy
+practitioners and the general public. Although the study does not ensure
+full reproducibility, since the surveys used are confidential, it does
+ensure replicability by making all code available for consultation.
+
+We selected job accessibility as our indicator to define equity
+standards for a few reasons. First, employment accessibility is widely
+recognized as a key indicator of how well a city or region serves its
+residents \citep{bania2008, owen2015, shen1998}, and as an indicator of
+the ``quality of urban living'' \citep{wachs1973, handy2020}, since
+employment provides the financial ability to support other life
+activities \citep{merlin2017}. Second, calculating accessibility
+requires the use of impedance functions, and we decided to use
+calibrated functions based on empirical data to better represent
+people's travel behaviour. Accessibility measures also require land-use
+data on both population (for competitive measures) and the number of
+opportunities. Both requirements are met by Census microdata
+specifically for employment and the labour force, which is not the case
+for other types of opportunity. Third, the NSTP survey includes
+questions on perceived job accessibility and employment outcomes
+specifically, which directly enabled our approach of linking calculated
+and perceived accessibility for this opportunity type. We believe,
+however, that our methodology can be extended to other opportunity types
+essential for a meaningful life, such as healthcare and education,
+provided that the analyst has the necessary data on hand to perform the
+analysis.
+
+Although the NSTP provides an unprecedented look at transport poverty in
+Canada, the survey does not contain a question in which the respondent
+answers objectively whether they are satisfied or not with their
+mobility experiences or overall transport conditions. Rather, the
+respondents use a continuum scale to answer their level of agreement
+with specific statements. The absence of a categorical or binary
+variable referring to satisfaction level led us to categorize the
+outcomes, in order to identify which perception category the respondent
+belongs to, varying from most negative to most positive. In fact, with
+the information we have, we cannot infer if the person is satisfied or
+not, but rather whether they are more or less satisfied in comparison to
+others. The underlying rationale for our standards proposition is to
+identify the calculated accessibility level that places the most
+disadvantaged population group within the most positive perception
+group.
+
+It is worth mentioning that other outcome categorizations or numbers of
+categories are possible. For instance, one might decide to convert the
+continuum scale to a Likert scale based on fixed intervals, classifying
+those with agreement levels from 0 to 20\%, 20 to 40\%, and so on, in
+pre-determined intervals. The problem with the fixed-interval approach
+is that the analyst is normatively defining levels of satisfaction for
+respondents that might not reflect their actual feelings. Because of
+this, we decided to categorize responses based on the perception scale
+distribution and use the sample population to evaluate those who are
+more and less satisfied.
+
+To test the sensitivity of our results to the choice of categorization
+type, we re-estimated the perception model using a fixed-interval
+categorization that does not depend on the sample's distribution,
+instead of a quintile-based categorization (classifying responses from 0
+to 20 as most positive, 20 to 40 as positive, 40 to 60 as neutral, 60 to
+80 as negative, and 80 to 100 as most negative). The results of this
+alternative model (Appendix \ref{tab:few_jobs_break_model}) are
+consistent with those of the model created using the quintile
+classification, with all coefficients that were statistically
+significant in the quintile model remaining significant in this
+alternative categorization, with matching signs and similar magnitudes
+(e.g., transit accessibility: \(\beta = 0.227\), \(p = 0.044\), compared
+to \(\beta = 0.223\), \(p = 0.044\) in our main specification; and
+active accessibility: \(\beta = -0.145\), \(p = 0.024\), compared to
+\(\beta = -0.151\), \(p = 0.024\)), suggesting that our findings are not
+an object of a specific method used to categorized our dependent
+variable.
+
+This quintile-based categorization caused, in general, the control
+variables to lose part of their predictive power when compared to linear
+regression models created using the previous continuous forms. As shown
+in Table \ref{tab:linear_models}, in general, and similarly to the
+categorical models, the accessibility estimates are consistent with our
+hypothesized causal effect. However, the control variables presented a
+better performance in explaining the outcomes in the linear regressions,
+such as in the case of the disability indicator and the ``temporary visa
+or refugee'' variable, which did not present statistical significance in
+the categorical version of perception model.
+
+An additional limitation concerns the interpretation of our ``job offer
+declined'' indicator. Agreeing or disagreeing with this question
+presupposes that the respondent had looked for a job and subsequently
+received a job offer that they declined. In this sense, individuals who
+did not look for work (including those who may have given up searching
+because they anticipated that available jobs would be inaccessible due
+to their transportation situation) would not be recorded as having
+declined an offer, regardless of the extent to which transportation
+constraints limit their employment prospects. This mechanism is
+conceptually related to the discussion of adaptive preferences: just as
+some people may adjust downward their perceptions of job scarcity in
+response to low accessibility, others may give up on the job search
+completely. Consequently, the indicator of declined job offers likely
+captures transportation-related employment disadvantage only among those
+who remain active in the labor market and may underestimate the
+prevalence of transportation disadvantage among those most severely
+excluded from employment opportunities. We cannot assess this selection
+directly using the current cross-sectional data from the NSTP, which do
+not allow us to distinguish those who are not looking for work from
+those who are actively seeking employment but have not received offers
+to decline.
+
+Regarding the relationship between perceived and calculated
+accessibility, the transit accessibility indicator was the most
+consistent with our hypothesized causal effect in the perception-based
+model, through which increasing accessibility was associated with more
+positive perceptions. Although the active accessibility indicator
+presented a slightly positive net effect for active travellers in both
+models, this effect was not sufficient to outweigh the influence of the
+other explanatory variables. As a result, the estimated active
+thresholds were excessively demanding and unrealistic from a policy
+perspective. For one model, we were unable to identify thresholds, while
+for the other, the conservative threshold was 22 times higher than the
+median accessibility level, and the progressive threshold was more than
+123 times higher than the median accessibility level. These results led
+us to propose equity standards based solely on the perception-based
+model and solely for public transit mode.
+
+Additionally, the non-significant residual terms indicate weak evidence
+of endogeneity in the calculated accessibility indicators. However, we
+do not believe that our accessibility variables are entirely exogenous
+to the perceived accessibility indicators and the employment outcomes
+analyzed, nor that the instrumental variable framework was unnecessary.
+We therefore prefer the more conservative and transparent choice of
+retaining our pre-specified identification strategy. As is generally the
+case in instrumental variable designs {[}cite{]}, our assumption that
+the instruments affect perceived accessibility and employment outcomes
+only through calculated accessibility cannot be directly tested. Even
+so, adopting an instrumental variable approach was the most suitable
+alternative for accounting for potential endogeneity given the use of
+cross-sectional surveys.
+
+Still regarding our causal diagram, our instrumental variable strategy
+was not specifically designed to address residential self-selection, and
+although it offers a degree of protection against confounding factors
+more broadly, we cannot exclude the possibility that unobserved
+commuting preferences and constraints that determine residential
+location choices are correlated with our spatial filter instruments. A
+more definitive test would require longitudinal data tracking
+individuals across their residential moves over the years, or an
+instrument based on a source of variation known to be exogenous to
+residential choice; neither of these options is available in the current
+cross-sectional NSTP data, nor in the Canadian Census.
+
+For future research, we suggest exploring additional place-based
+accessibility measures to further evaluate the relationship between
+calculated and perceived accessibility. For instance, the raw multimodal
+spatial availability indicator could be tested. This indicator reflects
+the number of jobs accessible by each transport mode, without
+standardizing by the number of people competing for those jobs. We
+decided to use multimodal spatial availability per person because we
+believe that competition matters when evaluating perceptions related to
+employment outcomes, as demonstrated by previous studies
+\citep{jin2018, merlin2017, miller2005}; and because the standardized
+version allows for comparisons across cities with different labour force
+and job opportunity sizes.
+
+Regarding the spatial unit used, the CTs, we recognize that this unit is
+not the most detailed among census geographies, being less detailed than
+dissemination areas or dissemination blocks. We decided to use CTs due
+to the large size of the study area, in order to provide a regional
+analysis rather than focus on only one city, considering this entire
+basin to calculate the accessibility indicators and select the sample.
+This choice is motivated by the recognition of commuting flows across
+municipalities, a pattern that is itself one of the parameters used by
+Statistics Canada when defining Census Metropolitan Areas. Another
+limiting factor that led us to adopt the CT level was that we could not
+estimate travel times at the dissemination area level for the entire
+study area due to the memory limitations of our computational resources.
+Despite that, the initial tests performed with a smaller study area (for
+the City of Toronto) did not show differences in terms of the sign and
+statistical significance of the accessibility coefficients between
+regressions - probably because the indicators are standardized based on
+the labour force size.
+
+Transport equity is only one step towards achieving transport justice
+\citep{karner2020}: a condition in which no person or group is
+disadvantaged by a lack of access to the opportunities they need to lead
+a dignified and healthy life. To achieve this state, it is necessary to
+transform the structures and processes that lead to the unequal
+distribution of the multiple externalities of transport across
+population groups and space. The scope of our standards is spatially
+limited, and we do not propose them as fixed or universal benchmarks
+applicable to other regions. By definition, accessibility is dependent
+on the study area's land-use and transport characteristics, and we would
+not expect or intend for our thresholds to be transferred elsewhere. We
+intend to suggest minimum levels of accessibility that could guide
+transportation planning towards a more equitable distribution of
+transportation benefits, as an earlier stage to be succeeded by a
+participatory and democratic process to collectively select the best
+standard, considering that residents and other stakeholders must be able
+to actively participate in and influence the decisions that affect their
+lives. While this is, in our perspective, the most appropriate method
+for standards definition, it is beyond the scope of this study to
+develop democratic plenaries to discuss the suggested standards.
+
+\section{Conclusions}\label{conclusions}
+
+The main objective of this study was to propose a data-driven
+methodology to define equity standards for transportation planning based
+on the relationship between calculated job accessibility and people's
+perceived accessibility and employment outcomes. The study area covers
+municipalities around the cities of Toronto and Hamilton, southern
+Ontario, Canada. To this end, we used data from the 2021 Census of
+Population and the recently released National Survey on Transport
+Poverty \citep{tiznado-aitken}, combining place-based calculated
+accessibility measures with variables at the individual level.
+
+The place-based accessibility models were created using multimodal
+spatial availability per person, considering walking and cycling (later
+combined as active transportation), public transit, and private
+vehicles. In general, our models significantly predicted perceptions
+related to how easy it is to reach work and the employment outcome
+related to declined job offers because of their transport situation. For
+the perception-related model, public transit accessibility estimates are
+consistent with our hypothesized causal effect that increasing
+calculated accessibility would reduce negative perceptions, in which one
+additional job accessible by public transit per transit user increases
+the average odds of being in a more positive perception group by 25\%
+(p-value \textless{} 0.05). Our models also showed (p-value \textless{}
+0.05) that, for active users, active accessibility has a slightly
+positive effect on individual perception, increasing their odds of being
+in a positive category. Using the perception-based model and for the
+public transit mode, we suggest equity standards based on the
+accessibility threshold that results in a higher likelihood of positive
+perceptions for people from transport-disadvantaged groups. We suggest
+three equity standards: a conservative standard (0.16 jobs reached by
+public transit per transit user), an intermediate standard (0.26), and a
+progressive standard (0.36).
+
+Our results show that most of the study area falls short of the proposed
+equity standards, regardless of their category (conservative,
+intermediate, or progressive). About 66\% of the study area population
+and 55\% of the low-income population live in areas with transit
+accessibility below the conservative standard, 91\% of the general
+population and 86\% of the low-income population live in areas below the
+intermediate standard, and almost the entire study area population lives
+below the progressive standard.
+
+Finally, we believe our study contributes to the ongoing discussion of
+equity in transportation, and that equity standards based on, or
+inspired by, our methodology can serve as a data-driven starting point
+for debate among residents and other stakeholders within a participatory
+and democratic process to collectively define the most appropriate
+standard.
+
+\section*{CRediT authorship contribution
+statement}\label{credit-authorship-contribution-statement}
+\addcontentsline{toc}{section}{CRediT authorship contribution statement}
+
+\emph{(include after the review)}
+
+\section*{Funding sources}\label{funding-sources}
+\addcontentsline{toc}{section}{Funding sources}
+
+This research was funded through the Mobilizing Justice Partnership,
+supported by the Social Sciences and Humanities Research Council of
+Canada, and through funding from the Canadian Research Data Centre
+Network via the Emerging Scholars Award.
+
+\section*{Data availability}\label{data-availability}
+\addcontentsline{toc}{section}{Data availability}
+
+We created this paper using literate programming in which the R markdown
+code to fully reproduce this article is available on our GitHub
+repository (https://github.com/dias-bruno/NSTP/).
+
+\section*{Declaration of competing
+interest}\label{declaration-of-competing-interest}
+\addcontentsline{toc}{section}{Declaration of competing interest}
+
+The authors declare no conflicts of interest.
+
+\section*{Appendix}\label{appendix}
+\addcontentsline{toc}{section}{Appendix}
+
+\renewcommand{\thetable}{A.1}
+
+\begin{table}[H]
+\centering\centering
+\caption{\label{tab:unnamed-chunk-4}\label{tab:impedance_functions}Impedance functions calibrated for the census subidvisions of the study area.}
+\centering
+\resizebox{\ifdim\width>\linewidth\linewidth\else\width\fi}{!}{
+\fontsize{9}{11}\selectfont
+\begin{threeparttable}
+\begin{tabular}[t]{lrllrrr}
+\toprule
+\multicolumn{1}{c}{\textbf{Subdivision}} & \multicolumn{1}{c}{\textbf{Census Code}} & \multicolumn{1}{c}{\textbf{Mode}} & \multicolumn{1}{c}{\textbf{Impedance function}} & \multicolumn{1}{c}{\textbf{Parameter 1*}} & \multicolumn{1}{c}{\textbf{Parameter 2*}} & \multicolumn{1}{c}{\textbf{AIC}}\\
+\midrule
+ & 3518 & Car-motor & Gamma & 1.92 & 0.07 & 1714717\\
+
+ & 3518 & Walk & Exponential & 0.09 &  & 42507\\
+
+ & 3518 & Transit & Gamma & 3.33 & 0.06 & 121000\\
+
+\multirow[t]{-4}{*}{\raggedright\arraybackslash Durham} & 3518 & Bike & Gamma & 1.89 & 0.08 & 3829\\
+\cmidrule{1-7}
+ & 3519 & Car-motor & Gamma & 2.16 & 0.08 & 2549528\\
+
+ & 3519 & Transit & Normal & 54.89 & 28.44 & 200698\\
+
+ & 3519 & Walk & Exponential & 0.09 &  & 58149\\
+
+\multirow[t]{-4}{*}{\raggedright\arraybackslash York} & 3519 & Bike & Lognormal & 2.75 & 0.81 & 8060\\
+\cmidrule{1-7}
+ & 3520 & Transit & Gamma & 3.60 & 0.08 & 1880937\\
+
+ & 3520 & Car-motor & Gamma & 2.33 & 0.09 & 3942809\\
+
+ & 3520 & Walk & Gamma & 1.33 & 0.08 & 449370\\
+
+\multirow[t]{-4}{*}{\raggedright\arraybackslash Toronto} & 3520 & Bike & Lognormal & 2.94 & 0.65 & 123658\\
+\cmidrule{1-7}
+ & 3521 & Car-motor & Gamma & 2.33 & 0.09 & 3351993\\
+
+ & 3521 & Walk & Exponential & 0.08 &  & 72360\\
+
+ & 3521 & Bike & Lognormal & 2.87 & 0.73 & 8853\\
+
+\multirow[t]{-4}{*}{\raggedright\arraybackslash Peel} & 3521 & Transit & Gamma & 3.28 & 0.06 & 468686\\
+\cmidrule{1-7}
+ & 3524 & Car-motor & Gamma & 1.92 & 0.07 & 1264978\\
+
+ & 3524 & Transit & Normal & 53.20 & 26.65 & 75851\\
+
+ & 3524 & Walk & Lognormal & 1.90 & 1.08 & 40360\\
+
+\multirow[t]{-4}{*}{\raggedright\arraybackslash Halton} & 3524 & Bike & Gamma & 1.99 & 0.11 & 6229\\
+\cmidrule{1-7}
+ & 3525 & Car-motor & Gamma & 1.85 & 0.07 & 1323879\\
+
+ & 3525 & Walk & Exponential & 0.08 &  & 61816\\
+
+ & 3525 & Transit & Gamma & 2.24 & 0.05 & 128266\\
+
+\multirow[t]{-4}{*}{\raggedright\arraybackslash Hamilton} & 3525 & Bike & Lognormal & 2.83 & 0.75 & 9830\\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+\item \textit{Note: } 
+\item For each probability distribution, Parameter 1 and Parameter 2 correspond to their standard defining parameters: the mean and standard deviation (for lognormal and normal), the rate and shape (for gamma), and the power (for exponential). The AIC represents the Akaike Information Criterion used to assess model fit.
+\end{tablenotes}
+\end{threeparttable}}
+\end{table}
+
+\renewcommand{\thetable}{A.2}
+
+\begin{table}
+
+\caption{\label{tab:unnamed-chunk-6}\label{tab:linear_models}Weighted linear regression models connecting calculated to perceived accessibility.}
+\centering
+\begin{tabular}[t]{lcccccc}
+\toprule
+\multicolumn{1}{c}{ } & \multicolumn{3}{c}{\textbf{Few jobs}} & \multicolumn{3}{c}{\textbf{Decline employment}} \\
+\cmidrule(l{3pt}r{3pt}){2-4} \cmidrule(l{3pt}r{3pt}){5-7}
+\textbf{Variable} & \textbf{Beta} & \textbf{SE} & \textbf{p-value} & \textbf{Beta} & \textbf{SE} & \textbf{p-value}\\
+\midrule
+(Intercept) & \textbf{79***} & 7.42 & <0.001 & \textbf{50***} & 9.31 & <0.001\\
+Predicted active accessibility per user & 2.1 & 3.10 & 0.5 & \textbf{13**} & 4.61 & 0.006\\
+Predicted transit accessibility per user & \textbf{-76***} & 18.2 & <0.001 & -5.1 & 26.3 & 0.8\\
+Predicted private vehicle accessibility per user & -6.6 & 5.20 & 0.2 & -9.2 & 7.05 & 0.2\\
+Number of Cars & 0.65 & 1.54 & 0.7 & 0.20 & 1.62 & >0.9\\
+\addlinespace
+Number of Bikes & -1.5 & 0.947 & 0.11 & -0.16 & 1.06 & 0.9\\
+Preferred mode match most frequent mode & -0.29 & 2.10 & 0.9 & 2.1 & 2.62 & 0.4\\
+Monthly or annual public transit pass & \textbf{5.1*} & 2.35 & 0.030 & \textbf{21***} & 3.62 & <0.001\\
+Public transit availability in the neighbourhood & \textbf{6.8*} & 3.39 & 0.045 & -5.2 & 3.22 & 0.11\\
+Indigenous or racialized person & \textbf{12***} & 2.20 & <0.001 & \textbf{14***} & 2.71 & <0.001\\
+\addlinespace
+Temporary visa or refugee & \textbf{-9.1*} & 3.86 & 0.019 & 8.8 & 5.52 & 0.11\\
+Person with disability & \textbf{6.7**} & 2.39 & 0.005 & -3.2 & 2.97 & 0.3\\
+Woman, transgender or non-binary person & 2.3 & 1.96 & 0.2 & -0.47 & 2.45 & 0.8\\
+Age & \textbf{-0.16*} & 0.081 & 0.041 & \textbf{-0.21*} & 0.089 & 0.017\\
+Household size & -1.3 & 0.653 & 0.054 & 1.4 & 0.884 & 0.12\\
+\addlinespace
+Household income & \textbf{***} &  & <0.001 & \textbf{***} &  & <0.001\\
+\hspace{1em}Less than \$40,000 & — & — &  & — & — & \\
+\hspace{1em}\$40,000 to \$80,000 & 1.7 & 2.34 &  & -1.4 & 2.95 & \\
+\hspace{1em}\$80,000 to \$120,000 & -7.5 & 2.85 &  & -9.2 & 3.57 & \\
+\hspace{1em}More than \$120,000 & -9.9 & 2.79 &  & -22 & 3.56 & \\
+\addlinespace
+Population density (people/km2) & \textbf{0.00**} & 0.000 & 0.006 & 0.00 & 0.000 & 0.4\\
+Population centre class & \textbf{**} &  & 0.008 & \textbf{***} &  & <0.001\\
+\hspace{1em}Rural & — & — &  & — & — & \\
+\hspace{1em}Small & -8.5 & 7.41 &  & 11 & 7.53 & \\
+\hspace{1em}Medium & -18 & 5.95 &  & -19 & 5.41 & \\
+\addlinespace
+\hspace{1em}Large & -1.3 & 3.86 &  & 1.2 & 4.78 & \\
+Active mode interaction: accessibility × user & \textbf{-12*} & 5.47 & 0.027 & -4.1 & 5.48 & 0.5\\
+Transit mode interaction: accessibility × user & 22 & 15.5 & 0.2 & 23 & 24.7 & 0.3\\
+\bottomrule
+\multicolumn{7}{l}{\rule{0pt}{1em}Abbreviations: CI = Confidence Interval, SE = Standard Error}\\
+\multicolumn{7}{l}{\textsuperscript{} *p<0.05; **p<0.01; ***p<0.001}\\
+\end{tabular}
+\end{table}
+
+\renewcommand{\thetable}{A.3}
+
+\begin{table}
+
+\caption{\label{tab:unnamed-chunk-8}\label{tab:few_jobs_break_model}Alternative weighted ordinal logistic regression model connecting calculated to perceived accessibility using a fixed-interval categorization for the dependent variable.}
+\centering
+\begin{tabular}[t]{lccc}
+\toprule
+\textbf{Variable} & \textbf{OR} & \textbf{SE} & \textbf{p-value}\\
+\midrule
+Active job accessibility per active traveller & \textbf{0.87*} & 0.069 & 0.041\\
+Active mode interaction: accessibility × user & 1.13 & 0.076 & 0.10\\
+Transit job accessibility per transit user & \textbf{1.30*} & 0.118 & 0.027\\
+Transit mode interaction: accessibility × user & 0.96 & 0.138 & 0.8\\
+Private vehicle accessibility per user & 0.92 & 0.099 & 0.4\\
+\addlinespace
+Number of Cars & 0.97 & 0.109 & 0.8\\
+Number of Bikes & 1.07 & 0.063 & 0.3\\
+Preferred mode match most frequent mode & 1.04 & 0.176 & 0.8\\
+Monthly or annual public transit pass & \textbf{0.68*} & 0.169 & 0.022\\
+Public transit availability in the neighbourhood & 0.75 & 0.225 & 0.2\\
+\addlinespace
+Indigenous or racialized person & \textbf{0.61**} & 0.172 & 0.004\\
+Temporary visa or refugee & 1.51 & 0.255 & 0.11\\
+Person with disability & 0.73 & 0.197 & 0.11\\
+Woman, transgender or non-binary person & 0.93 & 0.150 & 0.7\\
+Age & 1.01 & 0.006 & 0.057\\
+\addlinespace
+Household size & 1.10 & 0.054 & 0.066\\
+Household income &  &  & 0.2\\
+\hspace{1em}Less than \$40,000 & — & — & \\
+\hspace{1em}\$40,000 to \$80,000 & 0.86 & 0.181 & \\
+\hspace{1em}\$80,000 to \$120,000 & 1.28 & 0.219 & \\
+\addlinespace
+\hspace{1em}More than \$120,000 & 1.30 & 0.239 & \\
+Population density (people/km2) & \textbf{1.19*} & 0.076 & 0.023\\
+Population centre class &  &  & 0.5\\
+\hspace{1em}Rural & — & — & \\
+\hspace{1em}Small & 1.14 & 0.630 & \\
+\addlinespace
+\hspace{1em}Medium & 2.07 & 0.466 & \\
+\hspace{1em}Large & 1.16 & 0.307 & \\
+Residuals: Active acessibility & 1.09 & 0.083 & 0.3\\
+Residuals: Transit acessibility & 0.85 & 0.108 & 0.14\\
+Residuals: Private vehicle acessibility & 1.13 & 0.067 & 0.078\\
+\midrule\\
+\addlinespace
+Wald F & 2.90 &  & \\
+p‑value & <0.001 &  & \\
+AIC & 6,571 &  & \\
+BIC & 6,742 &  & \\
+\bottomrule
+\multicolumn{4}{l}{\rule{0pt}{1em}Abbreviations: CI = Confidence Interval, OR = Odds Ratio, SE = Standard Error}\\
+\multicolumn{4}{l}{\textsuperscript{} *p<0.05; **p<0.01; ***p<0.001.}\\
+\end{tabular}
+\end{table}
+
+\renewcommand\refname{References}
+\bibliography{mybibfile.bib}
+
+
+\end{document}
