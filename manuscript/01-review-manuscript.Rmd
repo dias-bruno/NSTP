@@ -188,11 +188,26 @@ reach employment opportunities within ideal commuting times. Combined, this
 results in a gap in the development and implementation of accessibility standards
 to ensure equity in transportation planning and policy.
 
-This study is guided by the following research questions: How do job accessibility indicators created based on spatial and transport data relate to perceived accessibility of employment opportunities and to self-reported employment outcomes? And could a given level of accessibility serve as a standard or goal for equitable transport planning? To answer these questions, this study has the general objective of proposing equity standards for transportation planning based on the relationship between accessibility calculated based on spatial and transport data - which we refer to hereafter as calculated accessibility - and people's perceived accessibility of job opportunities and self-reported employment outcomes, grounded in an egalitarian and sufficientarian understanding of transportation equity. From this perspective, a fair transportation system should guarantee a minimum, sufficient level of accessibility to all members of society, with this sufficient level being defined from the standpoint of those facing the greatest transportation disadvantage (Martens and Golub, 2021; Pereira and Karner, 2021).
+This study is guided by the following research questions: How do job accessibility indicators created based on spatial and transport data relate to perceived accessibility of employment opportunities and to self-reported employment outcomes? And could a given level of accessibility serve as a standard or goal for equitable transport planning? To answer these questions, this study has the general objective of proposing a methodology to define equity standards for transportation planning based on the relationship between accessibility calculated based on spatial and transport data - which we refer to hereafter as calculated accessibility - and people's perceived accessibility of job opportunities and self-reported employment outcomes, grounded in the acknowledgement of accessibility as human capability required for a dignified life, and an egalitarian and sufficientarian understanding of transportation equity. From this perspective, a fair transportation system should guarantee a minimum, sufficient level of accessibility to all members of society, with this sufficient level being defined from the standpoint of those facing the greatest transportation disadvantage (Martens and Golub, 2021; Pereira and Karner, 2021).
 
-While prior studies have examined the association between calculated and perceived accessibility, and between calculated accessibility and employment outcomes, few have used these relationships to derive accessibility thresholds as propositions towards equitable transportation planning. Our research advances the literature on the equitable distribution of transportation benefits by proposing a model-based approach to identify 
+While prior studies have examined the association between calculated and perceived accessibility 
+
+cite some cases: 
+
+, and between calculated accessibility and employment outcomes
+
+cite some cases: 
+
+, few have used these relationships to derive accessibility thresholds as propositions towards equitable transportation planning (see X and X).
+
+cite: 
+https://ideas.repec.org/p/osf/socarx/6ayvm_v1.html 
+
+https://www.sciencedirect.com/science/article/pii/S0966692326002127?via%3Dihub 
+
+Our research advances the literature on the equitable distribution of transportation benefits by proposing a model-based approach to identify 
 minimum levels of calculated accessibility associated with reduced likelihood of negative perceived accessibility and employment outcomes. This research is made possible by the release of 
-Canada's first National Survey of Transport Poverty (NSTP) [@tiznado-aitken]. Although the proposed standards are presented at the neighbourhood level, they indirectly also incorporate individual-level characteristics, since these standards are derived from individuals' self-reported perceptions and outcomes in the NSTP. In this way, 
+Canada's first National Survey of Transport Poverty (NSTP) [@tiznado-aitken]. Although the proposed standards are presented at the neighbourhood level, they indirectly also incorporate individual-level characteristics, since these standards are obtained from individuals' self-reported perceptions and outcomes in the NSTP. In this way, 
 these thresholds can assist policymakers in interpreting how different levels of
 calculated accessibility are associated with residents' perceived ability to 
 reach employment opportunities under existing social and spatial constraints. 
@@ -200,7 +215,7 @@ This increases the potential for government adoption and enhances the
 comprehensibility and relevance of such standards for community members and 
 those experiencing unequal accessibility. Furthermore, identifying sufficient 
 job accessibility levels can help assess and highlight areas at higher risk of 
-transport poverty, particularly those with a higher concentration of 
+transport poverty, particularly those with a higher presence of 
 transport disadvantage populations.
 
 In addition, to facilitate collaboration and further analysis and to ensure the 
@@ -1306,20 +1321,21 @@ In terms of the severity of transport disadvantage (FGT-1), the average gap amon
 
 ## Areas for priority intervention
 
-Figure \ref{fig:priority_areas} shows the priority areas for policy intervention for CTs with transit accessibility shortfall, based on their equity-weighted AFI, for each standard type. All census subdivisions contain CTs experiencing transit accessibility shortfall, independently of the type of standard. For the conservative standard, only 35% of the CTs (516 out of the 1,489 CTs in the study area) present transit accessibility levels above the shortfall limit, with most of them (83%) located in the City of Toronto. This share of CTs without an accessibility shortfall decreases to less than 10% for the intermediate equity standard (136 CTs). Only one CT, located in Toronto, does not present an accessibility shortfall when evaluated under the progressive standard. This unique CT corresponds to the area surrounding the St. George Subway Station in Downtown Toronto, connected to the two subway lines that cross the city and link neighbouring municipalities, running from north to south and from east to west. This CT is bounded by Spadina Avenue to the west and Bloor Street to the south, with many connections to the public transit system, including a streetcar line on Spadina.
+Figure \ref{fig:priority_areas} shows the priority areas for policy intervention for CTs with transit accessibility gap for each standard type, based on their equity-weighted AFI. All census subdivisions contain CTs experiencing transit accessibility gap, independently of the type of standard. For the conservative standard, only 35% of the CTs (516 out of the 1,489 CTs in the study area) present transit accessibility levels above the shortfall limit, with most of them (83%) located in the City of Toronto. This share of CTs without an accessibility shortfall decreases to less than 10% for the intermediate equity standard (136 CTs). Only one CT, located in Toronto, does not present an accessibility shortfall when evaluated under the progressive standard. This unique CT corresponds to the area surrounding the St. George Subway Station in Downtown Toronto, connected to the two subway lines that cross the city and link neighbouring municipalities, running from north to south and from east to west. This CT is bounded by Spadina Avenue to the west and Bloor Street to the south, with many connections to the public transit system, including a streetcar line on Spadina.
 
 In terms of areas for policy intervention, by the conservative standard, Hamilton has both the largest low-income population living in very high-priority areas (44,170 people) and the highest proportion of its low-income population impacted (73%, or 8% of the city's residents), followed by Toronto (23,295 people, although they represent only 6% of its low-income population and less than 1% of the city's residents) and Brampton (13,315 people, 32% of its low-income population and 2% of the city's residents). Considering only the proportion of the low-income population, Milton (63%) and Oshawa (55%) also stand out, despite their smaller absolute numbers (4,880 and 9,835 people, respectively).
 
 According to the progressive standard, Toronto and Hamilton again have the largest low-income populations in very high-priority areas, with about 57% of each subdivision's low-income population living in areas with accessibility gap, followed by Mississauga, with just over 31,000 low-income people (47% of its low-income population), and Richmond Hill (39%). This difference occurs because the priority areas are defined
 based on their equity-weighted AFI position in the quantile classification for the
 entire study area, and as additional CTs are included under more
-rigorous standards, the AFI distribution also shifts. A list of the total number of people living in each priority area, by equity standard and subdivision, is available as supplementary material.
-
+rigorous standards, the AFI distribution also changes. A list of the total number of low-income people living in each priority area, by equity standard and subdivision, is available as supplementary material.
 
 ```{r priority_areas, echo=FALSE, out.width="100%", fig.cap=paste0("Priority areas for policy intervention by type of equity standard.")}
 
 knitr::include_graphics(paste0(figures_diretorio,"geographical_priorities_LIMAT.jpg"))
 ```
+
+We believe that the identified priority areas can help guide future investments in public transportation services and infrastructure. If we base prioritization solely on the amount, share, and size of the low-income population living in areas with an accessibility gap, Hamilton and Toronto should potentially be prioritized in order to provide a more equitable distribution of transportation benefits. It is worth noting that the City of Hamilton is currently implementing its first Light Rail Transit (LRT) line in Downtown Hamilton, connecting the eastern and western parts of the city while also crossing Downtown, an area that concentrates a large share of the city's available jobs. Provided the city mitigates potential displacement and relocation resulting from land price increases associated with the LRT, its inclusion is likely to have a significant impact on transportation equity, since the LRT crosses the areas classified as high priority for policy intervention and with the largest concentration of low-income residents in the city.
 
 # Critical analysis and limitations
 
@@ -1380,6 +1396,12 @@ entire basin to calculate the accessibility indicators and select the
 sample. This choice is motivated by the recognition of commuting flows
 across municipalities, a pattern that is itself one of the parameters used by
 Statistics Canada when defining Census Metropolitan Areas.  Another limiting factor that led us to adopt the CT level was that we could not estimate travel times at the dissemination area level for the entire study area due to the memory limitations of our computational resources. Despite that, the initial tests performed with a smaller study area (for the City of Toronto) did not show differences in terms of the sign and statistical significance of the accessibility coefficients between regressions - probably because the indicators are standardized based on the labour force size.
+
+<!-- Also related to the calculated accessibility, the City of Toronto recently opened the new Eglinton LRT line connecting the eastern and western parts of the city while crossing its central core. This new line was inaugurated during the review period of this paper, and our study does not account for the distributive effects it might have caused on the city. For future studies in the region, we suggest using the most recent GTFS data to include this new line when calculating accessibility, in order to better represent the current state of public transit service in the study area. 
+
+maybe not include becase the NSTP had its interviews realized begore this new LRT, check with antonio
+
+-->
 
 Transport equity is only one step towards achieving transport justice
 [@karner2020]: a condition in which no person or group is disadvantaged

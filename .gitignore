@@ -13,4 +13,5 @@
 .DS_Store
 .quarto
 /manuscript/manuscript_cache/
+/manuscript/01-review-manuscript_cache/
 /manuscript/manuscript_files/
