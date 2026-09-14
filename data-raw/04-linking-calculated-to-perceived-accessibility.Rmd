@@ -1726,6 +1726,10 @@ fewjobscorr <- data.frame(Filter = filters, "FewJobs" = values)
 fewjobscorr
 ```
 
+```{r}
+car::vif(FewJobs_ordinal_3modes)
+```
+
 ## Few jobs: Likert - Categorized with fixed intervals
 
 ```{r}
@@ -1940,6 +1944,11 @@ declineemploymentcorr <- data.frame(Filter = filters, "DeclineEmployment" = valu
 
 declineemploymentcorr
 ```
+
+```{r}
+car::vif(DeclineEmployment_ordinal_3modes)
+```
+
 
 # Predicting probabilities
 
