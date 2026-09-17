@@ -4061,6 +4061,73 @@ Few jobs with pre-defined breaks:
 saveRDS(FewJobs_ordinal_3modes_breaks, paste0(diretorio_export,"FewJobs_ordinal_3modes_breaks_paper.rds"))
 ```
 
+IV test:
+
+```{r}
+saveRDS(iv_model_fj, paste0(diretorio_export,"iv_model_fj.rds"))
+saveRDS(iv_model_de, paste0(diretorio_export,"iv_model_de.rds"))
+```
+
+
+```{r}
+get_diag <- function(model, model_label){
+  fst <- model$diagnostic_first_stage_fstatistic
+  nomdf_fs <- unname(fst["nomdf"])
+  dendf_fs <- unname(fst["dendf"])
+  fst <- fst[!names(fst) %in% c("nomdf", "dendf")]
+
+  var_names <- unique(gsub(":(value|p\\.value)$", "", names(fst)))
+
+  fs_tab <- tibble(test = var_names,
+                   value = sapply(var_names, 
+                                  function(v) unname(fst[paste0(v, ":value")])),
+                   p = sapply(var_names, function(v) unname(fst[paste0(v, ":p.value")])),
+    numdf = nomdf_fs,
+    dendf = dendf_fs)
+
+  endogeneity <- model$diagnostic_endogeneity_test
+  endo_tab <- tibble(test = "Wu-Hausman",
+                     value = unname(endogeneity["value"]),
+                     p = unname(endogeneity["p.value"]),
+                     numdf = unname(endogeneity["numdf"]),
+                     dendf = unname(endogeneity["dendf"]))
+
+  bind_rows(fs_tab, endo_tab) %>%
+    mutate(model = model_label)
+}
+
+diagnostico_fj <- get_diag(iv_model_fj, "Few jobs")
+diagnostico_de <- get_diag(iv_model_de, "Declined job offers")
+
+diagnostico <- bind_rows(diagnostico_fj, diagnostico_de) %>%
+  filter(test != "Overidentifying") %>% 
+  mutate(test_clean = case_when(
+    test == "SA_pp_Active:Active_userYes" ~ "Weak instruments: active \u00d7 user",
+    test == "SA_pp_Active" ~ "Weak instruments: active accessibility",
+    test == "SA_pp_Transit:Transit_userYes" ~ "Weak instruments: transit \u00d7 user",
+    test == "SA_pp_Transit" ~ "Weak instruments: transit accessibility",
+    test == "SA_pp_Car_motor" ~ "Weak instruments: private vehicle accessibility",
+    test == "Wu-Hausman" ~ "Wu\u2013Hausman (endogeneity test)",
+    TRUE~test),
+    stars = case_when(p < .001 ~ "***",
+                      p < .01 ~ "**",
+                      p < .05 ~ "*",
+                      TRUE~ ""),
+    value_fmt = paste0(formatC(value, format = "f", digits = 2), stars),
+    p_fmt = formatC(p, format = "g", digits = 3)
+  ) %>%
+  dplyr::select(test_clean, model, value_fmt, p_fmt) %>%
+  pivot_wider(names_from = model, 
+              values_from = c(value_fmt, p_fmt),
+              names_glue = "{model}_{.value}") %>%
+  arrange(test_clean == "Wu\u2013Hausman (endogeneity test)") %>%
+  dplyr::select(test_clean, `Few jobs_value_fmt`, `Few jobs_p_fmt`,
+    `Declined job offers_value_fmt`, `Declined job offers_p_fmt`)
+
+saveRDS(diagnostico, paste0(diretorio_export,"iv_diagnostico.rds"))
+```
+
+
 ```{r}
 # complete_data_fj_pretty <- complete_data_fj %>% 
 #   mutate(FewJobs_Likert_Pretty = 

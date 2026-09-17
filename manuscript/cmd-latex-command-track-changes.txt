@@ -1,0 +1,4 @@
+latexdiff --add-to-config "PICTUREENV=(?:tabular|tabularx|longtable|xtabular)" --exclude-textcmd=cite --exclude-textcmd=citep --exclude-textcmd=citet --exclude-textcmd=parencite --exclude-textcmd=textcite --exclude-textcmd=autocite manuscript.tex 01-review-manuscript.tex > 01-review-manuscript-track-changes.tex
+
+
+pdflatex 01-review-manuscript-track-changes.tex

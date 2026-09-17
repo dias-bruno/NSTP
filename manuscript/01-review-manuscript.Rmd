@@ -29,7 +29,7 @@ address:
     city: London
     country: Canada
 abstract: |
-  The lack of standards for the equitable distribution of accessibility complicates efforts to address transport poverty. This study identifies equity standards by exploring the relationship between calculated accessibility, perceived job accessibility, and an employment outcome for individuals living in the Greater Toronto and Hamilton Area, Canada. We use calculated accessibility for three modes of travel (active transportation, public transit, and private vehicles) along individual-level variables to estimate ordinal models. To control for endogeneity we use spatial filters as instrumental variables. We estimated the effect of calculated accessibility on the perception of having too few jobs available within an ideal commuting time (a perceived accessibility indicator) and the reports of having to decline jobs because of transportation constraints (an employment outcome indicator). The results indicate that higher levels of active and transit accessibility tend to mitigate negative perceptions and outcomes regarding these situations. Based on the results of these models, we identify accessibility thresholds that reduce the likelihood of negative perceptions and outcomes for transport-disadvantaged groups. We present three equity standards that we classify as conservative, intermediate, and progressive. We believe that these standards can serve as a data-driven example of how to support transportation planning in achieving more equitable outcomes, as well as for participatory processes to collectively define minimum or sufficient accessibility levels.
+  The lack of standards for the equitable distribution of accessibility complicates efforts to address transport poverty. This study identifies equity standards by exploring the relationship between calculated accessibility, perceived job accessibility, and an employment outcome for individuals living in the Greater Toronto and Hamilton Area, Canada. We use calculated accessibility for three modes of travel (active transportation, public transit, and private vehicles) along individual-level variables to estimate ordinal models, using spatial filters as instrumental variables to account for potential confounding. We examine the association between calculated accessibility and the perception of having too few jobs available within an ideal commuting time (a perceived accessibility indicator) and the reports of having to decline jobs because of transportation constraints (an employment outcome indicator). The results indicate that higher levels of active and transit accessibility are associated with more positive perceptions and outcomes regarding these situations. Based on the results of these models, we identify accessibility thresholds that reduce the likelihood of negative perceptions and outcomes for transport-disadvantaged groups. We present three equity standards that we classify as conservative, intermediate, and progressive. We believe that these standards can serve as a data-driven example of how to support transportation planning in achieving more equitable outcomes, as well as for participatory processes to collectively define minimum or sufficient accessibility levels.
     
 keywords: 
   - benchmark
@@ -247,7 +247,7 @@ accessible through our GitHub page
 (<https://github.com/dias-bruno/NSTP/>), in alignment with best
 practices in spatial data science [@páez2021; @arribas-bel2021]. 
 
-After this introduction, we structured this article as follows: Section 2 provides a brief theoretical background on calculated and perceived accessibility, on the identified connections between calculated job accessibility and employment outcomes, and on the identification of equity standards based on accessibility. Section 3 presents the materials and methods, covering the study area and data sources, the method used to calculate accessibility, how we modelled the relationship between calculated accessibility and the dependent variables while controlling for possible endogeneity, the process used to identify equity standards, and how we measured transportation equity based on these standards, concluding with the identification of priority areas for policy intervention. Section 4 presents the results. Section 5 critically analyzes the paper and presents its limitations. Finally, Section 6 concludes with final considerations.
+After this introduction, we structured this article as follows: Section 2 provides a brief theoretical background on calculated and perceived accessibility, on the identified connections between calculated job accessibility and employment outcomes, and on the identification of equity standards based on accessibility. Section 3 presents the materials and methods, covering the study area and data sources, the method used to calculate accessibility, how we modelled the relationship between calculated accessibility and the dependent variables, the process used to identify equity standards, and how we measured transportation equity based on these standards, concluding with the identification of priority areas for policy intervention. Section 4 presents the results. Section 5 critically analyzes the paper and presents its limitations. Finally, Section 6 concludes with final considerations.
 
 # Theoretical background
 
@@ -662,33 +662,13 @@ lowest Akaike Information Criterion (AIC) value [@akaike1974]. The
 estimated impedance functions appear in Table
 \ref{tab:impedance_functions}.
 
-## Modeling the causal relationship between calculated accessibility, perceived accessibility, and employment outcomes
+## Modeling the relationship between calculated accessibility, perceived accessibility, and employment outcomes
 
 In this study, we aim to define minimum levels of calculated
 accessibility by identifying key thresholds in its relationship with
-perceived accessibility and employment outcomes. As previously
-explained, distortions between calculated accessibility and both
-perceived accessibility and employment outcomes can arise from
-individual preferences, capabilities, and attitudes, as well as from
-phenomena such as residential self-selection and adaptive preference.
-This means that the observed association between calculated and
-perceived accessibility cannot be assumed to reflect the true effect of
-accessibility on how people experience and evaluate their access to
-employment opportunities. If calculated accessibility is to be used as a
-benchmark or standard for equitable transportation planning, it is
-important to isolate its actual causal impact on perceived accessibility
-and employment outcomes, after accounting for these confounding
-mechanisms, rather than relying on a raw statistical association that
-may be inflated, offset, or masked by unobserved individual preferences
-and constraints. To address this, our approach relies on, first,
-controlling for individual-level covariates capturing demographic,
-socioeconomic, and travel-related characteristics; and second, applying
-an explicit causal framework.
-
-The underlying hypothesis of this strategy is that changes in the
-land-use and transport characteristics of a neighbourhood, captured and
+perceived accessibility and employment outcomes. The underlying hypothesis of this strategy is that changes in the land-use and transport characteristics of a neighbourhood, captured and
 represented by calculated accessibility, lead to changes in how
-residents perceived their ability to reach job opportunities and in
+residents perceives their ability to reach job opportunities and in
 their reported employment outcomes. We hypothesize that residents of
 neighbourhoods with more (calculated) accessibility are less likely to
 perceive job scarcity or to report having declined employment due to
@@ -699,26 +679,20 @@ land-use and transport conditions that, as we hypothesize, shape
 individual perceptions and outcomes.
 
 Following the steps suggested by Huntington-Klein
-[-@huntington-klein2021], we draw a causal diagram to graphically
-represent our hypothesis (Figure \ref{fig:DAG}). Causal diagrams show a
-chain of causal effects by using nodes to symbolize random variables and
-arrows to represent the causal effect between two random variables in
-the direction of the arrow [@cunningham2021causal].
+[-@huntington-klein2021], we draw a Directed Acyclic Graph (DAG) to graphically represent our hypothesis (Figure \ref{fig:DAG}). DAGs show a
+chain of hypothesized causal effects by using nodes to symbolize random variables and arrows to represent the causal effect between two random variables in the direction of the arrow [@cunningham2021causal].
 
-```{r DAG, echo=FALSE, out.width="100%", fig.cap=paste0("Causal diagram of calculated accessibility on perceived accessibility.")}
+```{r DAG, echo=FALSE, out.width="100%", fig.cap=paste0("Directed acyclic graph (DAG) of calculated accessibility on perceived accessibility.")}
 
 knitr::include_graphics(paste0(figures_diretorio,"/DAG.png"))
 ```
 
-We hypothesize that there is a direct effect of calculated job
-accessibility on perceived accessibility and on employment outcomes.
+We hypothesize that there is a association between calculated job
+accessibility, perceived accessibility, employment outcomes.
 However, there are other ways in which they are connected, represented
 by the other nodes of the diagram. First, there are mediator components
-that influence the way a person perceives calculated accessibility. In
-our study, we use place-based measures to calculate accessibility, so
-that these indicators represent land-use and transport characteristics
-at the neighbourhood level (CT). However, each individual will perceive
-these neighbourhood characteristics differently based on their
+that influence the way a person perceives, or make use of, calculated accessibility. 
+Each individual perceives the same neighbourhood characteristics differently based on their
 capabilities and preferences, as well as their travel options and
 experiences. For instance, a person with a disability that prevents or
 makes it difficult for them to walk or cycle will probably not enjoy the
@@ -729,71 +703,21 @@ monthly transit pass might take less public transit than someone with a
 transit pass, therefore reducing their potential for spatial interaction
 promoted by higher public transit accessibility.
 
-In the causal diagram, the accessibility of a neighbourhood is caused by
-urban characteristics, such as land use and transportation
-infrastructure. In addition, place of residence, and consequently their
-neighbourhood accessibility, is affected (caused) by socioeconomic
+In addition, place of residence, and consequently an individual's neighbourhood accessibility, is also influenced by socioeconomic
 factors, with household income as the main driver of this decision, and
 also by demographic characteristics (such as gender, race, citizenship,
 among others). These socioeconomic and demographic factors not only
-determine where someone will live, but also shape how individuals
+influence where someone will live, but also shape how individuals
 experience travel and, consequently, make use of their neighbourhood
 accessibility.
 
-However, it is also worth mentioning that socioeconomic and demographic
-factors and the urban landscape of the place of residence are also
-linked through a common cause ($U_1$) that we cannot measure or properly
-define as a variable causing both. For instance, someone's neighbourhood
-and their income level are probably related to generational wealth, a
-variable that cannot be obtained from the surveys. In addition, there
-must exist other factors, unknown or not translated into measurable
-variables, such as residential self-selection and adaptive preference,
-that probably affect both calculated and perceived accessibility
-($U_2$).
+However, socioeconomic and demographic factors and the urban landscape of the 
+place of residence are also linked through a common cause ($U_1$) that we cannot measure directly, such as generational wealth, which likely influences both someone's neighbourhood and their income level.
+Other unmeasured factors, such as residential self-selection and adaptive preference, likely affect calculated accessibility, perceived accessibility, and employment outcomes ($U_2$). 
 
-From a causal diagram, we can identify all paths through which we can go
-from one node (a variable) to another using the arrows connecting them,
-with particular importance given to those paths connecting the treatment
-to the outcome. Paths in which all arrows point away from the treatment
-are front-door paths [@cunningham2021causal; @huntington-klein2021];
-whereas paths that point towards the treatment are back-door paths. To
-identify the effect of the treatment on the outcome, we need to control
-for at least one variable in the back-door paths (hold this variable
-constant and unchanged), in a process that closes these biasing paths,
-while not controlling for at least one front-door path
-[@huntington-klein2021]. In this study, we employ regressions to
-estimate the relationship between treatment and outcome, controlling for
-all other measurable variables.
+Because other paths link calculated accessibility to perceived accessibility and employment outcomes, the observed association between them cannot be assumed to reflect the true effect of accessibility on how people experience and evaluate their access to employment opportunities. If calculated accessibility is to be used as a benchmark or standard for equitable transportation planning, we believe it is important to apply methods that aim to isolate its association with perceived accessibility and employment outcomes, after accounting for these confounding mechanisms, instead of relying on a raw statistical association that may be inflated, offset, or masked by unobserved individual preferences and constraints. Our approach relies on, first, controlling for individual-level covariates capturing demographic, socioeconomic, and travel-related characteristics; and second, applying a framework using instrumental variables.
 
-To model the causal diagram from Figure \ref{fig:DAG}, we use weighted
-regressions that combine multimodal spatial availability per person with
-variables at the individual and household levels from the NSTP.
-Considering respondent weights, we transformed the dependent variables
-into an ordered Likert scale based on their quintile position,
-categorizing them as: "Most Negative", "Negative", "Neutral",
-"Positive", and "Most Positive". The thresholds used for this
-categorization are presented in Table \ref{tab:outcomes_quintiles}.
-
-```{r outcomes-quintiles}
-quintales <- read.csv(paste0(standards_measures_diretorio,"outcomes_quantile.csv")) %>% 
-  filter(variable %in% c("FewJobs", "DeclineEmployment")) %>%
-  mutate(Outcome = case_when(variable == "FewJobs" ~ "Few jobs available in my ideal commuting time", 
-                             variable == "TravelTooLong" ~ "Travel too long to reach work", 
-                             variable == "EasyToGo" ~ "Easy to reach work", 
-                             variable == "DeclineEmployment" ~ "Declined employment opportunities because of my transport situation")) %>% 
-  dplyr::select(-c(variable,`X0.`)) %>% relocate(Outcome) %>% 
-  kable(format = "latex", 
-        booktabs = TRUE, 
-        longtable = FALSE,
-        caption = "\\label{tab:outcomes_quintiles}Quintile thresholds used to categorize dependent variables.", align = NULL,
-    col.names = c("Outcome","20%","40%","60%","80%","100%")) %>%
-    kable_styling(full_width = FALSE, font_size = 10)
-
-quintales
-```
-
-Based on the causal diagram and on our literature review, we selected
-the following variables to represent each node:
+Guided by the diagram and the supporting literature, we identified control variables corresponding to each node, following standard causal-diagram identification methods [@cunningham2021causal; @huntington-klein2021]. We selected the following variables:
 
 -   Calculated accessibility (treatment): multimodal spatial
     availability per person by transportation mode.
@@ -818,9 +742,33 @@ the following variables to represent each node:
     large urban population centre) and population density (dissemination
     area level), obtained from Census.
 
+We use weighted regressions that combine multimodal spatial availability per person with variables at the individual and household levels from the NSTP.
+Considering respondent weights, we transformed the dependent variables
+into an ordered Likert scale based on their quintile position,
+categorizing them as: "Most Negative", "Negative", "Neutral",
+"Positive", and "Most Positive". The thresholds used for this
+categorization are presented in Table \ref{tab:outcomes_quintiles}.
+
+```{r outcomes-quintiles}
+quintales <- read.csv(paste0(standards_measures_diretorio,"outcomes_quantile.csv")) %>% 
+  filter(variable %in% c("FewJobs", "DeclineEmployment")) %>%
+  mutate(Outcome = case_when(variable == "FewJobs" ~ "Few jobs available in my ideal commuting time", 
+                             variable == "TravelTooLong" ~ "Travel too long to reach work", 
+                             variable == "EasyToGo" ~ "Easy to reach work", 
+                             variable == "DeclineEmployment" ~ "Declined employment opportunities because of my transport situation")) %>% 
+  dplyr::select(-c(variable,`X0.`)) %>% relocate(Outcome) %>% 
+  kable(format = "latex", 
+        booktabs = TRUE, 
+        longtable = FALSE,
+        caption = "\\label{tab:outcomes_quintiles}Quintile thresholds used to categorize dependent variables.", align = NULL,
+    col.names = c("Outcome","20%","40%","60%","80%","100%")) %>%
+    kable_styling(full_width = FALSE, font_size = 10)
+
+quintales
+```
+
 Considering that the outcome is an ordinal categorical variable, we used
-weighted ordinal logistic regressions [@lumley2011] to model the effect
-of the calculated accessibility indicators on the perception categories,
+weighted ordinal logistic regressions [@lumley2011] to model the relationship between the calculated accessibility indicators and the categories of the dependent variables,
 using Equation \ref{eq:ordinal-logit}:
 
 \begin{equation}
@@ -866,9 +814,9 @@ label_list <- list(SA_pp_Active = "Active job accessibility per active traveller
               pc_class = "Population centre class",
               TransitAvailable = "Public transit availability in the neighbourhood", 
               TransitPass = "Monthly or annual public transit pass", 
-              SA_pp_Active_Res_IV = "Residuals: Active acessibility",
-              SA_pp_Transit_Res_IV = "Residuals: Transit acessibility",
-              SA_pp_Car_Res_IV = "Residuals: Private vehicle acessibility",
+              SA_pp_Active_Res_IV = "Residuals: Active accessibility",
+              SA_pp_Transit_Res_IV = "Residuals: Transit accessibility",
+              SA_pp_Car_Res_IV = "Residuals: Private vehicle accessibility",
               `SA_pp_Active:Active_user` = "Active mode interaction: accessibility × user", 
               `SA_pp_Active_IV:Active_user` = "Active mode interaction: accessibility × user", 
               `SA_pp_Transit_IV:Transit_user` = "Transit mode interaction: accessibility × user",
@@ -936,18 +884,11 @@ regression models and their descriptive statistics for the NSTP sample
 variables, and weighted count and percentage for categorical variables,
 created using the {gtsummary} `R` package [@gtsummary]).
 
-### Controlling for endogeneity
+### Instrumental variables  
 
-The presence of $U_2$ in our causal diagram implies the possibility of
-bias caused by omitted variables, in which unobserved factors
-simultaneously affect both calculated and perceived accessibility.
-Omitted variable bias is the source of endogeneity, which occurs when an
-independent variable correlates with the regression error term and
-compromises the consistency of the estimators [@antonakis2010;
-@cunningham2021causal; @huntington-klein2021]. In this study, we address
-the potential endogeneity by applying an instrumental variable (IV)
-technique. An instrumental variable $Z$ must be correlated with the
-outcome only through accessibility. Examples of instrumental variables
+The presence of $U_2$ in our DAG implies the possibility of
+bias caused by omitted variables that simultaneously affect calculated accessibility, perceived accessibility, and employment outcomes - a source of endogeneity that compromises the consistency of the estimators [@antonakis2010; @cunningham2021causal; @huntington-klein2021]. We address this using an instrumental variable (IV) technique, where an instrument $Z$ must be correlated with the
+outcome only through calculated accessibility. Examples of instrumental variables
 used in studies analyzing the relationship between employment outcomes
 and job accessibility include Euclidean distance from the spatial unit
 centroid to the nearest major road or employment subcenter
@@ -956,22 +897,11 @@ transit accessibility and car unavailability [@johnson2017], distance to
 rivers [@duarte2023; @luz2022], and population density
 [@bastiaanssen2021; @bastiaanssen2025].
 
-However, two challenges arise in the search for relevant instruments: i)
-the likelihood that the instruments and error terms are correlated
-increases as the correlation between the endogenous variable and the
-instruments becomes stronger, which can render the instruments invalid;
-and ii) instruments that are only weakly correlated with the endogenous
-variable may be ineffective and perform poorly. In response to these
-challenges, Le Gallo and Páez [-@legallo2013] developed an approach that
+Two challenges arise in the search for relevant instruments: the likelihood of correlation between instruments and the error term increases with the strength of their correlation with the endogenous variable, while instruments only weakly correlated with the endogenous variable tend to perform poorly. Le Gallo and Páez [-@legallo2013] developed an approach that
 relies on the use of synthetic instruments derived from the spatial
 configuration of the data [see @getis_comparative_2002;
-@griffith_spatial_2003]. Synthetic variables generated via spatial
-filtering ensure high correlation with the treatment while remaining
-exogenous to the oucome.
-
-Following the methodological approach of Le Gallo and Páez
-[-@legallo2013] to create spatial filters for the accessibility
-variables:
+@griffith_spatial_2003], which ensures high correlation with the treatment while, potentially, remaining
+exogenous to the outcome. Following this approach:
 
 1.  We built a queen-contiguity matrix for the census tracts to
     represent spatial weights, expressing the existence of a
@@ -985,34 +915,27 @@ variables:
     linearly regressed each accessibility indicator (the independent
     variable) on each eigenvector and $S$. If the eigenvector
     coefficient was significant (adopting a p-value $\leq$ 0.05), we
-    multiplied the eigenvector by its coefficient and added it to value
+    multiplied the eigenvector by its coefficient and added it to the value
     of $S$. After this process, $S$ represents the spatial filter
     associated with the accessibility indicator.
 
 All spatial filters presented a Pearson correlation above 0.88 with
 their respective accessibility measures and absolute correlations lower
 than 0.15 with the original perception dependent variables (before
-transforming them into categorical variables). These results suggest
-that the spatial filters are strongly correlated with the endogenous
-accessibility variables while remaining weakly associated with the
-outcome, which is consistent with the relevance and exclusion conditions
-required for valid instrumental variables. In addition, we performed the
-Wald test to evaluate the null hypothesis of weak instruments and
-insufficient explanatory power to predict our endogenous variables.
+transforming them into categorical variables), consistent with the relevance and exclusion conditions required for valid instruments. In addition, we performed Wald tests to evaluate the null hypothesis of weak instruments and insufficient explanatory power to predict calculated accessibility, and Wu-Hausman tests to assess whether the accessibility indicators are endogenous. We report both diagnostics for the categorical models and, as a robustness check, for linear models estimated on the original continuous dependent variables (Appendix \ref{tab:iv-diagnostics}).
 
 Since our dependent variables are not linear, the popular technique of
 replacing endogenous variables by their first-stage predictors
-(two-stage least square estimation) is not appropriate - the so-called
+(two-stage least squares estimation) is not appropriate - the so-called
 "forbidden regression" in econometrics [@wooldridge2010;
 @cunningham2021causal; @huntington-klein2021]. Therefore, we applied the
 two-stage residual inclusion (2SRI) approach [@terza2008], in which, in
-the first stage, we estimated the accessibility measures using a linear
+the first stage, we estimated the accessibility indicators using a linear
 regression including all control variables plus spatial filters (our
 instrumental variables). Next, in the second-stage, the dependent
 variables were estimated using the accessibility measures, the control
-variables, and the residuals from the first-stage regressions. In both
-stages, the respondent weights were considered to perform the
-regressions. In this approach, we use the regular treatment to predict
+variables, and the residuals from the first-stage regressions. Both
+stages used respondent weights. In this approach, we use the regular treatment to predict
 the outcome, but also control for the unexplained part of the treatment.
 
 ## Identifying equity standards
@@ -1175,18 +1098,7 @@ reach, which is approximately one job per commuter on average.
 
 ## The effect of calculated accessibility on perceived accessibility
 
-Table \ref{tab:models} presents the two probability models linking
-calculated to perceived accessibility and employment outcome. We reject the null hypothesis of
-weak instruments and insufficient explanatory power to predict our
-endogenous variables (calculated accessibility indicators) based on Wald
-tests, given that all of the F-statistics are much higher than the
-Stock–Yogo critical values and are statistically significant (p-value \<
-0.05). However, the first-stage residuals were non-significant in the
-second-stage regressions, suggesting that there is little evidence of
-endogeneity in the calculated accessibility indicators, and that
-standard regressions (without the IV approach) could also have been
-appropriate. Despite that, we decided to continue our analysis using the
-models that account for potential endogeneity.
+Table \ref{tab:models} presents the two probability models linking calculated accessibility to perceived accessibility and employment outcome. Based on Wald tests, we reject the null hypothesis of weak instruments and insufficient explanatory power to predict our endogenous variables (the calculated accessibility indicators), as all F-statistics are well above the Stock–Yogo critical values and statistically significant (p-value < 0.05). In the categorical models, the first-stage residuals were non-significant in the second-stage regressions, suggesting little evidence of endogeneity in the calculated accessibility indicators, and that standard regressions without the IV approach could also have been appropriate. However, a Wu-Hausman test on the linear (continuous) version of the employment-outcome model does detect endogeneity (p = 0.019; Appendix \ref{tab:iv-diagnostics}), suggesting that the categorical model's failure to detect it may reflect a loss of statistical power from quintile-categorization rather than genuine exogeneity. Given this, we retained the IV framework throughout our analysis rather than reverting to standard regressions.
 
 ```{r}
 vars_model <- c("SA_pp_Active","SA_pp_Active:Active_user", "SA_pp_Transit", "SA_pp_Transit:Transit_user", "SA_pp_Car_motor", 
@@ -1477,7 +1389,7 @@ that public transportation accessibility is irrelevant to the advantaged
 group's ability to reach employment. Instead, it demonstrates that the
 predicted probability of a positive perception for this profile is
 determined primarily by its other characteristics, such as higher household income and not being a racialized person, so that variation in accessibility has
-little additional effect. This is consistent with our causal diagram,
+little additional effect. This is consistent with our DAG,
 which shows that individual resources mediate the relationship between calculated accessibility, perceived accessibility, and
 employment outcomes, such that the more advantaged group has a
 greater ability to overcome low spatial accessibility through other
@@ -1527,7 +1439,7 @@ greater influence on the estimated probabilities of belonging to a more
 positive perception group. Based on both models, the high active
 accessibility thresholds help illustrate the limitations of potential
 policies focused only on increasing active accessibility to promote
-a positive perception and employment outcome: an approach that intervene only in the spatial
+a positive perception and employment outcome: an approach that intervenes only in the spatial
 dimension of accessibility, without considering the capacities and
 travel preferences of the population, would likely result in limited
 impact on residents' perceived accessibility and employment outcome.
@@ -1545,7 +1457,7 @@ profile, it might lead to the conclusion that the current accessibility
 state is already sufficient and that no intervention or improvement is
 required. Alternatively, transport-disadvantaged groups might still hold
 negative perceptions depending on whether the threshold based on the most common
-population is selected. Therefore, the only way to ensure that transport-disadvantaged groups have a better chance of experience positive
+population is selected. Therefore, the only way to ensure that transport-disadvantaged groups have a better chance of experiencing positive
 perceptions and employment outcomes is to define minimum accessibility levels based on the
 controls tailored to these populations, setting socioeconomic and
 transportation parameters that represent them, thereby adopting a truly
@@ -1785,18 +1697,7 @@ median accessibility level, and the progressive threshold was more than
 us to propose equity standards, exclusively, based on the perception-based
 model and for public transit mode.
 
-Additionally, the non-significant residual terms indicate weak evidence
-of endogeneity in the calculated accessibility indicators. However, we
-do not believe that our accessibility variables are entirely exogenous
-to the perceived accessibility indicators and the outcomes
-analyzed, nor that the instrumental variable framework was unnecessary.
-We therefore prefer the more conservative and transparent choice of
-retaining our pre-specified identification strategy. As is generally the
-case in instrumental variable designs [@cunningham2021causal;
-@huntington-klein2021], our assumption that the instruments affect
-perceived accessibility and employment outcome only through calculated
-accessibility cannot be directly tested. Even so, adopting an
-instrumental variable approach was the most suitable alternative for
+Additionally, the non-significant residuals in the categorical models indicate weak evidence of endogeneity in the calculated accessibility indicators. However, a Wu-Hausman test on the linear (continuous) version of the employment-outcome model did detect significant endogeneity (p = 0.019; Appendix \ref{tab:iv-diagnostics}), suggesting that the categorical models' failure to detect it may instead reflect a loss of statistical power from quintile-binning the dependent variables. This result reinforces our view that the accessibility variables are unlikely to be entirely exogenous to the perceived accessibility indicators and the outcomes analyzed, and that the instrumental variable framework remains necessary. As is generally the case in instrumental variable designs [@cunningham2021causal;@huntington-klein2021], our assumption that the instruments affect perceived accessibility and employment outcome only through calculated accessibility cannot be directly tested. Even so, adopting an instrumental variable approach was the most suitable alternative for
 accounting for potential endogeneity given the use of cross-sectional
 surveys.
 
@@ -1879,7 +1780,7 @@ perceived accessibility and an employment outcome. The study area covers
 municipalities around the cities of Toronto and Hamilton, in southern
 Ontario, Canada. To this end, we used data from the 2021 Census of
 Population and the recently released National Survey on Transport
-Poverty [@tiznado-aitken], combining place-based calculated
+Poverty [@tiznado-aitken], combining (place-based) calculated
 accessibility measures with variables at the individual level. We believe our approach is distinguished from other studies by translating estimated associations between calculated accessibility, perceived accessibility, and an employment outcome into planning thresholds and by proposing thresholds based on accessibility calculated from spatial land-use and transport data and validating them against how accessibility is actually experienced by residents.
 
 Calculated accessibility models were created using multimodal
@@ -1988,6 +1889,32 @@ impedance_functions <- read.csv(paste0(here(), "/manuscript/tables/impedance_fun
 impedance_functions
 ```
 
+\renewcommand{\thetable}{A.2}
+
+```{r}
+diagnostico <- readRDS(paste0(standards_measures_diretorio,"iv_diagnostico.rds"))
+
+diagnostico_latex <- diagnostico %>%
+  kbl(format = "latex",
+    booktabs = TRUE,
+    col.names = c("Diagnostic test",
+                  "F-statistic","p-value",
+                  "F-statistic","p-value"),
+    caption = "\\label{tab:iv-diagnostics}Instrument relevance (weak-instrument F-tests) and endogeneity (Wu--Hausman) diagnostics for linear (2SLS) models estimated on the original continuous dependent variables.",
+    align = c("l", "r", "r", "r", "r"),
+    escape = FALSE) %>%
+  add_header_above(c(" " = 1, "Few jobs" = 2, 
+                     "Declined job offers" = 2)) %>%
+    kableExtra::add_footnote("*p<0.05; **p<0.01; ***p<0.001", escape = FALSE, notation = "none")  %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+```{r}
+diagnostico_latex
+```
+
+\renewcommand{\thetable}{A.3}
+
 ```{r}
 # Linear Models
 few_jobs_linear_model <- readRDS(paste0(standards_measures_diretorio,"few_jobs_linear.rds"))
@@ -2025,7 +1952,6 @@ de_linear_model_table <- decline_employment_linear_model %>%
     rows = significant == TRUE,
     text_format = "bold")
 
-
 combined_table_linear <- tbl_merge(tbls = list(fj_linear_model_table, de_linear_model_table),
     tab_spanner = c("**Few jobs**", "**Decline employment**"))
 
@@ -2034,13 +1960,11 @@ combined_table_for_printing_linear <- combined_table_linear |>
   kableExtra::add_footnote("*p<0.05; **p<0.01; ***p<0.001", escape = FALSE, notation = "none")
 ```
 
-\renewcommand{\thetable}{A.2}
-
 ```{r}
 combined_table_for_printing_linear
 ```
 
-\renewcommand{\thetable}{A.3}
+\renewcommand{\thetable}{A.4}
 
 ```{r}
 vars_model <- c("SA_pp_Active","SA_pp_Active:Active_user", "SA_pp_Transit", "SA_pp_Transit:Transit_user", "SA_pp_Car_motor", 
