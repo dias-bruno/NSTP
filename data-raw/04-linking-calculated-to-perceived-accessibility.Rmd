@@ -2419,7 +2419,7 @@ AME_transit_fj <- ggplot(fj_ame_transit_df) +
   scale_y_continuous(labels = scales::percent) + 
   labs(x = "Public transit accessibility per transit user",
        y = "Predicted probability",
-       color = "Perception group", fill = "Perception group",
+       color = "Response category", fill = "Response category",
        title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 70)) +
 theme_minimal() +
 #facet_wrap(~y, ncol = 3)  +
@@ -2448,7 +2448,7 @@ AME_transit_fj_v2 <- ggplot(fj_ame_transit_df) +
   scale_y_continuous(labels = scales::percent) + 
   labs(x = "Public transit accessibility per transit user",
        y = "Predicted probability",
-       color = "Perception group", fill = "Perception group",
+       color = "Response category", fill = "Response category",
        title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 70)) +
 theme_minimal() +
 facet_wrap(~y, ncol = 5)  +
@@ -2491,7 +2491,7 @@ label = paste0("Max: ", round(max_sa_transit,2)),
 angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333") +
 labs(x = "Number of jobs reached by public transit per person",
 y = "Predicted probability",
-color = "Perception group",
+color = "Response category",
 title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 70)) +
 coord_cartesian(
    ylim = c(0, ymax),
@@ -2590,7 +2590,7 @@ label = paste0("Max: ", round(max_sa_active,2)),
 angle = 90, hjust = 1, vjust = -0.5, size = 3, color = "#333333") +
 labs(x = "Number of jobs reached by active mode per person",
 y = "Predicted probability",
-color = "Perception group",
+color = "Response category",
 title = NULL) +
 # coord_cartesian(
 #    ylim = c(0, ymax_active),
@@ -2773,7 +2773,7 @@ angle = 90, hjust = 1, vjust = -0.5, size = 3,
 color = "#333333", fontface = "bold") +
 labs(x = "Number of jobs reached by public transit per person",
 y = paste0("Probability: ", priority_group_name),
-color = "Perception Group", fill = "Perception Group",
+color = "Response category", fill = "Response category",
 title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 65)) +
 coord_cartesian(#ylim = c(0, 100),
 xlim = c(0, 1.10 * max_sa_transit )) +
@@ -2827,7 +2827,7 @@ angle = 90, hjust = 1, vjust = -0.5, size = 3,
 color = "#333333", fontface = "bold") +
 labs(x = "Number of jobs reached by public transit per person",
 y = paste0("Probability: ", non_priority_group_name),
-color = "Perception Group", fill = "Perception Group",
+color = "Response category", fill = "Response category",
 title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 65)) +
 coord_cartesian(#ylim = c(0, 100),
 xlim = c(0, 1.10 * max_sa_transit )) +
@@ -2881,7 +2881,7 @@ angle = 90, hjust = 1, vjust = -0.5, size = 3,
 color = "#333333", fontface = "bold") +
 labs(x = "Number of jobs reached by public transit per person",
 y = paste0("Probability: ", majority_group_name),
-color = "Perception Group", fill = "Perception Group",
+color = "Response category", fill = "Response category",
 title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 65)) +
 coord_cartesian(#ylim = c(0, 100),
 xlim = c(0, 1.10 * max_sa_transit )) +
@@ -2937,7 +2937,7 @@ geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
    
    labs(x = "Number of jobs reached by public transit per transit user",
         y = "Probability",
-        color = "Perception Group", fill = "Perception Group", 
+        color = "Response category", fill = "Response category", 
         title = str_wrap("\"There are too few jobs available for me in my ideal commuting time\"", width = 65)) +
    coord_cartesian(xlim = c(0, 1.10 * max_sa_transit)) +
    theme_minimal() + 
@@ -3001,7 +3001,7 @@ geom_area(alpha = 0.35, position = "stack", linewidth = 0) +
    
    labs(x = "Number of jobs reached by public transit per transit user",
         y = "Probability",
-        color = "Perception Group", fill = "Perception Group", 
+        color = "Response category", fill = "Response category", 
         title = NULL) +
    coord_cartesian(xlim = c(0, 1.10 * max_sa_transit)) +
    theme_minimal() + 
@@ -3064,7 +3064,7 @@ probabilities_ordinal_thresholds_area_active <- predict_subset_standads_active %
             color = "#333333", fontface = "bold") + 
   labs(x = "Number of jobs reached by active mode per active traveller",
        y = "Probability",
-       color = "Perception Group", fill = "Perception Group", 
+       color = "Response category", fill = "Response category", 
        title = NULL) +  
   theme_minimal() + 
   scale_y_continuous(position = "right") +  
@@ -3491,6 +3491,59 @@ tmap_save(priority_plot,
           dpi = 500)
 
 knitr::include_graphics(paste0(diretorio_export_images,"/geographical_priorities_LIMAT.jpg"))
+```
+
+Absolute gap: 
+
+```{r}
+priority_geo_areas_gap <- priority_geo_areas %>% 
+  pivot_longer(cols = c("range_cons", "range_prog", "range_inte"),
+               names_to = c("Gap"), 
+               values_to  ="Gap_value") %>%
+  mutate(Gap_value = Gap_value * (-1), 
+         Gap = case_when(Gap == 'range_cons' ~ "Conservative", 
+                   Gap == 'range_prog' ~ "Progressive", 
+                   Gap == 'range_inte' ~ "Intermediate"), 
+         Gap = factor(Gap, levels = c("Conservative",
+                                      "Intermediate", 
+                                      "Progressive"))) %>% 
+  dplyr::select("CTUID", "SA_pp_Transit",
+                "Weighted_Pop", 
+                "LIMAT", "Gap", "Gap_value") %>%
+  full_join(census_tracts %>% 
+              dplyr::select(CTUID, "CSDNAME", geometry), 
+            by = c("CTUID" = "CTUID")) %>%
+  distinct(.keep_all = TRUE) %>% 
+  st_as_sf(crs = st_crs(census_tracts)) 
+
+gap_plot <- tm_shape(priority_geo_areas_gap) +
+  tm_polygons(fill = "Gap_value", col = NULL,  
+              fill.scale = tm_scale_continuous(values = "brewer.rd_yl_gn", 
+                                               midpoint = 0),
+              fill.legend = tm_legend(title = "Objective accessibility minus threshold",
+                                      position = tm_pos_out("center", "bottom"), orientation = "landscape", na.show = FALSE)) +
+  tm_facets_wrap(by = "Gap", ncol = 3, drop.empty.facets = TRUE, 
+                drop.NA.facets = TRUE) +
+  tm_shape(census_subdivisions) +
+  tm_borders(col = "black", lwd = 0.75) +
+  tm_compass(position = c("left", "top"), size = 0.8) + 
+  tm_scalebar(position = c("Right", "Bottom"), breaks = c(0, 15, 30))
+
+tmap_save(gap_plot,
+          paste0(diretorio_export_images,"accessibility_gap.jpg"), 
+          width = 17, 
+          height= 8, 
+          units = "cm", 
+          dpi = 500)
+
+tmap_save(gap_plot, 
+          paste0(here(),"/manuscript/figures/accessibility_gap.jpg"), 
+          width = 17, 
+          height= 8, 
+          units = "cm", 
+          dpi = 500)
+
+knitr::include_graphics(paste0(diretorio_export_images,"/accessibility_gap.jpg"))
 ```
 
 
@@ -4032,6 +4085,42 @@ summary_pcsd_standards %>%
 write.csv(summary_pcsd_priority_areas, paste0(diretorio_export, "summary_pcsd_priority_areas.csv"), row.names=FALSE)
 
 write.csv(summary_pcsd_standards, paste0(diretorio_export, "summary_pcsd_standards.csv"), row.names=FALSE)
+```
+
+```{r}
+priority_geo_areas_gap$pcsd_label <- sub("\\s*\\(.*", "", priority_geo_areas_gap$CSDNAME)
+
+summary_pcsd_gaps <- priority_geo_areas_gap %>% 
+  filter(!is.na(Gap)) %>% 
+  mutate(label  = case_when(
+    Gap_value < 0 ~ "Deficit",
+    TRUE ~ "Surplus")) %>% 
+  group_by(pcsd_label, Gap, label) %>% 
+  summarise(Population = sum(Weighted_Pop, na.rm = FALSE), 
+    LIMAT = sum(LIMAT, na.rm = FALSE), 
+    CTs = n(),.groups = "drop_last") %>%
+  group_by(pcsd_label, Gap) %>%
+  mutate(Pop_percent = Population/sum(Population, na.rm = TRUE) * 100,
+         LIMAT_percent = LIMAT/sum(LIMAT, na.rm = TRUE) * 100,
+         CT_percent = CTs/sum(CTs, na.rm = TRUE)*100) %>%
+  ungroup() %>%
+  sf::st_drop_geometry()
+
+write.csv(summary_pcsd_gaps, paste0(diretorio_export, "summary_pcsd_gaps.csv"), row.names=FALSE)
+```
+
+```{r}
+general_summary_gaps <- summary_pcsd_gaps %>% 
+  group_by(Gap, label) %>% 
+  summarise(Population = sum(Population, na.rm = FALSE), 
+    LIMAT = sum(LIMAT, na.rm = FALSE), 
+    CTs = n(),.groups = "drop_last") %>%
+  group_by(Gap) %>%
+  mutate(Pop_percent = Population/sum(Population, na.rm = TRUE) * 100,
+         LIMAT_percent = LIMAT/sum(LIMAT, na.rm = TRUE) * 100,
+         CT_percent = CTs/sum(CTs, na.rm = TRUE)*100) %>%
+  ungroup() %>%
+  sf::st_drop_geometry()
 ```
 
 -   Another way to categorize the outcome
